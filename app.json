@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "ios": {
-      "bundleIdentifier": "com.akunadjvilli.mydirector.capturepoc",
+      "bundleIdentifier": "com.dykyi.mydirector.capturepoc",
       "supportsTablet": false,
       "deploymentTarget": "17.0",
       "infoPlist": {

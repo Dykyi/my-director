@@ -70,7 +70,8 @@ private enum JSONKind: String {
     switch value {
     case is [String: Any]: self = .object
     case is String: self = .string
-    case let number as NSNumber: self = CFGetTypeID(number) == CFBooleanGetTypeID() ? .boolean : .number
+    case let number as NSNumber where CFGetTypeID(number) == CFBooleanGetTypeID(): self = .boolean
+    case let number as NSNumber where number.doubleValue.isFinite: self = .number
     default: self = .other
     }
   }

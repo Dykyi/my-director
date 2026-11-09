@@ -33,6 +33,17 @@ struct SessionManifestTests {
     #expect(manifest.segments.isEmpty)
   }
 
+  @Test func openingSegmentRestartsHeartbeat() {
+    var manifest = Fixtures.manifest()
+    manifest.openSegment(index: 1, at: start)
+    manifest.recordHeartbeat(lastVideoSec: 120, at: start.addingTimeInterval(120))
+    manifest.closeSegment(index: 1, outcome: .finalized(durationSec: 121, bytes: 90_000_000), pauseReason: .phoneCall, at: start.addingTimeInterval(121))
+    let resumedAt = start.addingTimeInterval(600)
+    manifest.openSegment(index: 2, at: resumedAt)
+    #expect(manifest.heartbeatAt == resumedAt)
+    #expect(manifest.lastVideoSec == 0)
+  }
+
   @Test func failedSegmentWaitsForInspection() {
     var manifest = Fixtures.manifest()
     manifest.openSegment(index: 1, at: start)

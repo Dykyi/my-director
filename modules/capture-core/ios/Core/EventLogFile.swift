@@ -3,6 +3,7 @@ import Foundation
 final class EventLogFile {
   private static let newline = UInt8(ascii: "\n")
   private let handle: FileHandle
+  private let encoder = JSONCoding.encoder()
 
   init(url: URL) throws {
     if !FileManager.default.fileExists(atPath: url.path(percentEncoded: false)) {
@@ -17,7 +18,7 @@ final class EventLogFile {
   }
 
   func append(_ entry: LogEntry) throws {
-    var line = try JSONCoding.encoder().encode(entry)
+    var line = try encoder.encode(entry)
     line.append(Self.newline)
     try handle.write(contentsOf: line)
   }

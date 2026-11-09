@@ -18,6 +18,14 @@ struct SnapshotTests {
     #expect(snapshot.warnings.map(\.code) == [.callDisconnected, .diskSpaceLow])
   }
 
+  @Test func warningsRaisedTogetherHaveAStableOrder() {
+    var state = SessionState()
+    let codes: [CaptureErrorCode] = [.fileWriterFailed, .fileFpsLow, .diskSpaceLow, .callDisconnected, .audioStalled]
+    state.warnings = Dictionary(uniqueKeysWithValues: codes.map { ($0, CaptureWarning(code: $0, message: "", since: Self.date)) })
+    let snapshot = SessionSnapshot(state: state, recordedSec: 0)
+    #expect(snapshot.warnings.map(\.code) == [.audioStalled, .callDisconnected, .diskSpaceLow, .fileFpsLow, .fileWriterFailed])
+  }
+
   @Test func bridgeProducesPlainDictionaries() throws {
     var state = SessionState()
     state.error = CaptureError(Failure(code: .micUnavailable, message: "busy"), at: Self.date)
@@ -53,5 +61,12 @@ struct AudioLevelTests {
   @Test func halfAmplitudeIsMinusSixDb() {
     let square = (0..<480).map { $0.isMultiple(of: 2) ? Int16(16_384) : Int16(-16_384) }
     #expect(abs(level(square) + 6.02) < 0.05)
+  }
+}
+
+struct CaptureErrorCodeTests {
+  @Test func onlyConfigurationAndPermissionProblemsAreUnrecoverable() {
+    #expect(CaptureErrorCode.allCases.filter { !$0.isRecoverable }
+      == [.permissionDenied, .configInvalid, .cameraFormatUnsupported, .recoveryUnplayable])
   }
 }

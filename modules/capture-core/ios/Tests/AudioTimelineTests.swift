@@ -61,16 +61,32 @@ struct AudioTimelineTests {
     #expect(timeline.resyncCount == 0)
   }
 
+  private func startsLosing(buffers lost: Range<Int>) -> [Double] {
+    steadyStarts(count: 3_000).enumerated().filter { !lost.contains($0.offset) }.map(\.element)
+  }
+
   @Test func lostHundredMillisecondsInsertsSilenceOnce() throws {
-    let lost = 500..<510
-    let starts = steadyStarts(count: 3_000).enumerated().filter { !lost.contains($0.offset) }.map(\.element)
-    let (timeline, steps) = run(starts: starts)
+    let (timeline, steps) = run(starts: startsLosing(buffers: 500..<510))
     #expect(timeline.resyncCount == 1)
     let corrected = try #require(steps.first { $0.placement.correction != nil })
     #expect(abs(try #require(corrected.placement.correction) - 0.1) < 0.01)
     #expect(abs(Double(corrected.placement.silenceFrames) - 4_800) <= 480)
     for step in steps.dropFirst(700) { #expect(abs(step.error) < 0.01) }
     expectMonotonic(steps)
+  }
+
+  @Test(arguments: [11, 13, 15, 30, 50])
+  func lostAudioIsCorrectedInOneStep(lostBuffers: Int) throws {
+    let (timeline, steps) = run(starts: startsLosing(buffers: 500..<(500 + lostBuffers)))
+    #expect(timeline.resyncCount == 1)
+    let correction = try #require(steps.compactMap(\.placement.correction).first)
+    #expect(abs(correction - Double(lostBuffers) * Self.bufferSec) <= 0.01)
+    expectMonotonic(steps)
+  }
+
+  @Test func singleLateBufferDoesNotResync() {
+    let (timeline, _) = run(starts: steadyStarts(count: 2_000)) { $0 == 700 ? 1 : 0 }
+    #expect(timeline.resyncCount == 0)
   }
 
   @Test func audioRunningAheadDropsFramesAcrossBuffers() {

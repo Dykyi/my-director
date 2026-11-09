@@ -35,6 +35,17 @@ struct FrameRatePacerTests {
     #expect(abs(try averageRate(sent(cameraTimes(seconds: 60, jitter: true), target: target)) - target) < 0.2)
   }
 
+  @Test(arguments: [false, true])
+  func cameraRateSendsEveryFrame(jitter: Bool) {
+    let times = cameraTimes(seconds: 60, jitter: jitter)
+    #expect(sent(times, target: Self.cameraFps) == times)
+  }
+
+  @Test func halfCameraRateSendsEverySecondFrame() {
+    let times = cameraTimes(seconds: 60)
+    #expect(sent(times, target: Self.cameraFps / 2) == stride(from: 0, to: times.count, by: 2).map { times[$0] })
+  }
+
   @Test func everySecondHoldsTwentyFourFrames() {
     let out = sent(cameraTimes(seconds: 10), target: 24)
     for second in 0..<9 {

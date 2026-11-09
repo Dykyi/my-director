@@ -72,4 +72,11 @@ struct VerificationRulesTests {
     #expect(stats.gapCount == 1)
     #expect(abs(stats.longestIntervalSec - 4.0 / 30) < 1e-9)
   }
+
+  @Test func frameStatsIgnoreDecodeOrder() {
+    let times = frameTimes(count: 301, rate: 30, droppingAfter: [100, 101, 102])
+    let decodeOrder = stride(from: 0, to: times.count - 1, by: 2).flatMap { [times[$0 + 1], times[$0]] }
+    #expect(decodeOrder.count == times.count)
+    #expect(FrameTimeStats(times: decodeOrder, nominalFps: Self.fps) == FrameTimeStats(times: times, nominalFps: Self.fps))
+  }
 }

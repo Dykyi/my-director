@@ -45,6 +45,13 @@ struct ConfigResolverTests {
     }
   }
 
+  @Test(arguments: [Double.nan, .infinity, -.infinity])
+  func nonFiniteNumberIsRejected(value: Double) {
+    #expect(throws: ConfigError.wrongType(path: "camera.fps", expected: "number")) {
+      try ConfigResolver.resolve(overrides: ["camera": ["fps": value]])
+    }
+  }
+
   @Test func unknownEnumValueIsRejected() {
     #expect(throws: (any Error).self) {
       try ConfigResolver.resolve(overrides: ["camera": ["position": "side"]])

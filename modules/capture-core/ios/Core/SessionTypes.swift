@@ -33,7 +33,7 @@ struct CallStatus: Codable, Equatable, Sendable {
   var profile: CallProfileName = .standard
 }
 
-enum CaptureErrorCode: String, Codable, Sendable {
+enum CaptureErrorCode: String, Codable, Sendable, CaseIterable {
   case permissionDenied, configInvalid, cameraFormatUnsupported, cameraUnavailable, cameraStalled, cameraRuntimeError
   case micUnavailable, audioStalled, fileWriterFailed, fileStalled, fileFpsLow, diskSpaceLow, diskFull
   case callConnectFailed, callDisconnected, callPublishFailed, mediaServicesReset, resumeBlocked
@@ -41,8 +41,13 @@ enum CaptureErrorCode: String, Codable, Sendable {
 
   var isRecoverable: Bool {
     switch self {
-    case .permissionDenied, .configInvalid, .cameraFormatUnsupported, .recoveryUnplayable: false
-    default: true
+    case .permissionDenied, .configInvalid, .cameraFormatUnsupported, .recoveryUnplayable:
+      false
+    case .cameraUnavailable, .cameraStalled, .cameraRuntimeError,
+         .micUnavailable, .audioStalled, .fileWriterFailed, .fileStalled, .fileFpsLow, .diskSpaceLow, .diskFull,
+         .callConnectFailed, .callDisconnected, .callPublishFailed, .mediaServicesReset, .resumeBlocked,
+         .invalidState, .startInterrupted:
+      true
     }
   }
 }

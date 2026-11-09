@@ -62,6 +62,7 @@ struct SessionManifest: Codable, Equatable, Sendable {
     segments.append(Segment(index: index, file: Segment.fileName(for: index), state: .writing, startedAt: date))
     state = .recording
     lastVideoSec = 0
+    heartbeatAt = date
   }
 
   mutating func closeSegment(index: Int, outcome: SegmentOutcome, pauseReason: PauseReason?, at date: Date) {

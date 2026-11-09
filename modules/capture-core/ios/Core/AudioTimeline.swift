@@ -15,7 +15,7 @@ struct AudioTimeline: Sendable {
   }
 
   static let smoothing = 0.05
-  static let medianWindow = 16
+  static let medianWindow = 15
 
   let configuration: Configuration
   private var anchor: Double?
@@ -43,11 +43,10 @@ struct AudioTimeline: Sendable {
 
     var silenceFrames: Int64 = 0
     var correction: Double?
-    if abs(smoothedDrift) > configuration.resyncThreshold {
-      let median = recentDrifts.median
-      let frames = Int64((abs(median) * sampleRate).rounded())
-      if median > 0 { silenceFrames = frames } else { pendingDropFrames += frames }
-      correction = median
+    if let jump = confirmedJump() {
+      let frames = Int64((abs(jump) * sampleRate).rounded())
+      if jump > 0 { silenceFrames = frames } else { pendingDropFrames += frames }
+      correction = jump
       smoothedDrift = 0
       recentDrifts.removeAll(keepingCapacity: true)
       resyncCount += 1
@@ -64,6 +63,13 @@ struct AudioTimeline: Sendable {
       droppedFrames: Int(droppedFrames),
       correction: correction
     )
+  }
+
+  private func confirmedJump() -> Double? {
+    let threshold = configuration.resyncThreshold
+    guard abs(smoothedDrift) > threshold else { return nil }
+    let median = recentDrifts.median
+    return abs(median) > threshold ? median : nil
   }
 
   private mutating func record(drift: Double) {

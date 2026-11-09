@@ -22,7 +22,7 @@ struct SessionSnapshot: Codable, Equatable, Sendable {
     call = state.call
     thermal = state.thermal
     error = state.error
-    warnings = state.warnings.values.sorted { $0.since < $1.since }
+    warnings = state.warnings.values.sorted { ($0.since, $0.code.rawValue) < ($1.since, $1.code.rawValue) }
   }
 }
 

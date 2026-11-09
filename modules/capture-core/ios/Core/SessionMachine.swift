@@ -62,6 +62,10 @@ enum SessionEffect: Equatable, Sendable {
 }
 
 struct SessionMachine: Sendable {
+  private static let deviceWarnings: Set<CaptureErrorCode> = [.diskSpaceLow]
+  private static let segmentWarnings: Set<CaptureErrorCode> = [.audioStalled, .fileFpsLow]
+  private static let callWarningPhases: Set<SessionPhase> = [.recording, .pausing, .paused]
+
   private(set) var state = SessionState()
 
   mutating func handle(_ event: SessionEvent, at now: Date) -> [SessionEffect] {
@@ -176,7 +180,7 @@ struct SessionMachine: Sendable {
       state.sessionId = nil
       state.segmentIndex = 0
       state.pauseReason = nil
-      state.warnings.removeValue(forKey: .callDisconnected)
+      keepOnlyDeviceWarnings()
       return [.finishSession, .setIdleTimerDisabled(false)]
 
     case (_, .failure(let failure, _)):
@@ -195,7 +199,7 @@ struct SessionMachine: Sendable {
       let profile = state.call.profile
       state.call = status
       state.call.profile = profile
-      guard state.hasSession else { return [] }
+      guard Self.callWarningPhases.contains(state.phase) else { return [] }
       if status.state == .connected {
         state.warnings.removeValue(forKey: .callDisconnected)
       } else {
@@ -221,6 +225,7 @@ struct SessionMachine: Sendable {
   private mutating func pause(_ reason: PauseReason) -> [SessionEffect] {
     state.phase = .pausing
     state.pauseReason = reason
+    state.warnings = state.warnings.filter { !Self.segmentWarnings.contains($0.key) }
     return [.beginBackgroundTask, .closeSegment(state.segmentIndex), .muteCall(true), .stopMic]
   }
 
@@ -228,7 +233,12 @@ struct SessionMachine: Sendable {
     state.phase = .ready
     state.sessionId = nil
     state.error = CaptureError(failure, at: now)
+    keepOnlyDeviceWarnings()
     return [.abortStart]
+  }
+
+  private mutating func keepOnlyDeviceWarnings() {
+    state.warnings = state.warnings.filter { Self.deviceWarnings.contains($0.key) }
   }
 
   private mutating func beginResume() -> [SessionEffect] {

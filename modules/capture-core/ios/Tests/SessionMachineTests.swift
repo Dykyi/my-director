@@ -113,6 +113,15 @@ struct SessionMachineTests {
     #expect(run.lastEffects == [.runResumeSequence])
   }
 
+  @Test func automaticResumeWhenSegmentClosesAfterInterruptionEnded() {
+    var run = recording(policy: .automatic)
+    run.send(.interruptionBegan(.audioSession, .phoneCall), .interruptionEnded(.audioSession))
+    #expect(run.state.phase == .pausing)
+    run.send(.segmentClosed(index: 1, failure: nil))
+    #expect(run.state.phase == .resuming)
+    #expect(run.lastEffects == [.persistManifest, .endBackgroundTask, .runResumeSequence])
+  }
+
   @Test func automaticResumeSkipsPipelineFailures() {
     var run = recording(policy: .automatic)
     run.send(.failure(Failure(code: .cameraStalled, message: "no frames"), pauseReason: .cameraStalled))
@@ -154,6 +163,21 @@ struct SessionMachineTests {
     #expect(run.lastEffects == [.runStopSequence])
   }
 
+  @Test func stopWhilePausingWaitsForTheSegment() {
+    var run = recording()
+    run.send(.pauseRequested, .stopRequested)
+    #expect(run.state.phase == .stopping)
+    #expect(run.lastEffects == [.runStopSequence])
+  }
+
+  @Test func writerFailureWhileStoppingWarns() {
+    var run = recording()
+    run.send(.stopRequested, .segmentClosed(index: 1, failure: Failure(code: .fileWriterFailed, message: "-11800")))
+    #expect(run.state.phase == .stopping)
+    #expect(run.state.warnings[.fileWriterFailed]?.message == "-11800")
+    #expect(run.lastEffects == [.persistManifest])
+  }
+
   @Test func stopWhileResumingCancelsResume() {
     var run = paused(by: .audioSession, reason: .phoneCall)
     run.send(.appBecameActive, .resumeRequested, .stopRequested)
@@ -176,6 +200,51 @@ struct SessionMachineTests {
     #expect(run.state.warnings[.callDisconnected] == nil)
   }
 
+  @Test func callConnectingDuringStartIsNotACallLoss() {
+    var run = ready()
+    run.send(.startRequested(sessionId: Self.sessionId), .callChanged(CallStatus(state: .connecting, room: "mydirector-poc")))
+    #expect(run.state.warnings.isEmpty)
+    run.send(.startFailed(Failure(code: .callConnectFailed, message: "timeout")))
+    #expect(run.state.warnings.isEmpty)
+  }
+
+  @Test func stopKeepsOnlyDeviceWarnings() {
+    var run = recording()
+    run.send(
+      .warningRaised(code: .diskSpaceLow, message: "1.0 GB left"),
+      .warningRaised(code: .fileFpsLow, message: "26 fps"),
+      .callChanged(CallStatus(state: .reconnecting, room: "mydirector-poc")),
+      .failure(Failure(code: .fileWriterFailed, message: "-11800"), pauseReason: .fileError),
+      .segmentClosed(index: 1, failure: Failure(code: .fileWriterFailed, message: "-11800")),
+      .stopRequested,
+      .stopFinished
+    )
+    #expect(Set(run.state.warnings.keys) == [.diskSpaceLow])
+  }
+
+  @Test func failedStartKeepsOnlyDeviceWarnings() {
+    var run = ready()
+    run.send(
+      .warningRaised(code: .diskSpaceLow, message: "1.0 GB left"),
+      .startRequested(sessionId: Self.sessionId),
+      .warningRaised(code: .callPublishFailed, message: "publish timeout"),
+      .startFailed(Failure(code: .callPublishFailed, message: "publish timeout"))
+    )
+    #expect(Set(run.state.warnings.keys) == [.diskSpaceLow])
+  }
+
+  @Test func pauseClearsSegmentWatcherWarnings() {
+    var run = recording()
+    run.send(
+      .warningRaised(code: .diskSpaceLow, message: "1.0 GB left"),
+      .warningRaised(code: .audioStalled, message: "no audio for 2 s"),
+      .warningRaised(code: .fileFpsLow, message: "26 fps"),
+      .callChanged(CallStatus(state: .reconnecting, room: "mydirector-poc")),
+      .pauseRequested
+    )
+    #expect(Set(run.state.warnings.keys) == [.diskSpaceLow, .callDisconnected])
+  }
+
   @Test func callStatusKeepsMachineOwnedProfile() {
     var run = recording()
     run.send(.thermalChanged(.serious, profile: .reduced))
@@ -188,6 +257,15 @@ struct SessionMachineTests {
     run.send(.startRequested(sessionId: Self.sessionId), .interruptionBegan(.appBackground, .appBackground))
     #expect(run.state.phase == .ready)
     #expect(run.state.error?.code == .startInterrupted)
+    #expect(run.lastEffects == [.abortStart])
+  }
+
+  @Test func failedStartReturnsToReady() {
+    var run = ready()
+    run.send(.startRequested(sessionId: Self.sessionId), .startFailed(Failure(code: .callConnectFailed, message: "timeout")))
+    #expect(run.state.phase == .ready)
+    #expect(run.state.sessionId == nil)
+    #expect(run.state.error?.code == .callConnectFailed)
     #expect(run.lastEffects == [.abortStart])
   }
 

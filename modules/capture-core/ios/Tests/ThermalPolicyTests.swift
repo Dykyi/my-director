@@ -33,6 +33,22 @@ struct ThermalPolicyTests {
     #expect(policy.update(level: .nominal, now: 110) == .standard)
   }
 
+  @Test func recoveryStepsThroughEachLevel() {
+    var policy = policy()
+    #expect(policy.update(level: .critical, now: 0) == .minimal)
+    #expect(policy.update(level: .serious, now: 1) == nil)
+    #expect(policy.update(level: .nominal, now: 60) == nil)
+    #expect(policy.update(level: .nominal, now: 61) == .reduced)
+    #expect(policy.update(level: .nominal, now: 120) == nil)
+    #expect(policy.update(level: .nominal, now: 121) == .standard)
+  }
+
+  @Test func zeroDelayRestoresAtOnce() {
+    var policy = ThermalPolicy(profiles: CaptureConfig.defaults.call.thermalProfiles, recoveryDelay: 0)
+    _ = policy.update(level: .critical, now: 0)
+    #expect(policy.update(level: .nominal, now: 1) == .standard)
+  }
+
   @Test func flappingLevelsChangeProfileOnce() {
     var policy = policy()
     var changes = 0

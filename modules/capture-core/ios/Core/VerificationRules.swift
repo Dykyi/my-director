@@ -12,6 +12,7 @@ struct FrameTimeStats: Codable, Equatable, Sendable {
   var gapRatio: Double { count > 1 ? Double(gapCount) / Double(count - 1) : 0 }
 
   init(times: [Double], nominalFps: Double) {
+    let times = times.sorted()
     let intervals = zip(times, times.dropFirst()).map { $1 - $0 }
     count = times.count
     durationSec = (times.last ?? 0) - (times.first ?? 0)
