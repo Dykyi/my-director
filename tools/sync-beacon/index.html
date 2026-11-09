@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sync beacon</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #000; }
+    #flash { position: fixed; inset: 0; background: #fff; display: none; }
+    #hint { position: fixed; bottom: 12px; left: 12px; color: #555; font: 14px ui-monospace, monospace; }
+  </style>
+</head>
+<body>
+  <div id="flash"></div>
+  <div id="hint">Tap to start: one white flash and one click every second.</div>
+  <script>
+    const PERIOD_S = 1;
+    const FLASH_FRAMES = 2;
+    const CLICK_S = 0.01;
+    const SCHEDULE_AHEAD_S = 0.2;
+
+    const flash = document.getElementById('flash');
+    const pendingFlashes = [];
+    let context;
+    let nextClick;
+    let framesLeft = 0;
+
+    function scheduleClick(at) {
+      const length = Math.round(context.sampleRate * CLICK_S);
+      const buffer = context.createBuffer(1, length, context.sampleRate);
+      const samples = buffer.getChannelData(0);
+      for (let i = 0; i < length; i += 1) samples[i] = Math.random() * 2 - 1;
+      const source = context.createBufferSource();
+      source.buffer = buffer;
+      source.connect(context.destination);
+      source.start(at);
+    }
+
+    // Maps an audio clock time to performance.now(), so the flash meets the click as it leaves the speaker.
+    function performanceTimeOf(audioTime) {
+      const stamp = context.getOutputTimestamp();
+      return stamp.performanceTime + (audioTime - stamp.contextTime) * 1000;
+    }
+
+    function frame(now) {
+      if (context.currentTime + SCHEDULE_AHEAD_S >= nextClick) {
+        scheduleClick(nextClick);
+        pendingFlashes.push(performanceTimeOf(nextClick));
+        nextClick += PERIOD_S;
+      }
+      if (pendingFlashes.length > 0 && now >= pendingFlashes[0]) {
+        pendingFlashes.shift();
+        framesLeft = FLASH_FRAMES;
+      }
+      flash.style.display = framesLeft > 0 ? 'block' : 'none';
+      if (framesLeft > 0) framesLeft -= 1;
+      requestAnimationFrame(frame);
+    }
+
+    document.body.addEventListener('click', async () => {
+      if (context) return;
+      context = new AudioContext();
+      await context.resume();
+      nextClick = context.currentTime + 1;
+      document.getElementById('hint').remove();
+      document.documentElement.requestFullscreen?.();
+      requestAnimationFrame(frame);
+    });
+  </script>
+</body>
+</html>

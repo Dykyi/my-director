@@ -26,7 +26,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "token": "node --env-file=.env.local tools/livekit-token/token.mjs"
+    "token": "node --env-file=.env.local tools/livekit-token/token.mjs",
+    "pull": "set -a && . ./.env.local && set +a && tools/device/pull-recordings.sh"
   },
   "private": true
 }
