@@ -97,6 +97,7 @@ final class DebugHarness {
     let inspection = await RecoveryInspector.inspect(url)
     let result = [
       "file": "\(url.deletingLastPathComponent().lastPathComponent)/\(url.lastPathComponent)",
+      "uri": url.absoluteString,
       "playable": String(inspection.playable),
       "durationSec": format(inspection.durationSec),
       "bytes": String(inspection.bytes),

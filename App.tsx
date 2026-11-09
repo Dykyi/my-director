@@ -6,6 +6,7 @@ import { CapturePreview } from '@modules/capture-core/src/CapturePreview';
 
 type LogEntry = { at: string; level: string; category: string; message: string; data?: Record<string, string> };
 type CallProfile = 'standard' | 'reduced' | 'minimal';
+type SegmentInspection = { file: string; uri: string; playable: string; durationSec: string; bytes: string; reason: string };
 type SpikeModule = {
   requestPermissions(): Promise<unknown>;
   debugStartCamera(): Promise<Record<string, string>>;
@@ -16,21 +17,36 @@ type SpikeModule = {
   debugConnect(url: string, token: string): Promise<string[]>;
   debugDisconnect(): Promise<void>;
   debugSetCallProfile(profile: CallProfile): Promise<void>;
-  debugInspectLatestSegment(): Promise<Record<string, string>>;
+  debugInspectLatestSegment(): Promise<SegmentInspection>;
   debugCrash(): void;
   debugStats(): Promise<Record<string, string>>;
   addListener(event: 'onLog', listener: (entry: LogEntry) => void): { remove(): void };
 };
 type StandAction = { title: string; run: () => Promise<unknown>; color?: string };
+type UploadChange = { objectKey: string; phase: string; partsDone: number; partsTotal: number; bytesConfirmed: number; serverSize?: number; error?: string };
+type UploadModule = {
+  startUpload(input: { fileUri: string; objectKey: string; api: { baseUrl: string; token: string } }): Promise<UploadChange>;
+  addListener(event: 'onUploadChange', listener: (change: UploadChange) => void): { remove(): void };
+};
 
 const Spike = requireNativeModule<SpikeModule>('CaptureCore');
+const Upload = requireNativeModule<UploadModule>('BackgroundUpload');
 const LOG_LIMIT = 200;
 const STATS_INTERVAL_MS = 1000;
 const STATS_LOG_INTERVAL_MS = 10_000;
 const LIVEKIT_URL = process.env.EXPO_PUBLIC_LIVEKIT_URL ?? '';
 const LIVEKIT_TOKEN = process.env.EXPO_PUBLIC_LIVEKIT_TOKEN ?? '';
+const UPLOAD_API = {
+  baseUrl: process.env.EXPO_PUBLIC_UPLOAD_API_URL ?? '',
+  token: process.env.EXPO_PUBLIC_UPLOAD_API_TOKEN ?? '',
+};
 const STAND_LINK = /:\/\/stand\/([\w-]+)$/;
 const CALL_PROFILES: CallProfile[] = ['standard', 'reduced', 'minimal'];
+
+const formatUpload = (change: UploadChange) =>
+  `${change.objectKey} ${change.phase} ${change.partsDone}/${change.partsTotal} parts, ${change.bytesConfirmed} B` +
+  (change.serverSize === undefined ? '' : `, server ${change.serverSize} B`) +
+  (change.error ? `, error ${change.error}` : '');
 
 const formatStats = (stats: Record<string, string>) =>
   Object.entries(stats)
@@ -67,6 +83,14 @@ export default function App() {
       CALL_PROFILES.map((profile) => [profile, { title: profile, run: () => Spike.debugSetCallProfile(profile) }]),
     ),
     inspect: { title: 'Inspect latest', run: Spike.debugInspectLatestSegment },
+    upload: {
+      title: 'Upload latest',
+      run: async () => {
+        const latest = await Spike.debugInspectLatestSegment();
+        const change = await Upload.startUpload({ fileUri: latest.uri, objectKey: `stand/${latest.file}`, api: UPLOAD_API });
+        return formatUpload(change);
+      },
+    },
     sigkill: { title: 'SIGKILL', color: '#d33', run: async () => Spike.debugCrash() },
   };
 
@@ -90,6 +114,7 @@ export default function App() {
       append(`${entry.at.slice(11, 19)} ${entry.category} ${entry.message} ${JSON.stringify(entry.data ?? {})}`),
     );
     const links = Linking.addEventListener('url', ({ url }) => onLink(url));
+    const uploads = Upload.addListener('onUploadChange', (change) => append(`upload ${formatUpload(change)}`));
     const timer = setInterval(() => Spike.debugStats().then(setStats).catch(() => undefined), STATS_INTERVAL_MS);
     const statsLog = setInterval(
       () => Spike.debugStats().then((current) => console.log(`stats ${formatStats(current).join(' | ')}`)).catch(() => undefined),
@@ -98,6 +123,7 @@ export default function App() {
     return () => {
       subscription.remove();
       links.remove();
+      uploads.remove();
       clearInterval(timer);
       clearInterval(statsLog);
     };
