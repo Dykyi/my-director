@@ -55,6 +55,7 @@ describe('createMultipartUpload', () => {
     expect(url.searchParams.has('uploads')).toBe(true);
     expect(request.headers.get('Content-Type')).toBe('video/quicktime');
     expect(request.headers.get('Authorization')).toContain('/eu-central-003/s3/aws4_request');
+    expect(request.cache).toBe('no-store');
   });
 
   it('fails loudly when the answer has no UploadId', () => expect(() => parseUploadId('<Error/>')).toThrow('UploadId'));
@@ -94,6 +95,12 @@ describe('head', () => {
   it('reports a missing object as null', async () => {
     void stubB2(new Response(null, { status: 404 }));
     await expect(api.head(KEY)).resolves.toBeNull();
+  });
+
+  it('bypasses the Cloudflare cache, which would send the signed HEAD of a .bin key to B2 as a GET', async () => {
+    const sent = stubB2(new Response(null, { status: 404 }));
+    await api.head('s/sample.bin');
+    expect((await sent).cache).toBe('no-store');
   });
 });
 

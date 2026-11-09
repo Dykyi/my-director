@@ -67,7 +67,7 @@ export class S3Api implements ObjectStorage {
   }
 
   async head(key: string): Promise<StoredObject | null> {
-    const response = await this.client.fetch(this.objectUrl(key), { method: 'HEAD' });
+    const response = await this.request(this.objectUrl(key), { method: 'HEAD' });
     if (response.status === 404) return null;
     await ensureOk('HeadObject', response);
     return {
@@ -95,7 +95,11 @@ export class S3Api implements ObjectStorage {
   }
 
   private async send(operation: string, url: URL, init: RequestInit): Promise<Response> {
-    return ensureOk(operation, await this.client.fetch(url, init));
+    return ensureOk(operation, await this.request(url, init));
+  }
+
+  private request(url: URL, init: RequestInit): Promise<Response> {
+    return this.client.fetch(url, { ...init, cache: 'no-store' });
   }
 
   private objectUrl(key: string): URL {
