@@ -22,6 +22,7 @@ final class CameraSource: @unchecked Sendable {
   let session = AVCaptureSession()
   private let queue = DispatchQueue(label: "capture-core.camera", qos: .userInitiated)
   private let output = AVCaptureVideoDataOutput()
+  private(set) var device: AVCaptureDevice?
   private var rotationCoordinator: AVCaptureDevice.RotationCoordinator?
 
   var isRunning: Bool { session.isRunning }
@@ -126,6 +127,7 @@ final class CameraSource: @unchecked Sendable {
       }
       if connection.isVideoRotationAngleSupported(0) { connection.videoRotationAngle = 0 }
     }
+    self.device = device
     rotationCoordinator = AVCaptureDevice.RotationCoordinator(device: device, previewLayer: nil)
 
     return CameraReport(

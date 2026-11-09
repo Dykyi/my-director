@@ -15,6 +15,7 @@ final class DebugHarness {
   private let sessionId = SessionId.make(at: Date())
   private var segmentIndex = 0
   lazy var microphone = MicrophoneSource(pipeline: pipeline, log: log)
+  lazy var routes = AudioRouteMonitor(log: log)
 
   nonisolated init() {
     let log = EventLog(subsystem: Bundle.main.bundleIdentifier ?? "CaptureCore", ioQueue: DispatchQueue(label: "capture-core.io"))
@@ -25,12 +26,18 @@ final class DebugHarness {
     store = RecordingStore(root: URL.documentsDirectory.appending(path: "Recordings", directoryHint: .isDirectory))
   }
 
+  private lazy var system = SystemEventMonitor(log: log, camera: camera) { [log] event in
+    log.info("debug", "System event", ["event": String(describing: event)])
+  }
+
   func startCamera() async throws -> [String: String] {
     let startedAt = HostClock.now()
     let report = try await camera.configure(config.camera, frames: pipeline, on: pipeline.queue)
     pipeline.setCaptureClock(camera.synchronizationClock)
     await camera.start()
     let delivering = await pipeline.heartbeats.waitForBeat(.camera, after: startedAt, timeout: config.session.resumeTimeoutMs / 1000)
+    system.start()
+    system.observeSystemPressure(of: camera.device)
     log.info("camera", "Camera configured", report.logData.merging(["firstFrame": String(delivering)]) { $1 })
     return report.logData
   }
@@ -45,6 +52,7 @@ final class DebugHarness {
   }
 
   func startMic() async throws -> [String: String] {
+    routes.start()
     let startedAt = HostClock.now()
     try microphone.start(config.audio)
     guard await pipeline.heartbeats.waitForBeat(.microphone, after: startedAt, timeout: config.session.resumeTimeoutMs / 1000) else {
@@ -119,7 +127,8 @@ final class DebugHarness {
         return "\(sent.sentWidth)x\(sent.sentHeight) \(format(sent.sentFps)) fps, \(Int(sent.bitrateKbps)) kbps, limit \(sent.qualityLimitation.rawValue), dropped \(sent.droppedFrames)"
       }(),
       "thermal": "\(ProcessInfo.processInfo.thermalState.rawValue)",
-      "engine": "\(AudioManager.shared.isEngineRunning ? "running" : "stopped"), input \(AVAudioSession.sharedInstance().currentRoute.inputs.first?.portName ?? "none")",
+      "engine": AudioManager.shared.isEngineRunning ? "running" : "stopped",
+      "route": "in \(routes.current.input), out \(routes.current.output)",
     ]
   }
 

@@ -28,6 +28,29 @@ struct SessionSnapshot: Codable, Equatable, Sendable {
 
 enum SystemPressureLevel: String, Codable, Sendable { case nominal, fair, serious, critical, shutdown }
 
+struct AudioRoute: Codable, Equatable, Sendable {
+  struct Port: Equatable, Sendable {
+    var name: String
+    var type: String
+  }
+
+  static let noPort = "none"
+  static let unknown = AudioRoute(input: noPort, output: noPort)
+
+  var input: String
+  var output: String
+}
+
+extension AudioRoute {
+  init(inputs: [Port], outputs: [Port]) {
+    self.init(input: Self.describe(inputs), output: Self.describe(outputs))
+  }
+
+  private static func describe(_ ports: [Port]) -> String {
+    ports.isEmpty ? noPort : ports.map { "\($0.name) (\($0.type))" }.joined(separator: " + ")
+  }
+}
+
 struct HealthSnapshot: Codable, Equatable, Sendable {
   struct Camera: Codable, Equatable, Sendable {
     var fps: Double
@@ -71,5 +94,6 @@ struct HealthSnapshot: Codable, Equatable, Sendable {
   var call: Call
   var thermal: ThermalLevel
   var systemPressure: SystemPressureLevel
+  var audioRoute: AudioRoute
   var diskFreeBytes: Int64
 }

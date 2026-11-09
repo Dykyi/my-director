@@ -75,3 +75,22 @@ struct CaptureErrorCodeTests {
     #expect(failure.localizedDescription == "micUnavailable: No microphone buffers within 3000 ms")
   }
 }
+
+struct AudioRouteTests {
+  private static let airPods = AudioRoute.Port(name: "AirPods Pro", type: "BluetoothHFP")
+  private static let speaker = AudioRoute.Port(name: "Speaker", type: "Speaker")
+
+  @Test func eachSideReadsAsNameAndPortType() {
+    let route = AudioRoute(inputs: [Self.airPods], outputs: [Self.airPods])
+    #expect(route == AudioRoute(input: "AirPods Pro (BluetoothHFP)", output: "AirPods Pro (BluetoothHFP)"))
+  }
+
+  @Test func sideWithoutPortsReadsAsNone() {
+    #expect(AudioRoute(inputs: [], outputs: [Self.speaker]).input == AudioRoute.noPort)
+  }
+
+  @Test func severalPortsKeepTheOrderIOSGives() {
+    let route = AudioRoute(inputs: [], outputs: [Self.airPods, Self.speaker])
+    #expect(route.output == "AirPods Pro (BluetoothHFP) + Speaker (Speaker)")
+  }
+}
