@@ -1,0 +1,31 @@
+{
+  "name": "mydirector",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "dependencies": {
+    "expo": "~57.0.32",
+    "expo-dev-client": "~57.0.21",
+    "expo-sharing": "~57.0.25",
+    "expo-status-bar": "~57.0.1",
+    "expo-video": "~57.0.5",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-safe-area-context": "~5.7.0"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "eslint": "^9.39.5",
+    "eslint-config-expo": "~57.0.2",
+    "livekit-server-sdk": "^2.19.2",
+    "typescript": "~6.0.3"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "lint": "expo lint",
+    "token": "node --env-file=.env.local tools/livekit-token/token.mjs"
+  },
+  "private": true
+}

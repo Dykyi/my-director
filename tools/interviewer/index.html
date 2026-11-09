@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>MyDirector interviewer</title>
+  <style>
+    body { font: 14px -apple-system, sans-serif; margin: 16px; background: #111; color: #eee; }
+    input { width: 100%; margin: 4px 0; }
+    button { margin: 4px 4px 4px 0; padding: 6px 12px; }
+    #remote video { width: 360px; background: #000; }
+    #log { font: 12px ui-monospace, monospace; white-space: pre; height: 240px; overflow-y: auto; background: #000; padding: 8px; }
+    #stats { font: 12px ui-monospace, monospace; }
+  </style>
+</head>
+<body>
+  <h3>Interviewer</h3>
+  <input id="url" placeholder="wss://your-project.livekit.cloud" />
+  <input id="token" placeholder="interviewer token" />
+  <div>
+    <button id="connect">Connect</button>
+    <button id="disconnect" disabled>Disconnect</button>
+    <button id="play" disabled>Play script</button>
+    <button id="pause" disabled>Pause</button>
+    <label><input type="checkbox" id="loop" checked style="width:auto" /> Loop</label>
+    <label><input type="checkbox" id="monitor" style="width:auto" /> Hear phone on Mac (headphones only)</label>
+  </div>
+  <div>
+    <button id="record" disabled>Start recording</button>
+    <button id="stopRecord" disabled>Stop and download</button>
+    <button id="downloadCsv" disabled>Download stats CSV</button>
+  </div>
+  <div id="remote"></div>
+  <div id="stats"></div>
+  <div id="log"></div>
+  <audio id="speech" src="speech.m4a" preload="auto"></audio>
+  <script type="module" src="interviewer.js"></script>
+</body>
+</html>

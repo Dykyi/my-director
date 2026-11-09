@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "MyDirector Capture",
+    "slug": "mydirector-capture-poc",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "bundleIdentifier": "com.akunadjvilli.mydirector.capturepoc",
+      "supportsTablet": false,
+      "deploymentTarget": "17.0",
+      "infoPlist": {
+        "NSCameraUsageDescription": "The camera records your interview and shows you to the interviewer.",
+        "NSMicrophoneUsageDescription": "The microphone records your answers and lets the interviewer hear you.",
+        "UIBackgroundModes": ["audio"],
+        "UIFileSharingEnabled": true,
+        "LSSupportsOpeningDocumentsInPlace": true
+      }
+    },
+    "plugins": ["expo-dev-client"]
+  }
+}
