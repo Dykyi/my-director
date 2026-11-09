@@ -17,6 +17,10 @@
         "LSSupportsOpeningDocumentsInPlace": true
       }
     },
-    "plugins": ["expo-dev-client"]
+    "plugins": [
+      "expo-dev-client",
+      ["expo-build-properties", { "ios": { "enableSceneSupport": true } }],
+      "./plugins/with-livekit-podspecs"
+    ]
   }
 }

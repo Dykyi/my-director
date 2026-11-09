@@ -4,6 +4,7 @@
   "main": "index.ts",
   "dependencies": {
     "expo": "~57.0.32",
+    "expo-build-properties": "~57.0.23",
     "expo-dev-client": "~57.0.21",
     "expo-sharing": "~57.0.25",
     "expo-status-bar": "~57.0.1",
