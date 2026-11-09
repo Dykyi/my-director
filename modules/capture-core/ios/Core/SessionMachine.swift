@@ -199,10 +199,9 @@ struct SessionMachine: Sendable {
       let profile = state.call.profile
       state.call = status
       state.call.profile = profile
-      guard Self.callWarningPhases.contains(state.phase) else { return [] }
       if status.state == .connected {
         state.warnings.removeValue(forKey: .callDisconnected)
-      } else {
+      } else if Self.callWarningPhases.contains(state.phase) {
         warn(.callDisconnected, "Call \(status.state.rawValue), recording continues", at: now)
       }
       return []

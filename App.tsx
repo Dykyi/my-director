@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Button, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useEffectEvent, useState } from 'react';
+import { Button, Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { requireNativeModule } from 'expo';
 import { CapturePreview } from '@modules/capture-core/src/CapturePreview';
@@ -21,66 +21,98 @@ type SpikeModule = {
   debugStats(): Promise<Record<string, string>>;
   addListener(event: 'onLog', listener: (entry: LogEntry) => void): { remove(): void };
 };
+type StandAction = { title: string; run: () => Promise<unknown>; color?: string };
 
 const Spike = requireNativeModule<SpikeModule>('CaptureCore');
 const LOG_LIMIT = 200;
 const STATS_INTERVAL_MS = 1000;
+const STATS_LOG_INTERVAL_MS = 10_000;
 const LIVEKIT_URL = process.env.EXPO_PUBLIC_LIVEKIT_URL ?? '';
 const LIVEKIT_TOKEN = process.env.EXPO_PUBLIC_LIVEKIT_TOKEN ?? '';
+const STAND_LINK = /:\/\/stand\/([\w-]+)$/;
+const CALL_PROFILES: CallProfile[] = ['standard', 'reduced', 'minimal'];
+
+const formatStats = (stats: Record<string, string>) =>
+  Object.entries(stats)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, value]) => `${key}: ${value}`);
 
 export default function App() {
   const [cameraReady, setCameraReady] = useState(false);
   const [stats, setStats] = useState<Record<string, string>>({});
   const [lines, setLines] = useState<string[]>([]);
 
-  const append = (line: string) => setLines((current) => [line, ...current].slice(0, LOG_LIMIT));
+  const append = (line: string) => {
+    console.log(line);
+    setLines((current) => [line, ...current].slice(0, LOG_LIMIT));
+  };
+
+  const actions: Record<string, StandAction> = {
+    permissions: { title: 'Permissions', run: Spike.requestPermissions },
+    camera: {
+      title: 'Camera',
+      run: async () => {
+        const report = await Spike.debugStartCamera();
+        setCameraReady(true);
+        return report;
+      },
+    },
+    'mic-on': { title: 'Mic on', run: Spike.debugStartMic },
+    'mic-off': { title: 'Mic off', run: Spike.debugStopMic },
+    'segment-start': { title: 'Segment start', run: Spike.debugStartSegment },
+    'segment-stop': { title: 'Segment stop', run: Spike.debugStopSegment },
+    connect: { title: 'Connect', run: () => Spike.debugConnect(LIVEKIT_URL, LIVEKIT_TOKEN) },
+    disconnect: { title: 'Disconnect', run: Spike.debugDisconnect },
+    ...Object.fromEntries(
+      CALL_PROFILES.map((profile) => [profile, { title: profile, run: () => Spike.debugSetCallProfile(profile) }]),
+    ),
+    inspect: { title: 'Inspect latest', run: Spike.debugInspectLatestSegment },
+    sigkill: { title: 'SIGKILL', color: '#d33', run: async () => Spike.debugCrash() },
+  };
+
+  const perform = async (name: string) => {
+    const action = actions[name];
+    if (!action) return append(`unknown action ${name}`);
+    try {
+      append(`${name}: ${JSON.stringify(await action.run())}`);
+    } catch (error) {
+      append(`${name} failed: ${String(error)}`);
+    }
+  };
+
+  const onLink = useEffectEvent((url: string) => {
+    const name = STAND_LINK.exec(url)?.[1];
+    if (name) void perform(name);
+  });
 
   useEffect(() => {
     const subscription = Spike.addListener('onLog', (entry) =>
       append(`${entry.at.slice(11, 19)} ${entry.category} ${entry.message} ${JSON.stringify(entry.data ?? {})}`),
     );
+    const links = Linking.addEventListener('url', ({ url }) => onLink(url));
     const timer = setInterval(() => Spike.debugStats().then(setStats).catch(() => undefined), STATS_INTERVAL_MS);
+    const statsLog = setInterval(
+      () => Spike.debugStats().then((current) => console.log(`stats ${formatStats(current).join(' | ')}`)).catch(() => undefined),
+      STATS_LOG_INTERVAL_MS,
+    );
     return () => {
       subscription.remove();
+      links.remove();
       clearInterval(timer);
+      clearInterval(statsLog);
     };
   }, []);
-
-  const run = (label: string, action: () => Promise<unknown>) => async () => {
-    try {
-      append(`${label}: ${JSON.stringify(await action())}`);
-    } catch (error) {
-      append(`${label} failed: ${String(error)}`);
-    }
-  };
 
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.screen}>
         <View style={styles.preview}>{cameraReady && <CapturePreview style={StyleSheet.absoluteFill} />}</View>
         <View style={styles.buttons}>
-          <Button title="Permissions" onPress={run('permissions', Spike.requestPermissions)} />
-          <Button
-            title="Camera"
-            onPress={run('camera', async () => {
-              const report = await Spike.debugStartCamera();
-              setCameraReady(true);
-              return report;
-            })}
-          />
-          <Button title="Mic on" onPress={run('mic on', Spike.debugStartMic)} />
-          <Button title="Mic off" onPress={run('mic off', Spike.debugStopMic)} />
-          <Button title="Segment start" onPress={run('segment start', Spike.debugStartSegment)} />
-          <Button title="Segment stop" onPress={run('segment stop', Spike.debugStopSegment)} />
-          <Button title="Connect" onPress={run('connect', () => Spike.debugConnect(LIVEKIT_URL, LIVEKIT_TOKEN))} />
-          <Button title="Disconnect" onPress={run('disconnect', Spike.debugDisconnect)} />
-          {(['standard', 'reduced', 'minimal'] as const).map((profile) => (
-            <Button key={profile} title={profile} onPress={run(`profile ${profile}`, () => Spike.debugSetCallProfile(profile))} />
+          {Object.entries(actions).map(([name, action]) => (
+            <Button key={name} title={action.title} color={action.color} onPress={() => void perform(name)} />
           ))}
-          <Button title="Inspect latest" onPress={run('inspect', Spike.debugInspectLatestSegment)} />
-          <Button title="SIGKILL" color="#d33" onPress={() => Spike.debugCrash()} />
         </View>
-        <Text style={styles.stats}>{Object.entries(stats).map(([key, value]) => `${key}: ${value}`).join('\n')}</Text>
+        <Text style={styles.stats}>{formatStats(stats).join('\n')}</Text>
         <ScrollView style={styles.log}>
           <Text style={styles.logText}>{lines.join('\n')}</Text>
         </ScrollView>

@@ -200,6 +200,20 @@ struct SessionMachineTests {
     #expect(run.state.warnings[.callDisconnected] == nil)
   }
 
+  @Test func callReconnectedWhileResumingClearsTheWarning() {
+    var run = recording()
+    run.send(
+      .pauseRequested,
+      .segmentClosed(index: 1, failure: nil),
+      .callChanged(CallStatus(state: .reconnecting, room: "mydirector-poc")),
+      .resumeRequested,
+      .callChanged(CallStatus(state: .connected, room: "mydirector-poc")),
+      .resumeSucceeded
+    )
+    #expect(run.state.phase == .recording)
+    #expect(run.state.warnings.isEmpty)
+  }
+
   @Test func callConnectingDuringStartIsNotACallLoss() {
     var run = ready()
     run.send(.startRequested(sessionId: Self.sessionId), .callChanged(CallStatus(state: .connecting, room: "mydirector-poc")))
