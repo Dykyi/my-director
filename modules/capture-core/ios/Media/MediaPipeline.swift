@@ -27,6 +27,8 @@ final class MediaPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
   static let defaultSampleRate = 48_000.0
   private static let nanosecondTimescale: CMTimeScale = 1_000_000_000
   private static let dropLogInterval = 30
+  private static let audioDrainTimeoutSec = 0.3
+  private static let audioDrainPoll = Duration.milliseconds(20)
 
   let queue = DispatchQueue(label: "capture-core.media", qos: .userInteractive)
   let heartbeats = HeartbeatBoard()
@@ -93,20 +95,28 @@ final class MediaPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
   }
 
   func closeSegment() async -> SegmentOutcome? {
-    let writer: SegmentWriter? = await withCheckedContinuation { continuation in
-      queue.async {
-        let writer = self.writer
-        self.writer = nil
-        continuation.resume(returning: writer)
-      }
+    let writer: SegmentWriter? = await onQueue {
+      self.writer?.stopVideo()
+      return self.writer
     }
     guard let writer else { return nil }
     stats.withLock { $0.writerState = .finishing }
+    let deadline = HostClock.now() + Self.audioDrainTimeoutSec
+    while HostClock.now() < deadline, await !onQueue({ writer.audioCoversVideo }) {
+      try? await Task.sleep(for: Self.audioDrainPoll)
+    }
+    await onQueue { self.writer = nil }
     let outcome = await writer.finish()
     stats.withLock { stats in
       if case .failed = outcome { stats.writerState = .failed } else { stats.writerState = .idle }
     }
     return outcome
+  }
+
+  private func onQueue<T>(_ work: @escaping () -> T) async -> T {
+    await withCheckedContinuation { continuation in
+      queue.async { continuation.resume(returning: work()) }
+    }
   }
 
   func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {

@@ -34,6 +34,30 @@ public final class CaptureCoreModule: Module {
     AsyncFunction("debugStats") { () async -> [String: String] in
       await self.harness.stats()
     }
+    AsyncFunction("debugStartMic") { () async throws -> [String: String] in
+      try await self.harness.startMic()
+    }
+    AsyncFunction("debugStopMic") { () async in
+      await self.harness.stopMic()
+    }
+    AsyncFunction("debugConnect") { (url: String, token: String) async throws -> [String] in
+      try await self.harness.connect(url: url, token: token)
+    }
+    AsyncFunction("debugDisconnect") { () async in
+      await self.harness.disconnect()
+    }
+    AsyncFunction("debugSetCallProfile") { (name: String) async throws in
+      guard let profile = CallProfileName(rawValue: name) else {
+        throw Failure(code: .configInvalid, message: "Unknown call profile \(name)")
+      }
+      await self.harness.setCallProfile(profile)
+    }
+    AsyncFunction("debugInspectLatestSegment") { () async throws -> [String: String] in
+      try await self.harness.inspectLatestSegment()
+    }
+    Function("debugCrash") {
+      kill(getpid(), SIGKILL)
+    }
 
     View(CapturePreviewView.self) {
       Prop("videoGravity") { (view: CapturePreviewView, gravity: PreviewGravity) in

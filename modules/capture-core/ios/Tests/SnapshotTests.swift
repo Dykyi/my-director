@@ -69,4 +69,9 @@ struct CaptureErrorCodeTests {
     #expect(CaptureErrorCode.allCases.filter { !$0.isRecoverable }
       == [.permissionDenied, .configInvalid, .cameraFormatUnsupported, .recoveryUnplayable])
   }
+
+  @Test func failureReadsAsCodeAndMessage() {
+    let failure: Error = Failure(code: .micUnavailable, message: "No microphone buffers within 3000 ms")
+    #expect(failure.localizedDescription == "micUnavailable: No microphone buffers within 3000 ms")
+  }
 }

@@ -52,9 +52,11 @@ enum CaptureErrorCode: String, Codable, Sendable, CaseIterable {
   }
 }
 
-struct Failure: Error, Equatable, Sendable {
+struct Failure: LocalizedError, Equatable, Sendable {
   var code: CaptureErrorCode
   var message: String
+
+  var errorDescription: String? { "\(code.rawValue): \(message)" }
 }
 
 struct CaptureError: Codable, Equatable, Sendable {

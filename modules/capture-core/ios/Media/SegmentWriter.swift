@@ -35,12 +35,19 @@ final class SegmentWriter: @unchecked Sendable {
   private var firstVideoTime = CMTime.invalid
   private var lastVideoTime = CMTime.invalid
   private var pendingCorrection: Double?
+  private var videoStopped = false
+  private var audioEnd = 0.0
   private(set) var droppedVideoFrames = 0
   private(set) var droppedAudioBuffers = 0
 
   var writtenSec: Double {
     guard case .writing = state else { return 0 }
     return (lastVideoTime + frameDuration - firstVideoTime).seconds
+  }
+
+  var audioCoversVideo: Bool {
+    guard case .writing = state else { return true }
+    return audioEnd >= (lastVideoTime + frameDuration).seconds
   }
 
   var audioDriftSec: Double { timeline.smoothedDrift }
@@ -82,7 +89,12 @@ final class SegmentWriter: @unchecked Sendable {
     }
   }
 
+  func stopVideo() {
+    videoStopped = true
+  }
+
   func appendVideo(_ sampleBuffer: CMSampleBuffer) -> AppendResult {
+    guard !videoStopped else { return .skipped }
     let time = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
     switch state {
     case .finished, .failed:
@@ -116,7 +128,9 @@ final class SegmentWriter: @unchecked Sendable {
       let kept = UnsafeBufferPointer(rebasing: samples[placement.droppedFrames...])
       let end = placement.presentationTime + Double(kept.count) / audioSampleRate
       guard !kept.isEmpty, end > firstVideoTime.seconds else { return .skipped }
-      return append(audio: try audioFactory.makeBuffer(samples: kept, presentationTime: placement.presentationTime))
+      let result = append(audio: try audioFactory.makeBuffer(samples: kept, presentationTime: placement.presentationTime))
+      if case .appended = result { audioEnd = end }
+      return result
     } catch {
       return .failed(markFailed("Audio sample buffer: \(error)"))
     }
