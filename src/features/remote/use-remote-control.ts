@@ -4,8 +4,9 @@ import { Linking } from 'react-native';
 import { BackgroundUpload } from '@modules/background-upload';
 import { CaptureCore } from '@modules/capture-core';
 
+import { formatLogLine } from '../capture/format';
 import { describeUpload } from '../upload/upload-format';
-import { formatHealthLine, formatLogLine } from './remote-format';
+import { formatHealthLine } from './remote-format';
 
 const STAND_LINK = /:\/\/stand\/([\w-]+)$/;
 const HEALTH_LOG_INTERVAL_MS = 10_000;

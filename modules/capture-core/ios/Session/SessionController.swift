@@ -12,6 +12,7 @@ final class SessionController {
   private static let fileFpsLowDuration = 3.0
   private static let fileFpsTolerance = 0.5
   private static let bytesPerMegabyte: Int64 = 1_048_576
+  private static let micPhases: Set<SessionPhase> = [.starting, .recording, .resuming]
 
   let log: EventLog
   let camera = CameraSource()
@@ -263,7 +264,10 @@ final class SessionController {
     case .muteCall(let muted):
       Task { await call.setMuted(muted) }
     case .stopMic:
-      microphone.stop()
+      enqueueSegmentWork {
+        guard !Self.micPhases.contains(self.machine.state.phase) else { return }
+        self.microphone.stop()
+      }
     case .runResumeSequence:
       sequence = Task {
         do {
@@ -397,8 +401,8 @@ final class SessionController {
     beginBackgroundTask()
     watched = [:]
     await enqueueSegmentWork { await self.finishSegment(index: self.machine.state.segmentIndex) }.value
-    await call.leave()
     microphone.stop()
+    await call.leave()
     endBackgroundTask()
     send(.stopFinished)
   }

@@ -2,7 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 
 import type { UploadSnapshot } from '@modules/background-upload';
 
-import { describeUpload, segmentObjectKey } from './upload-format';
+import { describeUpload, needsUpload, segmentObjectKey, uploadProgress } from './upload-format';
 
 const upload = (overrides: Partial<UploadSnapshot>): UploadSnapshot => ({
   id: 'job',
@@ -33,8 +33,29 @@ describe('describeUpload', () => {
     expect(describeUpload(upload({ phase: 'verified', partsDone: 29, serverSize: 482_344_960 }))).toBe(
       'verified · server 460.0 MB · 29 parts',
     ));
+  it('counts a single part', () =>
+    expect(describeUpload(upload({ phase: 'verified', partsTotal: 1, partsDone: 1, serverSize: 7_654_604 }))).toBe(
+      'verified · server 7.3 MB · 1 part',
+    ));
   it('shows the failure', () =>
     expect(describeUpload(upload({ phase: 'failed', error: 'Part 3 rejected with HTTP 404' }))).toBe(
       'failed · Part 3 rejected with HTTP 404',
     ));
+});
+
+describe('needsUpload', () => {
+  it('wants a segment that was never uploaded', () => expect(needsUpload(undefined)).toBe(true));
+  it('restarts a failed or cancelled upload', () => {
+    expect(needsUpload(upload({ phase: 'failed' }))).toBe(true);
+    expect(needsUpload(upload({ phase: 'cancelled' }))).toBe(true);
+  });
+  it('leaves live and verified uploads alone', () => {
+    expect(needsUpload(upload({ phase: 'uploading' }))).toBe(false);
+    expect(needsUpload(upload({ phase: 'verified' }))).toBe(false);
+  });
+});
+
+describe('uploadProgress', () => {
+  it('is the confirmed share of the file', () => expect(uploadProgress(upload({}))).toBeCloseTo(0.104, 3));
+  it('is zero before the file is sized', () => expect(uploadProgress(upload({ bytesTotal: 0, bytesConfirmed: 0 }))).toBe(0));
 });

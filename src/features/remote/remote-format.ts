@@ -1,14 +1,6 @@
-import type { HealthSnapshot, LogEntry } from '@modules/capture-core';
+import type { HealthSnapshot } from '@modules/capture-core';
 
 import { formatBytes } from '../capture/format';
-
-const TIME_START = 11;
-const TIME_END = 23;
-
-export function formatLogLine({ at, level, category, message, data }: LogEntry): string {
-  const details = data ? Object.entries(data).map(([key, value]) => ` ${key}=${value}`).join('') : '';
-  return `${at.slice(TIME_START, TIME_END)} ${level} ${category} ${message}${details}`;
-}
 
 export function formatHealthLine({ camera, file, audio, call, audioRoute, thermal, diskFreeBytes }: HealthSnapshot): string {
   return [

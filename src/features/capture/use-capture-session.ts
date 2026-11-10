@@ -58,11 +58,12 @@ export function useCaptureSession(config: CaptureConfigInput) {
 
   const preparedRef = useRef(false);
   const granted = allGranted(permissions);
+  const cameraIdle = snapshot.phase === 'idle';
   useEffect(() => {
-    if (!granted || preparedRef.current) return;
+    if (!granted || !cameraIdle || preparedRef.current) return;
     preparedRef.current = true;
     CaptureCore.prepare(config).catch((error: unknown) => setCommandError(describeError(error)));
-  }, [granted, config]);
+  }, [granted, cameraIdle, config]);
 
   const actions = useMemo(
     () => ({

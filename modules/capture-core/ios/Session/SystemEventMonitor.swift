@@ -17,6 +17,7 @@ final class SystemEventMonitor: NSObject, CXCallObserverDelegate {
   private var observers: [NSObjectProtocol] = []
   private var pressureObservation: NSKeyValueObservation?
   private var backgroundedAt: Double?
+  private var cameraInterruptedAt: Double?
   private(set) var systemPressure = SystemPressureLevel.nominal
 
   nonisolated init(log: EventLog, camera: CameraSource, onEvent: @escaping @MainActor @Sendable (Event) -> Void) {
@@ -35,6 +36,7 @@ final class SystemEventMonitor: NSObject, CXCallObserverDelegate {
     }
     observe(AVCaptureSession.wasInterruptedNotification, object: camera.session) { [weak self] in self?.cameraInterrupted($0) }
     observe(AVCaptureSession.interruptionEndedNotification, object: camera.session) { [weak self] _ in
+      self?.cameraInterruptedAt = nil
       self?.log.info("system", "Camera interruption ended")
       self?.onEvent(.session(.interruptionEnded(.camera)))
     }
@@ -99,18 +101,20 @@ final class SystemEventMonitor: NSObject, CXCallObserverDelegate {
 
   private func cameraInterrupted(_ notification: Notification) {
     let rawReason = notification.userInfo?[AVCaptureSessionInterruptionReasonKey] as? Int
-    let reason = rawReason.flatMap(AVCaptureSession.InterruptionReason.init).map { "\($0)" } ?? "unknown"
-    var data = ["reason": reason, "rawReason": rawReason.map(String.init) ?? "?"]
-    if let backgroundedAt { data["msAfterBackground"] = String(Int((HostClock.now() - backgroundedAt) * 1000)) }
+    let interruption = rawReason.flatMap(AVCaptureSession.InterruptionReason.init)
+    cameraInterruptedAt = HostClock.now()
+    var data = ["reason": interruption.map(Self.name) ?? "unknown", "rawReason": rawReason.map(String.init) ?? "?"]
+    if let backgroundedAt { data["msAfterBackground"] = Self.milliseconds(since: backgroundedAt) }
     log.warning("system", "Camera interrupted", data)
-    onEvent(.session(.interruptionBegan(.camera, .cameraInterrupted)))
+    let reason: PauseReason = interruption == .videoDeviceNotAvailableInBackground ? .appBackground : .cameraInterrupted
+    onEvent(.session(.interruptionBegan(.camera, reason)))
   }
 
   private func enteredBackground() {
     backgroundedAt = HostClock.now()
-    log.info("system", "App entered background", [
-      "multitaskingCameraAccessEnabled": String(camera.session.isMultitaskingCameraAccessEnabled),
-    ])
+    var data = ["multitaskingCameraAccessEnabled": String(camera.session.isMultitaskingCameraAccessEnabled)]
+    if let cameraInterruptedAt { data["msAfterCameraInterrupted"] = Self.milliseconds(since: cameraInterruptedAt) }
+    log.info("system", "App entered background", data)
     onEvent(.session(.interruptionBegan(.appBackground, .appBackground)))
   }
 
@@ -119,6 +123,21 @@ final class SystemEventMonitor: NSObject, CXCallObserverDelegate {
     backgroundedAt = nil
     log.info("system", "App entering foreground", ["backgroundSec": String(format: "%.1f", seconds)])
     onEvent(.session(.interruptionEnded(.appBackground)))
+  }
+
+  private static func milliseconds(since start: Double) -> String {
+    String(Int((HostClock.now() - start) * 1000))
+  }
+
+  private static func name(_ reason: AVCaptureSession.InterruptionReason) -> String {
+    switch reason {
+    case .videoDeviceNotAvailableInBackground: "videoDeviceNotAvailableInBackground"
+    case .audioDeviceInUseByAnotherClient: "audioDeviceInUseByAnotherClient"
+    case .videoDeviceInUseByAnotherClient: "videoDeviceInUseByAnotherClient"
+    case .videoDeviceNotAvailableWithMultipleForegroundApps: "videoDeviceNotAvailableWithMultipleForegroundApps"
+    case .videoDeviceNotAvailableDueToSystemPressure: "videoDeviceNotAvailableDueToSystemPressure"
+    @unknown default: "unknown"
+    }
   }
 
   private func observe(_ name: Notification.Name, object: Any? = nil, handler: @escaping (Notification) -> Void) {

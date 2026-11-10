@@ -2,11 +2,15 @@ import { useCallback, useEffect, useState } from 'react';
 import { AppState } from 'react-native';
 
 import { BackgroundUpload, type UploadSnapshot } from '@modules/background-upload';
-import type { SegmentSummary } from '@modules/capture-core';
+import type { RecordingSummary, SegmentState, SegmentSummary } from '@modules/capture-core';
 import { uploadApi } from '@/src/config/env';
 
 import { describeError } from '../capture/use-capture-session';
-import { segmentObjectKey } from './upload-format';
+import { ACTIVE_UPLOAD, needsUpload, segmentObjectKey } from './upload-format';
+
+const UPLOADABLE: ReadonlySet<SegmentState> = new Set(['finalized', 'recovered']);
+
+export type UploadStatus = { pending: SegmentSummary[]; uploading: boolean; verified: boolean };
 
 function withSnapshot(current: UploadSnapshot[], snapshot: UploadSnapshot): UploadSnapshot[] {
   return [snapshot, ...current.filter((upload) => upload.id !== snapshot.id)];
@@ -47,21 +51,36 @@ export function useUploads() {
 
   const uploadFor = useCallback((objectKey: string) => uploads.find((upload) => upload.objectKey === objectKey), [uploads]);
 
-  const start = (sessionId: string, segment: SegmentSummary) =>
+  const uploadStatus = useCallback(
+    (recording: RecordingSummary): UploadStatus => {
+      const segments = recording.segments.filter((segment) => UPLOADABLE.has(segment.state));
+      const jobs = segments.map((segment) => uploadFor(segmentObjectKey(recording.sessionId, segment.index)));
+      return {
+        pending: segments.filter((_, index) => needsUpload(jobs[index])),
+        uploading: jobs.some((job) => job !== undefined && ACTIVE_UPLOAD.has(job.phase)),
+        verified: jobs.some((job) => job?.phase === 'verified'),
+      };
+    },
+    [uploadFor],
+  );
+
+  const startRecording = (recording: RecordingSummary) =>
     guard(async () => {
       await BackgroundUpload.requestNotificationPermission();
-      const snapshot = await BackgroundUpload.startUpload({
-        fileUri: segment.uri,
-        objectKey: segmentObjectKey(sessionId, segment.index),
-        api: uploadApi(),
-      });
-      setUploads((current) => withSnapshot(current, snapshot));
+      for (const segment of uploadStatus(recording).pending) {
+        const snapshot = await BackgroundUpload.startUpload({
+          fileUri: segment.uri,
+          objectKey: segmentObjectKey(recording.sessionId, segment.index),
+          api: uploadApi(),
+        });
+        setUploads((current) => withSnapshot(current, snapshot));
+      }
     });
 
   const retry = (id: string) => guard(() => BackgroundUpload.retryFailedParts(id));
   const cancel = (id: string) => guard(() => BackgroundUpload.cancelUpload(id));
 
-  return { error, uploadFor, actions: { start, retry, cancel } };
+  return { error, uploadFor, uploadStatus, actions: { startRecording, retry, cancel } };
 }
 
 export type UploadActions = ReturnType<typeof useUploads>['actions'];

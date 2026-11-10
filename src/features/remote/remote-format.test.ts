@@ -2,7 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 
 import type { HealthSnapshot } from '@modules/capture-core';
 
-import { formatHealthLine, formatLogLine } from './remote-format';
+import { formatHealthLine } from './remote-format';
 
 const health: HealthSnapshot = {
   at: '2026-11-10T09:00:00.000Z',
@@ -15,25 +15,6 @@ const health: HealthSnapshot = {
   audioRoute: { input: 'AirPods Pro (BluetoothHFP)', output: 'AirPods Pro (BluetoothHFP)' },
   diskFreeBytes: 44_237_824_000,
 };
-
-describe('formatLogLine', () => {
-  it('shows the time, level, category, message and data', () =>
-    expect(
-      formatLogLine({
-        at: '2026-11-10T09:12:33.456Z',
-        mono: 1,
-        level: 'warning',
-        category: 'audio',
-        message: 'Microphone restarted',
-        data: { gapMs: '1102' },
-      }),
-    ).toBe('09:12:33.456 warning audio Microphone restarted gapMs=1102'));
-
-  it('leaves out empty data', () =>
-    expect(formatLogLine({ at: '2026-11-10T09:12:33.456Z', mono: 1, level: 'info', category: 'call', message: 'Connected' })).toBe(
-      '09:12:33.456 info call Connected',
-    ));
-});
 
 describe('formatHealthLine', () => {
   it('puts every pipeline on one line', () =>
