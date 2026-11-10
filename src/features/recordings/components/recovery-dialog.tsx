@@ -12,11 +12,13 @@ import { PLAYABLE } from '../recording-labels';
 
 export function RecoveryDialog({
   report,
+  note,
   onPlay,
   onVerify,
   onDismiss,
 }: {
   report: RecoveryReport | undefined;
+  note: string;
   onPlay: (uri: string) => void;
   onVerify: (sessionId: string) => void;
   onDismiss: (sessionId: string) => void;
@@ -48,6 +50,9 @@ export function RecoveryDialog({
         <StatTile label="Lost" value={formatLoss(report)} />
         <StatTile label="Segments" value={String(report.segments.length)} />
       </View>
+      <Text variant="footnote" className="text-muted">
+        {note}
+      </Text>
       <View className="flex-row gap-2">
         <Button
           title="Play"

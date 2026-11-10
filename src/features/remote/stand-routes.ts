@@ -6,6 +6,7 @@ export const STAND_ROUTES = {
   debug: '/debug',
   settings: '/settings',
   room: '/room',
+  storybook: '/storybook',
 } as const satisfies Record<string, Href>;
 
 const STAND_PATH = /(?:^|:\/\/|\/)stand\/([\w-]+)$/;

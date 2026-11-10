@@ -11,6 +11,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   name: 'MyDirector',
   slug: 'mydirector-capture-poc',
   version: '0.1.0',
+  runtimeVersion: { policy: 'fingerprint' },
   scheme: 'com.dykyi.mydirector.capturepoc',
   orientation: 'portrait',
   userInterfaceStyle: 'automatic',

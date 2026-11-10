@@ -11,12 +11,21 @@ import type { CallTarget } from '@config/token-grant';
 export type SettingsRowView = { label: string; value: string; mono?: boolean };
 export type SettingsGroupId = 'camera' | 'file' | 'microphone' | 'call' | 'upload' | 'about';
 export type SettingsGroupView = { id: SettingsGroupId; title: string; rows: SettingsRowView[] };
+export type UpdateInfo = {
+  enabled: boolean;
+  embedded: boolean;
+  updateId: string | null;
+  channel: string | null;
+};
 export type AboutInfo = {
   app: string;
   version: string;
   build: string;
   debug: boolean;
   device: string;
+  os: string;
+  runtime: string | null;
+  update: UpdateInfo;
 };
 
 const BITS_PER_MBIT = 1_000_000;
@@ -24,6 +33,7 @@ const BITS_PER_KBIT = 1_000;
 const MB_PER_GB = 1_000;
 const MS_PER_SEC = 1_000;
 const UNKNOWN = '?';
+const SHORT_ID_LENGTH = 8;
 const LENS = 'Wide 1×';
 const VIDEO_HDR = 'Off';
 const AUDIO_FORMAT = 'AAC 48 kHz mono';
@@ -44,6 +54,13 @@ function processing({ noiseSuppression, autoGainControl }: CaptureConfig['audio'
   return ['echo cancel', noiseSuppression && 'noise', autoGainControl && 'gain']
     .filter(Boolean)
     .join(' · ');
+}
+
+function updateText({ enabled, embedded, updateId, channel }: UpdateInfo): string {
+  if (!enabled) return 'Off';
+  const source =
+    embedded || !updateId ? 'built-in bundle' : `update ${updateId.slice(0, SHORT_ID_LENGTH)}`;
+  return channel ? `${source} · ${channel}` : source;
 }
 
 export function settingsGroups(
@@ -134,7 +151,9 @@ export function settingsGroups(
           value: `${about.debug ? 'debug' : 'release'} · ${about.build}`,
           mono: true,
         },
-        { label: 'Device', value: about.device },
+        { label: 'Runtime', value: about.runtime ?? 'not set', mono: true },
+        { label: 'Update', value: updateText(about.update), mono: true },
+        { label: 'Device', value: `${about.device} · ${about.os}` },
       ],
     },
   ];

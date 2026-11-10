@@ -41,7 +41,7 @@ export function SettingsScreen() {
   const locked = !CAMERA_EDITABLE.has(snapshot.phase);
   const [camera, ...rest] = settingsGroups(config, ABOUT, callTarget);
   const copySettings = async () => {
-    await Clipboard.setStringAsync(JSON.stringify(config, null, 2));
+    await Clipboard.setStringAsync(JSON.stringify({ about: ABOUT, config }, null, 2));
     setCopied(true);
   };
   return (

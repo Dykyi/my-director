@@ -4,6 +4,7 @@ import { View } from 'react-native';
 import type { UploadSnapshot } from '@modules/background-upload';
 
 import { Button } from '@ui/button';
+import { CopyButton } from '@ui/copy-button';
 import { Icon } from '@ui/icon';
 import { Text } from '@ui/text';
 
@@ -12,7 +13,7 @@ import type { UploadActions } from '../use-uploads';
 
 const PERCENT = 100;
 
-const phaseText = cva('shrink', {
+const phaseText = cva('', {
   variants: {
     phase: {
       preparing: 'text-accent',
@@ -26,25 +27,35 @@ const phaseText = cva('shrink', {
 });
 
 export function UploadProgress({
+  label,
   upload,
   actions,
 }: {
+  label: string;
   upload: UploadSnapshot | undefined;
   actions: UploadActions;
 }) {
-  if (!upload) return null;
-  const active = ACTIVE_UPLOAD.has(upload.phase);
-  const retryable = upload.phase === 'failed' && upload.uploadId !== undefined;
+  const verified = upload?.phase === 'verified';
+  const active = upload !== undefined && ACTIVE_UPLOAD.has(upload.phase);
+  const retryable = upload?.phase === 'failed' && upload.uploadId !== undefined;
   return (
     <View className="gap-1.5">
-      <View className="flex-row items-center gap-1">
-        {upload.phase === 'verified' && (
-          <Icon name="check" className="size-3.5" tint="accent-success" />
+      <View className="flex-row items-center gap-1.5">
+        <Text selectable variant="mono-value" className="shrink text-subtle">
+          {label}
+        </Text>
+        {verified && <Icon name="check" className="size-3.5" tint="accent-success" />}
+        {upload && (
+          <View className="ml-auto pl-2">
+            <CopyButton value={upload.objectKey} label="object key" />
+          </View>
         )}
+      </View>
+      {upload && !verified && (
         <Text selectable variant="mono-value" className={phaseText({ phase: upload.phase })}>
           {describeUpload(upload)}
         </Text>
-      </View>
+      )}
       {active && (
         <View className="h-1.5 overflow-hidden rounded-bar bg-border">
           <View
@@ -53,12 +64,7 @@ export function UploadProgress({
           />
         </View>
       )}
-      {upload.uploadId && (
-        <Text selectable variant="mono-id" className="text-faint">
-          {upload.uploadId} {upload.objectKey}
-        </Text>
-      )}
-      {(active || retryable) && (
+      {upload && (active || retryable) && (
         <View className="flex-row gap-2">
           {retryable && (
             <Button

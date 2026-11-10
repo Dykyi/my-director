@@ -8,7 +8,7 @@ const strip = cva('h-10 flex-row items-center gap-2 px-4 active:opacity-70', {
   variants: { tone: { recording: 'bg-recording-soft', paused: 'bg-paused-soft' } },
 });
 
-type StripTone = NonNullable<VariantProps<typeof strip>['tone']>;
+export type StripTone = NonNullable<VariantProps<typeof strip>['tone']>;
 
 const stripText = cva('', {
   variants: {

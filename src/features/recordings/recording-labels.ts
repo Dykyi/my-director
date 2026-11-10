@@ -1,4 +1,5 @@
 import type {
+  CaptureConfig,
   RecordingState,
   RecordingSummary,
   SegmentState,
@@ -54,4 +55,14 @@ export function deleteMessage(
 ): string {
   const local = `${plural(segments.length, 'segment')}, ${formatBytes(totalBytes)} will be removed from the phone.`;
   return uploaded > 0 ? `${local} Uploaded to the bucket: ${plural(uploaded, 'segment')}.` : local;
+}
+
+export function lossNote({
+  recording,
+  session,
+}: {
+  recording: Pick<CaptureConfig['recording'], 'fragmentIntervalSec'>;
+  session: Pick<CaptureConfig['session'], 'heartbeatIntervalSec'>;
+}): string {
+  return `Video reaches the disk every ${recording.fragmentIntervalSec} s and the progress note every ${session.heartbeatIntervalSec} s, so a crash loses only the tail after the last save.`;
 }

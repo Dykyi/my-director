@@ -8,15 +8,9 @@ const bar = cva('h-2.5', {
   },
 });
 
-export function LevelMeter({
-  lit,
-  total,
-  size,
-}: {
-  lit: number;
-  total: number;
-  size: NonNullable<VariantProps<typeof bar>['size']>;
-}) {
+export type MeterSize = NonNullable<VariantProps<typeof bar>['size']>;
+
+export function LevelMeter({ lit, total, size }: { lit: number; total: number; size: MeterSize }) {
   return (
     <View accessibilityElementsHidden className="flex-row gap-0.5">
       {Array.from({ length: total }, (_, index) => (

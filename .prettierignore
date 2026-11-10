@@ -15,3 +15,5 @@ src/theme/colors.ts
 src/theme/type-styles.ts
 src/theme/theme.css
 src/uniwind-types.d.ts
+# Written by the Storybook Metro plugin on every start.
+.rnstorybook/storybook.requires.ts

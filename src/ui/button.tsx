@@ -39,8 +39,8 @@ const button = cva(
   },
 );
 
-type ButtonVariant = NonNullable<VariantProps<typeof button>['variant']>;
-type ButtonSize = NonNullable<VariantProps<typeof button>['size']>;
+export type ButtonVariant = NonNullable<VariantProps<typeof button>['variant']>;
+export type ButtonSize = NonNullable<VariantProps<typeof button>['size']>;
 
 const label = cva('', {
   variants: {

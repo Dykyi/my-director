@@ -2,7 +2,8 @@ import { describe, expect, it } from '@jest/globals';
 
 import type { CaptureConfig, HealthSnapshot, SessionSnapshot } from '@modules/capture-core';
 
-import { inRoom, noCall, participant } from '@test/call-fixtures';
+import { inRoom, participant } from '@test/call-fixtures';
+import { snapshot } from '@test/session-fixtures';
 
 import {
   callRowView,
@@ -29,16 +30,6 @@ const profiles = {
   reduced: { width: 960, height: 540, fps: 24 },
   minimal: { width: 640, height: 360, fps: 15 },
 };
-const snapshot = (overrides: Partial<SessionSnapshot> = {}): SessionSnapshot => ({
-  phase: 'ready',
-  segmentIndex: 0,
-  recordedSec: 0,
-  activeInterruptions: [],
-  call: noCall,
-  thermal: 'nominal',
-  warnings: [],
-  ...overrides,
-});
 const inSession = (overrides: Partial<SessionSnapshot> = {}) =>
   snapshot({
     phase: 'recording',

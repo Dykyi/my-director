@@ -29,5 +29,6 @@ describe('STAND_ROUTES', () => {
       debug: '/debug',
       settings: '/settings',
       room: '/room',
+      storybook: '/storybook',
     }));
 });

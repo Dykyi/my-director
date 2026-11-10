@@ -1,7 +1,6 @@
 import { View } from 'react-native';
 
-import { HEALTH_LOG_INTERVAL_MS } from '@features/remote/use-remote-control';
-import { useRemoteStatus } from '@features/remote/use-stand-commands';
+import { HEALTH_LOG_INTERVAL_MS, type LastCommand } from '@features/remote/use-remote-control';
 import { formatClock } from '@shared/format';
 import { Text } from '@ui/text';
 
@@ -20,8 +19,7 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function RemoteStatus() {
-  const { lastCommand } = useRemoteStatus();
+export function RemoteStatus({ lastCommand }: { lastCommand: LastCommand | undefined }) {
   const links = lastCommand
     ? `listening · last: ${lastCommand.name} at ${formatClock(lastCommand.at)}`
     : 'listening';

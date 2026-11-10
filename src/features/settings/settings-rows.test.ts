@@ -2,7 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 
 import type { CaptureConfig } from '@modules/capture-core';
 
-import { settingsGroups } from './settings-rows';
+import { settingsGroups, type AboutInfo } from './settings-rows';
 
 const config: CaptureConfig = {
   camera: { position: 'back', width: 1920, height: 1080, fps: 30, stabilization: 'off' },
@@ -42,7 +42,16 @@ const config: CaptureConfig = {
   },
   storage: { minFreeSpaceToStartMB: 2_000, lowSpaceWarningMB: 1_000, criticalFreeSpaceMB: 500 },
 };
-const about = { app: 'MyDirector', version: '0.1.0', build: '1', debug: true, device: 'iPhone 11' };
+const about: AboutInfo = {
+  app: 'MyDirector',
+  version: '0.1.0',
+  build: '1',
+  debug: true,
+  device: 'iPhone 11',
+  os: 'iOS 26.1',
+  runtime: '4f2a9c1e',
+  update: { enabled: false, embedded: true, updateId: null, channel: null },
+};
 const call = {
   serverUrl: 'wss://mydirector-poc-abc.livekit.cloud',
   room: 'mydirector-poc',
@@ -88,10 +97,34 @@ describe('settingsGroups', () => {
       ['Weak network', 'keeps 30 fps, drops size'],
     ]));
 
-  it('ends with the app and the phone', () =>
+  it('ends with the app, its update and the phone', () =>
     expect(rows('about')).toEqual([
       ['App', 'MyDirector 0.1.0'],
       ['Build', 'debug · 1'],
-      ['Device', 'iPhone 11'],
+      ['Runtime', '4f2a9c1e'],
+      ['Update', 'Off'],
+      ['Device', 'iPhone 11 · iOS 26.1'],
     ]));
+
+  describe('update row', () => {
+    const update = (overrides: Partial<AboutInfo['update']>) =>
+      settingsGroups(
+        config,
+        { ...about, update: { ...about.update, enabled: true, ...overrides } },
+        call,
+      )
+        .find((group) => group.id === 'about')
+        ?.rows.find((row) => row.label === 'Update')?.value;
+
+    it('names the bundle built into the app', () =>
+      expect(update({ channel: 'production' })).toBe('built-in bundle · production'));
+    it('shortens the id of a downloaded update', () =>
+      expect(
+        update({
+          embedded: false,
+          updateId: '0195b3c4-7d1e-7a2b-9c3d-4e5f6a7b8c9d',
+          channel: 'production',
+        }),
+      ).toBe('update 0195b3c4 · production'));
+  });
 });

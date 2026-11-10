@@ -22,6 +22,10 @@ export default function RootLayout() {
             contentStyle: { backgroundColor: 'transparent' },
           }}
         />
+        {/* Development only: the route, like the bundle, is absent from release builds. */}
+        <Stack.Protected guard={__DEV__}>
+          <Stack.Screen name="storybook" />
+        </Stack.Protected>
       </Stack>
     </RootProviders>
   );

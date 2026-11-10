@@ -7,6 +7,7 @@ import type { UploadStatus } from '@features/upload/use-uploads';
 import {
   cardActions,
   deleteMessage,
+  lossNote,
   recordingChip,
   recordingMeta,
   recoveredNote,
@@ -100,5 +101,14 @@ describe('deleteMessage', () => {
   it('counts the segments already in the bucket', () =>
     expect(deleteMessage(recording(), 1)).toBe(
       '2 segments, 422.0 MB will be removed from the phone. Uploaded to the bucket: 1 segment.',
+    ));
+});
+
+describe('lossNote', () => {
+  it('says how often the file and the session note reach the disk', () =>
+    expect(
+      lossNote({ recording: { fragmentIntervalSec: 2 }, session: { heartbeatIntervalSec: 1 } }),
+    ).toBe(
+      'Video reaches the disk every 2 s and the progress note every 1 s, so a crash loses only the tail after the last save.',
     ));
 });

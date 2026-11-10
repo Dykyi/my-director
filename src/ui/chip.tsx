@@ -20,7 +20,7 @@ const chip = cva('flex-row items-center self-start', {
   },
 });
 
-type ChipKind = NonNullable<VariantProps<typeof chip>['kind']>;
+export type ChipKind = NonNullable<VariantProps<typeof chip>['kind']>;
 
 const LABEL: Record<ChipKind, TypeStyle> = {
   state: 'chip-label',

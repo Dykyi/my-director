@@ -13,5 +13,9 @@ module.exports = defineConfig([
   {
     ignores: ['dist/*', 'tools/**'],
   },
+  {
+    files: ['.rnstorybook/storybook.requires.ts'],
+    rules: { '@typescript-eslint/no-require-imports': 'off' },
+  },
   prettierConfig,
 ]);

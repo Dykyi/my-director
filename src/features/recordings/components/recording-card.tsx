@@ -15,7 +15,6 @@ import {
   recordingChip,
   recordingMeta,
   recoveredNote,
-  segmentLine,
   type CardAction,
 } from '../recording-labels';
 
@@ -44,13 +43,13 @@ export function RecordingCard({
   status,
   isActive,
   handlers,
-  renderUpload,
+  renderSegment,
 }: {
   recording: RecordingSummary;
   status: UploadStatus;
   isActive: boolean;
   handlers: CardHandlers;
-  renderUpload: (segment: SegmentSummary) => ReactNode;
+  renderSegment: (segment: SegmentSummary) => ReactNode;
 }) {
   const chip = recordingChip(recording, status);
   return (
@@ -71,16 +70,7 @@ export function RecordingCard({
           {recoveredNote(recording)}
         </Text>
       )}
-      <View className="gap-2">
-        {recording.segments.map((segment) => (
-          <View key={segment.index} className="gap-1.5">
-            <Text selectable variant="mono-value" className="text-subtle">
-              {segmentLine(segment)}
-            </Text>
-            {renderUpload(segment)}
-          </View>
-        ))}
-      </View>
+      <View className="gap-2">{recording.segments.map(renderSegment)}</View>
       {status.uploading && (
         <Text variant="caption" className="text-muted">
           {UPLOAD_NOTE}

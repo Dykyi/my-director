@@ -13,9 +13,10 @@ import { standAction } from './stand-routes';
 export const HEALTH_LOG_INTERVAL_MS = 10_000;
 
 export type RemoteCommands = Readonly<Record<string, () => unknown>>;
+export type LastCommand = { name: string; at: string };
 
 export function useRemoteControl(commands: RemoteCommands) {
-  const [lastCommand, setLastCommand] = useState<{ name: string; at: string }>();
+  const [lastCommand, setLastCommand] = useState<LastCommand>();
 
   const perform = useEffectEvent(async (url: string) => {
     const name = standAction(url);
@@ -54,7 +55,9 @@ export function useRemoteControl(commands: RemoteCommands) {
         console.log(line);
       }),
       BackgroundUpload.addListener('onUploadChange', (upload) =>
-        console.log(`upload ${upload.objectKey} ${describeUpload(upload)}`),
+        console.log(
+          `upload ${upload.objectKey} ${upload.uploadId ?? ''} ${describeUpload(upload)}`,
+        ),
       ),
     ];
     return () => subscriptions.forEach((subscription) => subscription.remove());

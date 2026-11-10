@@ -12,7 +12,7 @@ import { EmptyState } from '@ui/empty-state';
 import { Text } from '@ui/text';
 
 import { RecordingCard, type CardHandlers } from './components/recording-card';
-import { PLAYABLE } from './recording-labels';
+import { PLAYABLE, segmentLine } from './recording-labels';
 import { useRecordingsState } from './recordings-context';
 import { useConfirmDelete } from './use-confirm-delete';
 
@@ -61,8 +61,10 @@ export function RecordingsScreen() {
               status={uploads.uploadStatus(recording)}
               isActive={recording.sessionId === snapshot.sessionId}
               handlers={handlers}
-              renderUpload={(segment) => (
+              renderSegment={(segment) => (
                 <UploadProgress
+                  key={segment.index}
+                  label={segmentLine(segment)}
                   upload={uploads.uploadFor(segmentObjectKey(recording.sessionId, segment.index))}
                   actions={uploads.actions}
                 />

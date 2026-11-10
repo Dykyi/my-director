@@ -15,6 +15,6 @@
       "@ui/*": ["./src/ui/*"]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx"],
+  "include": ["**/*.ts", "**/*.tsx", ".rnstorybook/**/*.ts", ".rnstorybook/**/*.tsx"],
   "exclude": ["tools/upload-api"]
 }
