@@ -165,3 +165,12 @@ $('stopRecord').onclick = () => {
 };
 
 $('downloadCsv').onclick = () => download(new Blob([csvRows.join('\n')], { type: 'text/csv' }), `stats-${stamp()}.csv`);
+
+if (!$('token').value) {
+  const saved = await fetch('credentials.json').then((response) => (response.ok ? response.json() : null)).catch(() => null);
+  if (saved) {
+    $('url').value = saved.url;
+    $('token').value = saved.token;
+  }
+}
+if ($('url').value && $('token').value) $('connect').click();

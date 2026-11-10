@@ -29,9 +29,9 @@ struct AudioTimeline: Sendable {
     self.configuration = configuration
   }
 
-  mutating func place(frameCount: Int, arrival: Double) -> Placement {
+  mutating func place(frameCount: Int, firstFrameStamp: Double) -> Placement {
     let sampleRate = configuration.sampleRate
-    let observedStart = arrival - Double(frameCount) / sampleRate - configuration.captureLatency
+    let observedStart = firstFrameStamp - configuration.captureLatency
     guard let anchor else {
       self.anchor = observedStart
       emittedFrames = Int64(frameCount)

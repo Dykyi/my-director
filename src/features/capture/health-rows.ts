@@ -1,4 +1,4 @@
-import type { HealthSnapshot, SessionPhase } from '@modules/capture-core';
+import type { CallStatus, HealthSnapshot, SessionPhase, SessionSnapshot } from '@modules/capture-core';
 
 import { formatBytes } from './format';
 import type { Tone } from './session-labels';
@@ -60,9 +60,16 @@ function callRow({ call }: HealthSnapshot): HealthRow {
     : { label: 'Call', value: `${sent} · limited by ${call.qualityLimitation}`, tone: 'warning' };
 }
 
+function roomRow(call: CallStatus): HealthRow {
+  if (call.state === 'disconnected' || call.room === undefined) return { label: 'Room', value: 'not joined', tone: 'muted' };
+  return call.remoteParticipants.length > 0
+    ? { label: 'Room', value: `${call.room} · ${call.remoteParticipants.join(', ')}`, tone: 'normal' }
+    : { label: 'Room', value: `${call.room} · nobody else yet`, tone: 'warning' };
+}
+
 const routeTone = (port: string): Tone => (port.includes(BLUETOOTH_PORT) ? 'accent' : 'normal');
 
-export function healthRows(health: HealthSnapshot, phase: SessionPhase): HealthRow[] {
+export function healthRows(health: HealthSnapshot, { phase, call }: Pick<SessionSnapshot, 'phase' | 'call'>): HealthRow[] {
   const { camera, audioRoute } = health;
   return [
     camera.width === 0
@@ -73,6 +80,7 @@ export function healthRows(health: HealthSnapshot, phase: SessionPhase): HealthR
     { label: 'Input', value: audioRoute.input, tone: routeTone(audioRoute.input) },
     { label: 'Output', value: audioRoute.output, tone: routeTone(audioRoute.output) },
     callRow(health),
+    roomRow(call),
     {
       label: 'Thermal',
       value: `${health.thermal} · pressure ${health.systemPressure}`,

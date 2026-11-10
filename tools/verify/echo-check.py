@@ -17,7 +17,15 @@ RATE = 16_000
 WINDOW_SEC = 5
 MAX_LAG_SEC = 1.5
 SPEECH_RMS = 0.01
+FRAME = RATE // 50
+MIN_SPEECH_SHARE = 0.5
 ECHO_THRESHOLD = 0.1
+
+
+def speech_share(samples: np.ndarray) -> float:
+    """Share of 20 ms frames in which the interviewer is speaking."""
+    frames = samples[: len(samples) // FRAME * FRAME].reshape(-1, FRAME)
+    return float(np.mean(np.sqrt(np.mean(frames**2, axis=1)) >= SPEECH_RMS))
 
 
 def peak_correlation(reference: np.ndarray, segment: np.ndarray) -> float:
@@ -47,7 +55,7 @@ def main() -> int:
         segment = received[start : start + window + max_lag]
         if len(segment) < window + max_lag:
             break
-        if np.sqrt(np.mean(reference**2)) < SPEECH_RMS:
+        if speech_share(reference) < MIN_SPEECH_SHARE:
             continue
         peaks.append({"atSec": start / RATE, "correlation": peak_correlation(reference, segment)})
 

@@ -54,3 +54,6 @@ tools/interviewer/speech.m4a
 tools/upload-api/.wrangler/
 __pycache__/
 .build/
+
+# interviewer credentials written by npm run token
+tools/interviewer/credentials.json

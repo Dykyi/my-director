@@ -79,3 +79,16 @@ def test_echo_check_passes_without_echo(tmp_path):
     code, report = run("echo-check.py", tmp_path / "sent.wav", tmp_path / "received.wav")
     assert code == 0
     assert report["maxCorrelation"] < 0.1
+
+
+def test_echo_check_skips_windows_with_little_interviewer_speech(tmp_path):
+    rng = np.random.default_rng(3)
+    sent = np.zeros(RATE * 30)
+    burst = RATE // 20
+    for start in range(0, sent.size, RATE * 5):
+        sent[start : start + burst] = rng.normal(0, 0.2, burst)
+    write_wav(tmp_path / "sent.wav", sent)
+    write_wav(tmp_path / "received.wav", rng.normal(0, 0.2, sent.size))
+    code, report = run("echo-check.py", tmp_path / "sent.wav", tmp_path / "received.wav")
+    assert code == 0, report
+    assert report["windows"] == 0

@@ -115,9 +115,9 @@ final class SegmentWriter: @unchecked Sendable {
     return .appended
   }
 
-  func appendAudio(_ samples: UnsafeBufferPointer<Int16>, arrival: Double) -> AppendResult {
+  func appendAudio(_ samples: UnsafeBufferPointer<Int16>, firstFrameStamp: Double) -> AppendResult {
     guard case .writing = state else { return .skipped }
-    let placement = timeline.place(frameCount: samples.count, arrival: arrival)
+    let placement = timeline.place(frameCount: samples.count, firstFrameStamp: firstFrameStamp)
     if let correction = placement.correction { pendingCorrection = correction }
     do {
       if placement.silenceFrames > 0 {

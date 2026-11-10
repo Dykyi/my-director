@@ -16,9 +16,10 @@ export type RemoteCommands = Readonly<Record<string, () => unknown>>;
 export function useRemoteControl(commands: RemoteCommands) {
   const perform = useEffectEvent(async (url: string) => {
     const name = STAND_LINK.exec(url)?.[1];
-    const command = name === undefined ? undefined : commands[name];
+    if (name === undefined) return;
+    const command = commands[name];
     if (!command) {
-      console.log(`stand: unknown action in ${url}, known: ${Object.keys(commands).join(', ')}`);
+      console.log(`stand: unknown action ${name}, known: ${Object.keys(commands).join(', ')}`);
       return;
     }
     console.log(`stand: ${name}`);

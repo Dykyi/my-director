@@ -24,8 +24,8 @@ struct AudioTimelineTests {
       sampleRate: Self.sampleRate, captureLatency: Self.latency, resyncThreshold: Self.threshold))
     let steps = starts.enumerated().map { index, start in
       let observed = start + offset(index)
-      let arrival = observed + Self.bufferSec + Self.latency
-      return Step(observedStart: observed, placement: timeline.place(frameCount: Self.framesPerBuffer, arrival: arrival))
+      let stamp = observed + Self.latency
+      return Step(observedStart: observed, placement: timeline.place(frameCount: Self.framesPerBuffer, firstFrameStamp: stamp))
     }
     return (timeline, steps)
   }
@@ -40,6 +40,13 @@ struct AudioTimelineTests {
       let nextStart = next.placement.presentationTime - Double(next.placement.silenceFrames) / Self.sampleRate
       #expect(nextStart >= previousEnd - 1e-9)
     }
+  }
+
+  @Test func stampMarksTheFirstFrameOfTheBuffer() {
+    var timeline = AudioTimeline(configuration: .init(
+      sampleRate: Self.sampleRate, captureLatency: Self.latency, resyncThreshold: Self.threshold))
+    let placement = timeline.place(frameCount: 4_800, firstFrameStamp: 1_000)
+    #expect(placement.presentationTime == 1_000 - Self.latency)
   }
 
   @Test func steadyStreamIsContiguousForTenMinutes() {

@@ -112,7 +112,7 @@ export function CaptureScreen() {
           <Notices snapshot={snapshot} commandError={commandError} onDismiss={actions.dismissError} />
           <PreviewPanel snapshot={snapshot} health={health} permissions={permissions} onRequestPermissions={actions.requestPermissions} />
           <Controls snapshot={snapshot} actions={actions} />
-          <HealthPanel health={health} phase={snapshot.phase} />
+          <HealthPanel health={health} snapshot={snapshot} />
           <EventLog entries={logs} />
           <RecordingsLink count={recordings.recordings.length} onPress={openRecordings} />
         </>

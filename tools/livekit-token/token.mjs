@@ -1,8 +1,11 @@
+import { writeFileSync } from 'node:fs';
+
 import { AccessToken } from 'livekit-server-sdk';
 
 const ROOM = 'mydirector-poc';
 const TOKEN_TTL = '7d';
 const INTERVIEWER_PAGE = 'http://localhost:8080/';
+const INTERVIEWER_CREDENTIALS = new URL('../interviewer/credentials.json', import.meta.url);
 
 const { LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET } = process.env;
 if (!LIVEKIT_URL || !LIVEKIT_API_KEY || !LIVEKIT_API_SECRET) {
@@ -19,6 +22,7 @@ async function tokenFor(identity) {
 const phoneToken = await tokenFor('iphone');
 const interviewerToken = await tokenFor('interviewer');
 const pageHash = new URLSearchParams({ url: LIVEKIT_URL, token: interviewerToken });
+writeFileSync(INTERVIEWER_CREDENTIALS, JSON.stringify({ url: LIVEKIT_URL, token: interviewerToken }));
 
 console.log('# paste into .env.local, then rebuild the app');
 console.log(`EXPO_PUBLIC_LIVEKIT_URL=${LIVEKIT_URL}`);
@@ -26,3 +30,4 @@ console.log(`EXPO_PUBLIC_LIVEKIT_TOKEN=${phoneToken}`);
 console.log('');
 console.log(`# interviewer page (room ${ROOM}, valid ${TOKEN_TTL})`);
 console.log(`${INTERVIEWER_PAGE}#${pageHash}`);
+console.log(`# or open ${INTERVIEWER_PAGE} as is: it reads tools/interviewer/credentials.json`);

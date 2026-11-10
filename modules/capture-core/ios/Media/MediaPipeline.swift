@@ -29,6 +29,7 @@ final class MediaPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
   private static let dropLogInterval = 30
   private static let audioDrainTimeoutSec = 0.3
   private static let audioDrainPoll = Duration.milliseconds(20)
+  private static let measuredVoiceProcessingLatency = 0.0235
 
   let queue = DispatchQueue(label: "capture-core.media", qos: .userInteractive)
   let heartbeats = HeartbeatBoard()
@@ -66,7 +67,7 @@ final class MediaPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
       rotationAngle: rotationAngle,
       audio: AudioTimeline.Configuration(
         sampleRate: sampleRate > 0 ? sampleRate : Self.defaultSampleRate,
-        captureLatency: audioSession.inputLatency + audioSession.ioBufferDuration,
+        captureLatency: audioSession.inputLatency + audioSession.ioBufferDuration + Self.measuredVoiceProcessingLatency,
         resyncThreshold: config.audio.resyncThresholdMs / 1000
       )
     )
@@ -159,12 +160,12 @@ final class MediaPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
     }
   }
 
-  func handleAudio(_ buffer: AVAudioPCMBuffer, arrival: Double) {
-    heartbeats.beat(.microphone, at: arrival)
-    queue.async { self.processAudio(buffer, arrival: arrival) }
+  func handleAudio(_ buffer: AVAudioPCMBuffer, firstFrameStamp: Double) {
+    heartbeats.beat(.microphone, at: firstFrameStamp)
+    queue.async { self.processAudio(buffer, firstFrameStamp: firstFrameStamp) }
   }
 
-  private func processAudio(_ buffer: AVAudioPCMBuffer, arrival: Double) {
+  private func processAudio(_ buffer: AVAudioPCMBuffer, firstFrameStamp: Double) {
     guard let channel = buffer.int16ChannelData?[0] else {
       log.error("audio", "Unexpected microphone buffer format", ["format": buffer.format.description])
       return
@@ -174,10 +175,10 @@ final class MediaPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
     let level = AudioLevel.rmsDb(samples)
     stats.withLock { stats in
       if stats.lastAudioArrival > 0 {
-        stats.audioMaxGapMs = max(stats.audioMaxGapMs, (arrival - stats.lastAudioArrival) * 1000)
+        stats.audioMaxGapMs = max(stats.audioMaxGapMs, (firstFrameStamp - stats.lastAudioArrival) * 1000)
       }
       stats.audioLevelDb = level
-      stats.lastAudioArrival = arrival
+      stats.lastAudioArrival = firstFrameStamp
       stats.audioSampleRate = sampleRate
       stats.audioBufferCount += 1
     }
@@ -190,7 +191,7 @@ final class MediaPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
       }
       return
     }
-    switch writer.appendAudio(samples, arrival: captureClockTime(arrival)) {
+    switch writer.appendAudio(samples, firstFrameStamp: captureClockTime(firstFrameStamp)) {
     case .appended:
       heartbeats.beat(.fileAudio, at: HostClock.now())
     case .skipped:

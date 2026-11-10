@@ -1,6 +1,6 @@
 import { Text, View } from 'react-native';
 
-import type { HealthSnapshot, SessionPhase } from '@modules/capture-core';
+import type { HealthSnapshot, SessionSnapshot } from '@modules/capture-core';
 
 import { healthRows, METER_BARS } from '../health-rows';
 import { colors, gutter, mono, toneColor } from './theme';
@@ -17,14 +17,14 @@ function Meter({ bars }: { bars: number }) {
   );
 }
 
-export function HealthPanel({ health, phase }: { health: HealthSnapshot | null; phase: SessionPhase }) {
+export function HealthPanel({ health, snapshot }: { health: HealthSnapshot | null; snapshot: SessionSnapshot }) {
   return (
     <View
       accessibilityLabel="Health"
       style={{ paddingHorizontal: gutter, paddingVertical: 10, gap: 4, borderBottomWidth: 1, borderColor: colors.border }}
     >
       {health ? (
-        healthRows(health, phase).map((row) => (
+        healthRows(health, snapshot).map((row) => (
           <View key={row.label} style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Text style={[mono, { width: LABEL_WIDTH, color: colors.muted }]}>{row.label}</Text>
             <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
