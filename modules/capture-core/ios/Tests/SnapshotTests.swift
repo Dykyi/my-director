@@ -37,6 +37,39 @@ struct SnapshotTests {
     #expect(error["at"] as? String == "2027-01-15T08:00:00.125Z")
   }
 
+  private static func participant(_ identity: String, joinedAt: Date?) -> ParticipantStatus {
+    ParticipantStatus(identity: identity, joinedAt: joinedAt, quality: .excellent, isSpeaking: false, microphone: .live, camera: .none)
+  }
+
+  @Test func participantsComeEarliestFirst() {
+    let ordered = ParticipantStatus.ordered([
+      Self.participant("agent", joinedAt: nil),
+      Self.participant("producer", joinedAt: Self.date.addingTimeInterval(60)),
+      Self.participant("interviewer", joinedAt: Self.date),
+    ])
+    #expect(ordered.map(\.identity) == ["interviewer", "producer", "agent"])
+  }
+
+  @Test(arguments: [(Bool?.none, TrackStatus.none), (false, .live), (true, .muted)])
+  func trackStatusFollowsPublicationAndMute(isMuted: Bool?, expected: TrackStatus) {
+    #expect(TrackStatus(isMuted: isMuted) == expected)
+  }
+
+  @Test func bridgeCarriesParticipants() throws {
+    var state = SessionState()
+    state.call = CallStatus(
+      state: .connected, room: "mydirector-poc", identity: "iphone", connectedAt: Self.date,
+      participants: [Self.participant("interviewer", joinedAt: Self.date)]
+    )
+    let object = try JSONBridge.object(SessionSnapshot(state: state, recordedSec: 0))
+    let call = try #require(object["call"] as? [String: Any])
+    #expect(call["connectedAt"] as? String == "2027-01-15T08:00:00.125Z")
+    #expect(call["reconnectCount"] as? Int == 0)
+    let participant = try #require((call["participants"] as? [[String: Any]])?.first)
+    #expect(participant["microphone"] as? String == "live")
+    #expect(participant["camera"] as? String == "none")
+  }
+
   @Test func datesRoundTripWithMilliseconds() throws {
     let warning = CaptureWarning(code: .fileFpsLow, message: "26 fps", since: Self.date)
     let data = try JSONCoding.encoder().encode(warning)

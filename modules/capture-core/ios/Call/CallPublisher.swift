@@ -13,6 +13,7 @@ struct CallCredentials: Equatable, Sendable {
 @MainActor
 final class CallPublisher: NSObject, RoomDelegate {
   private static let connectPollInterval = Duration.milliseconds(100)
+  private static let statusRefreshDelay = Duration.milliseconds(250)
 
   let scaler: CallFrameScaler
   var onStatusChange: ((CallStatus) -> Void)?
@@ -27,6 +28,10 @@ final class CallPublisher: NSObject, RoomDelegate {
   private var profile = CaptureConfig.defaults.call.profiles.standard
   private var rotationAngle = CameraSource.portraitRotationAngle
   private var quality = CallQuality.unknown
+  private var connectedAt: Date?
+  private var reconnectCount = 0
+  private var isMuted = false
+  private var refreshScheduled = false
   private var lastBytesSent: (bytes: UInt64, timestampUs: Double)?
   private var lastBitrateKbps = 0.0
 
@@ -61,6 +66,7 @@ final class CallPublisher: NSObject, RoomDelegate {
       try await withTimeout(seconds: call.connectTimeoutSec) {
         try await room.connect(url: credentials.url, token: credentials.token)
       }
+      connectedAt = Date()
     } catch {
       self.room = nil
       await room.disconnect()
@@ -76,6 +82,8 @@ final class CallPublisher: NSObject, RoomDelegate {
       if muted { try await videoTrack.mute() } else { try await videoTrack.unmute() }
       _ = try await room.localParticipant.setMicrophone(enabled: !muted)
       log.info("call", muted ? "Tracks muted" : "Tracks unmuted")
+      isMuted = muted
+      refreshStatus()
     } catch {
       log.warning("call", "Mute change failed", ["muted": String(muted), "error": error.localizedDescription])
     }
@@ -109,6 +117,9 @@ final class CallPublisher: NSObject, RoomDelegate {
     lastBytesSent = nil
     lastBitrateKbps = 0
     quality = .unknown
+    connectedAt = nil
+    reconnectCount = 0
+    isMuted = false
     await room.disconnect()
     refreshStatus()
     log.info("call", "Left the room")
@@ -181,55 +192,98 @@ final class CallPublisher: NSObject, RoomDelegate {
     status = CallStatus(
       state: CallConnectionState(room.connectionState),
       room: room.name,
-      remoteParticipants: room.remoteParticipants.values.compactMap { $0.identity?.stringValue }.sorted(),
+      identity: room.localParticipant.identity?.stringValue,
+      connectedAt: connectedAt,
+      reconnectCount: reconnectCount,
+      isMuted: isMuted,
+      participants: ParticipantStatus.ordered(room.remoteParticipants.values.map(ParticipantStatus.init)),
       quality: quality
     )
     onStatusChange?(status)
   }
 
-  nonisolated func room(_ room: Room, didUpdateConnectionState connectionState: ConnectionState, from oldConnectionState: ConnectionState) {
+  private func scheduleRefresh() {
+    guard !refreshScheduled else { return }
+    refreshScheduled = true
+    Task {
+      try? await Task.sleep(for: Self.statusRefreshDelay)
+      refreshScheduled = false
+      refreshStatus()
+    }
+  }
+
+  private nonisolated func onMain(of room: Room, _ work: @escaping @MainActor (CallPublisher) -> Void) {
     Task { @MainActor in
       guard room === self.room else { return }
-      self.log.info("call", "Connection state changed", ["to": "\(connectionState)", "from": "\(oldConnectionState)"])
-      self.refreshStatus()
+      work(self)
+    }
+  }
+
+  nonisolated func room(_ room: Room, didUpdateConnectionState connectionState: ConnectionState, from oldConnectionState: ConnectionState) {
+    onMain(of: room) { publisher in
+      publisher.log.info("call", "Connection state changed", ["to": "\(connectionState)", "from": "\(oldConnectionState)"])
+      publisher.refreshStatus()
+    }
+  }
+
+  nonisolated func room(_ room: Room, didStartReconnectWithMode reconnectMode: ReconnectMode) {
+    let mode = "\(reconnectMode)"
+    onMain(of: room) { publisher in
+      publisher.reconnectCount += 1
+      publisher.log.info("call", "Reconnecting", ["mode": mode])
+      publisher.refreshStatus()
     }
   }
 
   nonisolated func room(_ room: Room, participantDidConnect participant: RemoteParticipant) {
     let identity = participant.identity?.stringValue ?? "?"
-    Task { @MainActor in
-      guard room === self.room else { return }
-      self.log.info("call", "Participant joined", ["identity": identity])
-      self.refreshStatus()
+    onMain(of: room) { publisher in
+      publisher.log.info("call", "Participant joined", ["identity": identity])
+      publisher.refreshStatus()
     }
   }
 
   nonisolated func room(_ room: Room, participantDidDisconnect participant: RemoteParticipant) {
     let identity = participant.identity?.stringValue ?? "?"
-    Task { @MainActor in
-      guard room === self.room else { return }
-      self.log.info("call", "Participant left", ["identity": identity])
-      self.refreshStatus()
+    onMain(of: room) { publisher in
+      publisher.log.info("call", "Participant left", ["identity": identity])
+      publisher.refreshStatus()
     }
   }
 
   nonisolated func room(_ room: Room, participant: Participant, didUpdateConnectionQuality connectionQuality: ConnectionQuality) {
-    guard participant is LocalParticipant else { return }
     let quality = CallQuality(connectionQuality)
-    Task { @MainActor in
-      guard room === self.room, quality != self.quality else { return }
-      self.quality = quality
-      self.log.info("call", "Connection quality changed", ["quality": quality.rawValue])
-      self.refreshStatus()
+    let isLocal = participant is LocalParticipant
+    onMain(of: room) { publisher in
+      guard isLocal else { return publisher.scheduleRefresh() }
+      guard quality != publisher.quality else { return }
+      publisher.quality = quality
+      publisher.log.info("call", "Connection quality changed", ["quality": quality.rawValue])
+      publisher.refreshStatus()
     }
+  }
+
+  nonisolated func room(_ room: Room, didUpdateSpeakingParticipants participants: [Participant]) {
+    onMain(of: room) { $0.scheduleRefresh() }
+  }
+
+  nonisolated func room(_ room: Room, participant: RemoteParticipant, didPublishTrack publication: RemoteTrackPublication) {
+    onMain(of: room) { $0.scheduleRefresh() }
+  }
+
+  nonisolated func room(_ room: Room, participant: RemoteParticipant, didUnpublishTrack publication: RemoteTrackPublication) {
+    onMain(of: room) { $0.scheduleRefresh() }
+  }
+
+  nonisolated func room(_ room: Room, participant: Participant, trackPublication: TrackPublication, didUpdateIsMuted isMuted: Bool) {
+    onMain(of: room) { $0.scheduleRefresh() }
   }
 
   nonisolated func room(_ room: Room, didDisconnectWithError error: LiveKitError?) {
     let message = error?.localizedDescription ?? "none"
-    Task { @MainActor in
-      guard room === self.room else { return }
-      self.log.warning("call", "Room disconnected", ["error": message])
-      self.refreshStatus()
+    onMain(of: room) { publisher in
+      publisher.log.warning("call", "Room disconnected", ["error": message])
+      publisher.refreshStatus()
     }
   }
 }
@@ -276,5 +330,19 @@ private func withTimeout(seconds: Double, _ operation: @escaping @Sendable () as
     }
     defer { group.cancelAll() }
     _ = try await group.next()
+  }
+}
+
+private extension ParticipantStatus {
+  init(_ participant: RemoteParticipant) {
+    let publications = participant.trackPublications.values
+    self.init(
+      identity: participant.identity?.stringValue ?? "?",
+      joinedAt: participant.joinedAt,
+      quality: CallQuality(participant.connectionQuality),
+      isSpeaking: participant.isSpeaking,
+      microphone: TrackStatus(isMuted: publications.first { $0.source == .microphone }?.isMuted),
+      camera: TrackStatus(isMuted: publications.first { $0.source == .camera }?.isMuted)
+    )
   }
 }

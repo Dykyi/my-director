@@ -56,4 +56,4 @@ __pycache__/
 .build/
 
 # interviewer credentials written by npm run token
-tools/interviewer/credentials.json
+tools/interviewer/credentials*.json

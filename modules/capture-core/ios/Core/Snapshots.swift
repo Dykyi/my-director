@@ -3,6 +3,7 @@ import Foundation
 struct SessionSnapshot: Codable, Equatable, Sendable {
   var phase: SessionPhase
   var sessionId: String?
+  var startedAt: Date?
   var segmentIndex: Int
   var recordedSec: Double
   var pauseReason: PauseReason?
@@ -15,6 +16,7 @@ struct SessionSnapshot: Codable, Equatable, Sendable {
   init(state: SessionState, recordedSec: Double) {
     phase = state.phase
     sessionId = state.sessionId
+    startedAt = state.startedAt
     segmentIndex = state.segmentIndex
     self.recordedSec = recordedSec
     pauseReason = state.pauseReason

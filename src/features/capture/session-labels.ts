@@ -38,10 +38,15 @@ export const PAUSE_REASON: Record<PauseReason, { label: string; detail: string; 
   mediaServicesReset: { label: 'media reset', detail: 'iOS restarted its media services.', isFault: true },
 };
 
+export function participantNames({ participants }: CallStatus): string[] {
+  return participants.map((participant) => participant.identity);
+}
+
 export function describeCall(call: CallStatus, inSession: boolean): { text: string; tone: Tone } {
   switch (call.state) {
     case 'connected': {
-      const others = call.remoteParticipants.length > 0 ? `with ${call.remoteParticipants.join(', ')}` : 'waiting for the interviewer';
+      const names = participantNames(call);
+      const others = names.length > 0 ? `with ${names.join(', ')}` : 'waiting for the interviewer';
       return { text: `Call: connected · ${call.quality} · ${call.profile} · ${others}`, tone: 'secondary' };
     }
     case 'connecting':

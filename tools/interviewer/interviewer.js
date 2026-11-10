@@ -167,7 +167,9 @@ $('stopRecord').onclick = () => {
 $('downloadCsv').onclick = () => download(new Blob([csvRows.join('\n')], { type: 'text/csv' }), `stats-${stamp()}.csv`);
 
 if (!$('token').value) {
-  const saved = await fetch('credentials.json').then((response) => (response.ok ? response.json() : null)).catch(() => null);
+  const identity = new URLSearchParams(location.search).get('as');
+  const file = identity ? `credentials-${identity}.json` : 'credentials.json';
+  const saved = await fetch(file).then((response) => (response.ok ? response.json() : null)).catch(() => null);
   if (saved) {
     $('url').value = saved.url;
     $('token').value = saved.token;

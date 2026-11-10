@@ -25,10 +25,35 @@ enum InterruptionSource: String, Codable, Sendable, Comparable {
 enum CallConnectionState: String, Codable, Sendable { case disconnected, connecting, connected, reconnecting }
 enum CallQuality: String, Codable, Sendable { case excellent, good, poor, lost, unknown }
 
+enum TrackStatus: String, Codable, Sendable {
+  case none, live, muted
+
+  init(isMuted: Bool?) {
+    self = isMuted.map { $0 ? .muted : .live } ?? .none
+  }
+}
+
+struct ParticipantStatus: Codable, Equatable, Sendable {
+  var identity: String
+  var joinedAt: Date?
+  var quality: CallQuality
+  var isSpeaking: Bool
+  var microphone: TrackStatus
+  var camera: TrackStatus
+
+  static func ordered(_ participants: [ParticipantStatus]) -> [ParticipantStatus] {
+    participants.sorted { ($0.joinedAt ?? .distantFuture, $0.identity) < ($1.joinedAt ?? .distantFuture, $1.identity) }
+  }
+}
+
 struct CallStatus: Codable, Equatable, Sendable {
   var state: CallConnectionState = .disconnected
   var room: String?
-  var remoteParticipants: [String] = []
+  var identity: String?
+  var connectedAt: Date?
+  var reconnectCount = 0
+  var isMuted = false
+  var participants: [ParticipantStatus] = []
   var quality: CallQuality = .unknown
   var profile: CallProfileName = .standard
 }

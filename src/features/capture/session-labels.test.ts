@@ -2,22 +2,18 @@ import { describe, expect, it } from '@jest/globals';
 
 import type { CallStatus } from '@modules/capture-core';
 
+import { noCall, participant } from '@/src/test/call-fixtures';
+
 import { describeCall } from './session-labels';
 
-const call = (overrides: Partial<CallStatus>): CallStatus => ({
-  state: 'disconnected',
-  remoteParticipants: [],
-  quality: 'unknown',
-  profile: 'standard',
-  ...overrides,
-});
+const call = (overrides: Partial<CallStatus>): CallStatus => ({ ...noCall, ...overrides });
 
 describe('describeCall', () => {
   it('is quiet before a session', () =>
     expect(describeCall(call({}), false)).toEqual({ text: 'Call: not connected', tone: 'muted' }));
 
   it('names who is in the call', () =>
-    expect(describeCall(call({ state: 'connected', quality: 'excellent', remoteParticipants: ['interviewer'] }), true)).toEqual({
+    expect(describeCall(call({ state: 'connected', quality: 'excellent', participants: [participant('interviewer')] }), true)).toEqual({
       text: 'Call: connected · excellent · standard · with interviewer',
       tone: 'secondary',
     }));

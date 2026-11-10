@@ -35,6 +35,20 @@ struct SessionMachineTests {
     return run
   }
 
+  @Test func startStampsTheSessionAndStopClearsIt() {
+    var run = ready()
+    run.send(.startRequested(sessionId: Self.sessionId))
+    #expect(run.state.startedAt == Self.now)
+    run.send(.startSucceeded, .stopRequested, .segmentClosed(index: 1, failure: nil), .stopFinished)
+    #expect(run.state.startedAt == nil)
+  }
+
+  @Test func abortedStartClearsTheStamp() {
+    var run = ready()
+    run.send(.startRequested(sessionId: Self.sessionId), .startFailed(Failure(code: .callConnectFailed, message: "timeout")))
+    #expect(run.state.startedAt == nil)
+  }
+
   @Test func fullSessionPath() {
     var run = ready()
     #expect(run.state.phase == .ready)

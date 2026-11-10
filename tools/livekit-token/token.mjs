@@ -24,6 +24,12 @@ const interviewerToken = await tokenFor('interviewer');
 const pageHash = new URLSearchParams({ url: LIVEKIT_URL, token: interviewerToken });
 writeFileSync(INTERVIEWER_CREDENTIALS, JSON.stringify({ url: LIVEKIT_URL, token: interviewerToken }));
 
+const extraIdentities = process.argv.slice(2);
+for (const identity of extraIdentities) {
+  const file = new URL(`../interviewer/credentials-${identity}.json`, import.meta.url);
+  writeFileSync(file, JSON.stringify({ url: LIVEKIT_URL, token: await tokenFor(identity) }));
+}
+
 console.log('# paste into .env.local, then rebuild the app');
 console.log(`EXPO_PUBLIC_LIVEKIT_URL=${LIVEKIT_URL}`);
 console.log(`EXPO_PUBLIC_LIVEKIT_TOKEN=${phoneToken}`);
@@ -31,3 +37,4 @@ console.log('');
 console.log(`# interviewer page (room ${ROOM}, valid ${TOKEN_TTL})`);
 console.log(`${INTERVIEWER_PAGE}#${pageHash}`);
 console.log(`# or open ${INTERVIEWER_PAGE} as is: it reads tools/interviewer/credentials.json`);
+for (const identity of extraIdentities) console.log(`# ${identity}: ${INTERVIEWER_PAGE}?as=${identity}`);

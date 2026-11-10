@@ -1,7 +1,7 @@
 import type { CallStatus, HealthSnapshot, SessionPhase, SessionSnapshot } from '@modules/capture-core';
 
 import { formatBytes } from './format';
-import type { Tone } from './session-labels';
+import { participantNames, type Tone } from './session-labels';
 
 export type HealthRow = { label: string; value: string; tone: Tone; meterBars?: number };
 
@@ -62,8 +62,9 @@ function callRow({ call }: HealthSnapshot): HealthRow {
 
 function roomRow(call: CallStatus): HealthRow {
   if (call.state === 'disconnected' || call.room === undefined) return { label: 'Room', value: 'not joined', tone: 'muted' };
-  return call.remoteParticipants.length > 0
-    ? { label: 'Room', value: `${call.room} · ${call.remoteParticipants.join(', ')}`, tone: 'normal' }
+  const names = participantNames(call);
+  return names.length > 0
+    ? { label: 'Room', value: `${call.room} · ${names.join(', ')}`, tone: 'normal' }
     : { label: 'Room', value: `${call.room} · nobody else yet`, tone: 'warning' };
 }
 

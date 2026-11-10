@@ -41,6 +41,7 @@ final class MediaPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
   private var callSink: CallFrameSink?
   private var captureClock: CMClock?
   private var reportedSampleRateMismatch = false
+  private var holeProbe = FrameHoleProbe()
 
   init(log: EventLog, onWriterFailure: @escaping @Sendable (Failure) -> Void) {
     self.log = log
@@ -110,6 +111,7 @@ final class MediaPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
     let outcome = await writer.finish()
     stats.withLock { stats in
       if case .failed = outcome { stats.writerState = .failed } else { stats.writerState = .idle }
+      stats.segmentSec = 0
     }
     return outcome
   }
@@ -122,6 +124,7 @@ final class MediaPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
 
   func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
     let now = HostClock.now()
+    reportHole(before: sampleBuffer, arrivedAt: now)
     heartbeats.beat(.camera, at: now)
     let dimensions = CMSampleBufferGetFormatDescription(sampleBuffer).map(CMVideoFormatDescriptionGetDimensions)
     stats.withLock { stats in
@@ -133,16 +136,34 @@ final class MediaPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
     }
     if let writer { appendVideo(sampleBuffer, to: writer, at: now) }
     callSink?.offer(sampleBuffer)
+    holeProbe.worked("video", for: HostClock.now() - now)
   }
 
   func captureOutput(_ output: AVCaptureOutput, didDrop sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+    let reason = CMGetAttachment(sampleBuffer, key: kCMSampleBufferAttachmentKey_DroppedFrameReason, attachmentModeOut: nil)
+      .map { String(describing: $0) } ?? "unknown"
+    holeProbe.dropped(reason: reason)
     let count = stats.withLock { stats in
       stats.cameraDroppedFrames += 1
       return stats.cameraDroppedFrames
     }
     guard count == 1 || count.isMultiple(of: Self.dropLogInterval) else { return }
-    let reason = CMGetAttachment(sampleBuffer, key: kCMSampleBufferAttachmentKey_DroppedFrameReason, attachmentModeOut: nil)
-    log.warning("camera", "Camera dropped frames", ["count": String(count), "reason": reason.map { String(describing: $0) } ?? "unknown"])
+    log.warning("camera", "Camera dropped frames", ["count": String(count), "reason": reason])
+  }
+
+  private func reportHole(before sampleBuffer: CMSampleBuffer, arrivedAt now: Double) {
+    let time = hostTime(CMSampleBufferGetPresentationTimeStamp(sampleBuffer))
+    guard let hole = holeProbe.frame(at: time, arrivalLag: now - time), writer != nil else { return }
+    log.warning("camera", "Camera frames missing", [
+      "gapMs": Self.milliseconds(hole.gap),
+      "dropped": hole.droppedFrames.isEmpty ? "none" : hole.droppedFrames.map { "\($0.key) \($0.value)" }.sorted().joined(separator: ", "),
+      "longestQueueWork": hole.longestWork.map { "\($0) \(Self.milliseconds(hole.longestWorkDuration)) ms" } ?? "none",
+      "arrivalLagMs": Self.milliseconds(hole.arrivalLag),
+    ])
+  }
+
+  private static func milliseconds(_ seconds: Double) -> String {
+    String(format: "%.0f", seconds * 1000)
   }
 
   private func appendVideo(_ sampleBuffer: CMSampleBuffer, to writer: SegmentWriter, at now: Double) {
@@ -166,6 +187,8 @@ final class MediaPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
   }
 
   private func processAudio(_ buffer: AVAudioPCMBuffer, firstFrameStamp: Double) {
+    let started = HostClock.now()
+    defer { holeProbe.worked("audio", for: HostClock.now() - started) }
     guard let channel = buffer.int16ChannelData?[0] else {
       log.error("audio", "Unexpected microphone buffer format", ["format": buffer.format.description])
       return
@@ -212,6 +235,11 @@ final class MediaPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
     guard let captureClock else { return hostSeconds }
     let hostTime = CMTime(seconds: hostSeconds, preferredTimescale: Self.nanosecondTimescale)
     return CMSyncConvertTime(hostTime, from: CMClockGetHostTimeClock(), to: captureClock).seconds
+  }
+
+  private func hostTime(_ captureTime: CMTime) -> Double {
+    guard let captureClock else { return captureTime.seconds }
+    return CMSyncConvertTime(captureTime, from: captureClock, to: CMClockGetHostTimeClock()).seconds
   }
 
   private func reportWriterFailure(_ failure: Failure) {

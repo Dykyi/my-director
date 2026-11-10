@@ -2,6 +2,8 @@ import { describe, expect, it } from '@jest/globals';
 
 import type { CallStatus, HealthSnapshot, SessionPhase } from '@modules/capture-core';
 
+import { inRoom, noCall } from '@/src/test/call-fixtures';
+
 import { healthRows } from './health-rows';
 
 const health = (overrides: Partial<HealthSnapshot> = {}): HealthSnapshot => ({
@@ -17,9 +19,7 @@ const health = (overrides: Partial<HealthSnapshot> = {}): HealthSnapshot => ({
   ...overrides,
 });
 
-const inRoom: CallStatus = { state: 'connected', room: 'mydirector-poc', remoteParticipants: ['interviewer'], quality: 'excellent', profile: 'standard' };
-const noCall: CallStatus = { state: 'disconnected', remoteParticipants: [], quality: 'unknown', profile: 'standard' };
-const session = (phase: SessionPhase, call: CallStatus = phase === 'ready' ? noCall : inRoom) => ({ phase, call });
+const session = (phase: SessionPhase, call: CallStatus = phase === 'ready' ? noCall : inRoom()) => ({ phase, call });
 
 const row = (rows: ReturnType<typeof healthRows>, label: string) => rows.find((candidate) => candidate.label === label);
 
@@ -84,11 +84,11 @@ describe('healthRows', () => {
 
   it('shows the room only while joined, and who else is in it', () => {
     expect(row(healthRows(health(), session('ready')), 'Room')).toEqual({ label: 'Room', value: 'not joined', tone: 'muted' });
-    expect(row(healthRows(health(), session('recording', { ...inRoom, remoteParticipants: [] })), 'Room')).toEqual({
+    expect(row(healthRows(health(), session('recording', inRoom([]))), 'Room')).toEqual({
       label: 'Room',
       value: 'mydirector-poc · nobody else yet',
       tone: 'warning',
     });
-    expect(row(healthRows(health(), session('recording', { ...inRoom, state: 'disconnected' })), 'Room')?.value).toBe('not joined');
+    expect(row(healthRows(health(), session('recording', { ...inRoom(), state: 'disconnected' })), 'Room')?.value).toBe('not joined');
   });
 });

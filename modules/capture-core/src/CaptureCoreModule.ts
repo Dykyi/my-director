@@ -17,6 +17,7 @@ declare class CaptureCoreNativeModule extends NativeModule<CaptureCoreEvents> {
   getPermissions(): PermissionsState;
   requestPermissions(): Promise<PermissionsState>;
   getDefaultConfig(): CaptureConfig;
+  getConfig(): CaptureConfig;
   getSnapshot(): SessionSnapshot;
   prepare(config?: CaptureConfigInput): Promise<CaptureConfig>;
   start(url: string, token: string): Promise<string>;
@@ -39,6 +40,7 @@ export const CaptureCore = {
   getPermissions: () => native.getPermissions(),
   requestPermissions: () => native.requestPermissions(),
   getDefaultConfig: () => native.getDefaultConfig(),
+  getConfig: () => native.getConfig(),
   getSnapshot: () => native.getSnapshot(),
   prepare: (config?: CaptureConfigInput) => native.prepare(config),
   start: ({ url, token }: CallCredentials) => native.start(url, token),

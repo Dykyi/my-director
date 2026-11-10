@@ -63,10 +63,25 @@ export type CaptureErrorCode =
 export type CaptureError = { code: CaptureErrorCode; message: string; at: string; recoverable: boolean };
 export type CaptureWarning = { code: CaptureErrorCode; message: string; since: string };
 
+export type TrackStatus = 'none' | 'live' | 'muted';
+
+export type ParticipantStatus = {
+  identity: string;
+  joinedAt?: string;
+  quality: CallQuality;
+  isSpeaking: boolean;
+  microphone: TrackStatus;
+  camera: TrackStatus;
+};
+
 export type CallStatus = {
   state: CallConnectionState;
   room?: string;
-  remoteParticipants: string[];
+  identity?: string;
+  connectedAt?: string;
+  reconnectCount: number;
+  isMuted: boolean;
+  participants: ParticipantStatus[];
   quality: CallQuality;
   profile: CallProfileName;
 };
@@ -74,6 +89,7 @@ export type CallStatus = {
 export type SessionSnapshot = {
   phase: SessionPhase;
   sessionId?: string;
+  startedAt?: string;
   segmentIndex: number;
   recordedSec: number;
   pauseReason?: PauseReason;

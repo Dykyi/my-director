@@ -1,4 +1,4 @@
-import type { HealthSnapshot } from '@modules/capture-core';
+import type { CallStatus, HealthSnapshot } from '@modules/capture-core';
 
 import { formatBytes } from '../capture/format';
 
@@ -11,4 +11,13 @@ export function formatHealthLine({ camera, file, audio, call, audioRoute, therma
     `route ${audioRoute.input} -> ${audioRoute.output}`,
     `thermal ${thermal} disk ${formatBytes(diskFreeBytes)}`,
   ].join(' | ');
+}
+
+export function formatRoomLine({ room, participants }: CallStatus): string {
+  if (room === undefined) return 'room not joined';
+  const people = participants.map(
+    ({ identity, quality, microphone, camera, isSpeaking }) =>
+      `${identity} ${quality} mic ${microphone} camera ${camera}${isSpeaking ? ' speaking' : ''}`,
+  );
+  return `room ${room} | ${people.length > 0 ? people.join(' | ') : 'nobody else'}`;
 }

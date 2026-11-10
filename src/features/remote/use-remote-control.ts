@@ -6,7 +6,7 @@ import { CaptureCore } from '@modules/capture-core';
 
 import { formatLogLine } from '../capture/format';
 import { describeUpload } from '../upload/upload-format';
-import { formatHealthLine } from './remote-format';
+import { formatHealthLine, formatRoomLine } from './remote-format';
 
 const STAND_LINK = /:\/\/stand\/([\w-]+)$/;
 const HEALTH_LOG_INTERVAL_MS = 10_000;
@@ -33,6 +33,7 @@ export function useRemoteControl(commands: RemoteCommands) {
   useEffect(() => {
     if (!__DEV__) return;
     let lastHealthLog = 0;
+    let lastRoomLine = '';
     const subscriptions = [
       Linking.addEventListener('url', ({ url }) => void perform(url)),
       CaptureCore.addListener('onLog', (entry) => console.log(formatLogLine(entry))),
@@ -41,6 +42,12 @@ export function useRemoteControl(commands: RemoteCommands) {
         if (now - lastHealthLog < HEALTH_LOG_INTERVAL_MS) return;
         lastHealthLog = now;
         console.log(`health ${formatHealthLine(health)}`);
+      }),
+      CaptureCore.addListener('onStateChange', ({ call }) => {
+        const line = formatRoomLine(call);
+        if (line === lastRoomLine) return;
+        lastRoomLine = line;
+        console.log(line);
       }),
       BackgroundUpload.addListener('onUploadChange', (upload) => console.log(`upload ${upload.objectKey} ${describeUpload(upload)}`)),
     ];

@@ -21,6 +21,7 @@ final class SessionController {
   let call: CallPublisher
   let store: RecordingStore
   nonisolated let snapshotCache = OSAllocatedUnfairLock(initialState: SessionSnapshot(state: SessionState(), recordedSec: 0))
+  nonisolated let configCache = OSAllocatedUnfairLock(initialState: CaptureConfig.defaults)
 
   var onSnapshot: ((SessionSnapshot) -> Void)?
   var onHealth: ((HealthSnapshot) -> Void)?
@@ -623,6 +624,7 @@ final class SessionController {
 
   private func apply(_ resolved: CaptureConfig) {
     config = resolved
+    configCache.withLock { $0 = resolved }
     thermalPolicy = ThermalPolicy(profiles: resolved.call.thermalProfiles, recoveryDelay: resolved.call.thermalRecoveryDelaySec)
     healthMonitor = HealthMonitor(health: resolved.health)
     call.configure(call: resolved.call, audio: resolved.audio)

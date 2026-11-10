@@ -37,6 +37,9 @@ public final class CaptureCoreModule: Module {
     Function("getDefaultConfig") { () throws -> [String: Any] in
       try JSONBridge.object(CaptureConfig.defaults)
     }
+    Function("getConfig") { () throws -> [String: Any] in
+      try JSONBridge.object(self.controller.configCache.withLock { $0 })
+    }
     Function("getSnapshot") { () throws -> [String: Any] in
       try JSONBridge.object(self.controller.snapshotCache.withLock { $0 })
     }

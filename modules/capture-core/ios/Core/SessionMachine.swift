@@ -3,6 +3,7 @@ import Foundation
 struct SessionState: Equatable, Sendable {
   var phase: SessionPhase = .idle
   var sessionId: String?
+  var startedAt: Date?
   var segmentIndex = 0
   var pauseReason: PauseReason?
   var interruptions: Set<InterruptionSource> = []
@@ -88,6 +89,7 @@ struct SessionMachine: Sendable {
     case (.ready, .startRequested(let sessionId)):
       state.phase = .starting
       state.sessionId = sessionId
+      state.startedAt = now
       state.segmentIndex = 0
       state.pauseReason = nil
       state.error = nil
@@ -178,6 +180,7 @@ struct SessionMachine: Sendable {
     case (.stopping, .stopFinished):
       state.phase = .ready
       state.sessionId = nil
+      state.startedAt = nil
       state.segmentIndex = 0
       state.pauseReason = nil
       keepOnlyDeviceWarnings()
@@ -231,6 +234,7 @@ struct SessionMachine: Sendable {
   private mutating func abortStart(_ failure: Failure, at now: Date) -> [SessionEffect] {
     state.phase = .ready
     state.sessionId = nil
+    state.startedAt = nil
     state.error = CaptureError(failure, at: now)
     keepOnlyDeviceWarnings()
     return [.abortStart]

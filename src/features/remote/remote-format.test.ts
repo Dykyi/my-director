@@ -2,7 +2,9 @@ import { describe, expect, it } from '@jest/globals';
 
 import type { HealthSnapshot } from '@modules/capture-core';
 
-import { formatHealthLine } from './remote-format';
+import { inRoom, noCall, participant } from '@/src/test/call-fixtures';
+
+import { formatHealthLine, formatRoomLine } from './remote-format';
 
 const health: HealthSnapshot = {
   at: '2026-11-10T09:00:00.000Z',
@@ -23,4 +25,15 @@ describe('formatHealthLine', () => {
         'audio -24 dB age 41 ms drift 2 ms resync 1 | call 720x1280 30 fps 1480 kbps limit none | ' +
         'route AirPods Pro (BluetoothHFP) -> AirPods Pro (BluetoothHFP) | thermal nominal disk 41.2 GB',
     ));
+});
+
+describe('formatRoomLine', () => {
+  it('lists everyone with their tracks', () =>
+    expect(
+      formatRoomLine(inRoom([participant('interviewer', { isSpeaking: true }), participant('producer', { quality: 'good', camera: 'muted' })])),
+    ).toBe('room mydirector-poc | interviewer excellent mic live camera none speaking | producer good mic live camera muted'));
+
+  it('says when nobody else is in', () => expect(formatRoomLine(inRoom([]))).toBe('room mydirector-poc | nobody else'));
+
+  it('says when the phone is not in a room', () => expect(formatRoomLine(noCall)).toBe('room not joined'));
 });

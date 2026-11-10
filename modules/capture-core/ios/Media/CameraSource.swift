@@ -1,6 +1,7 @@
 import AVFoundation
 
 struct CameraReport: Sendable {
+  var position: CameraPosition
   var format: String
   var binned: Bool
   var hdrSupported: Bool
@@ -8,6 +9,7 @@ struct CameraReport: Sendable {
 
   var logData: [String: String] {
     [
+      "position": position.rawValue,
       "format": format,
       "binned": String(binned),
       "hdrSupported": String(hdrSupported),
@@ -131,6 +133,7 @@ final class CameraSource: @unchecked Sendable {
     rotationCoordinator = AVCaptureDevice.RotationCoordinator(device: device, previewLayer: nil)
 
     return CameraReport(
+      position: camera.position,
       format: Self.describe(format),
       binned: format.isVideoBinned,
       hdrSupported: format.isVideoHDRSupported,
