@@ -5,7 +5,7 @@ import { redirectSystemPath } from '@app/+native-intent';
 import { STAND_ROUTES, standAction } from './stand-routes';
 
 describe('standAction', () => {
-  it.each(['com.dykyi.mydirector.capturepoc://stand/start', '/stand/start', 'stand/start'])(
+  it.each(['com.dikiy.mydirector://stand/start', '/stand/start', 'stand/start'])(
     'reads %s',
     (path) => expect(standAction(path)).toBe('start'),
   );
@@ -15,7 +15,7 @@ describe('standAction', () => {
 describe('redirectSystemPath', () => {
   it('keeps stand links from navigating', () =>
     expect(
-      redirectSystemPath({ path: 'com.dykyi.mydirector.capturepoc://stand/debug', initial: false }),
+      redirectSystemPath({ path: 'com.dikiy.mydirector://stand/debug', initial: false }),
     ).toBeNull());
   it('passes other links through', () =>
     expect(redirectSystemPath({ path: '/room', initial: true })).toBe('/room'));

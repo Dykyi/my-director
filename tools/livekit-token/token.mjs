@@ -2,7 +2,7 @@ import { writeFileSync } from 'node:fs';
 import { AccessToken } from 'livekit-server-sdk';
 
 const ROOM = 'mydirector-poc';
-const TOKEN_TTL = '7d';
+const TOKEN_TTL = '20d';
 const INTERVIEWER_PAGE = 'http://localhost:8080/';
 const INTERVIEWER_CREDENTIALS = new URL('../interviewer/credentials.json', import.meta.url);
 

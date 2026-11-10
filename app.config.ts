@@ -5,21 +5,30 @@ import type { ConfigContext, ExpoConfig } from 'expo/config';
 import { THEME_COLORS } from './src/theme/colors';
 
 const LAUNCH_BACKGROUND = THEME_COLORS.dark.background;
+const EAS_PROJECT_ID = '51785edd-a492-4a9d-aeca-aac00539e375';
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'MyDirector',
-  slug: 'mydirector-capture-poc',
+  slug: 'mydirector',
   version: '0.1.0',
+  owner: 'dikiy',
   runtimeVersion: { policy: 'fingerprint' },
-  scheme: 'com.dykyi.mydirector.capturepoc',
+  updates: {
+    url: `https://u.expo.dev/${EAS_PROJECT_ID}`,
+    checkAutomatically: 'ON_LOAD',
+    fallbackToCacheTimeout: 0,
+    requestHeaders: { 'expo-channel-name': 'production' },
+  },
+  extra: { ...config.extra, eas: { projectId: EAS_PROJECT_ID } },
+  scheme: 'com.dikiy.mydirector',
   orientation: 'portrait',
   userInterfaceStyle: 'automatic',
   backgroundColor: LAUNCH_BACKGROUND,
   icon: './assets/icon.png',
   ios: {
     appleTeamId: process.env.APPLE_TEAM_ID,
-    bundleIdentifier: 'com.dykyi.mydirector.capturepoc',
+    bundleIdentifier: 'com.dikiy.mydirector',
     icon: {
       light: './assets/icon.png',
       dark: './assets/ios-dark.png',
@@ -27,6 +36,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     },
     supportsTablet: false,
     deploymentTarget: '17.0',
+    config: { usesNonExemptEncryption: false },
     infoPlist: {
       NSCameraUsageDescription:
         'MyDirector films your interview on this iPhone in full quality and shows you to the interviewer during the call.',
@@ -38,7 +48,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     },
   },
   android: {
-    package: 'com.dykyi.mydirector.capturepoc',
+    package: 'com.dikiy.mydirector',
     adaptiveIcon: {
       foregroundImage: './assets/android-icon-foreground.png',
       backgroundImage: './assets/android-icon-background.png',
