@@ -2,7 +2,13 @@ import { describe, expect, it } from '@jest/globals';
 
 import type { RecoveryReport } from '@modules/capture-core';
 
-import { formatBytes, formatDuration, formatLogLine, formatLoss, formatSessionTime } from './format';
+import {
+  formatBytes,
+  formatDuration,
+  formatLogLine,
+  formatLoss,
+  formatSessionTime,
+} from './format';
 
 describe('formatDuration', () => {
   it('shows minutes and seconds', () => expect(formatDuration(65.9)).toBe('1:05'));
@@ -21,14 +27,16 @@ describe('formatLoss', () => {
     ({ knownLossSec, maxUnseenLossSec }) as RecoveryReport;
 
   it('shows the known loss', () => expect(formatLoss(report(1.43, 0))).toBe('≈ 1.4 s'));
-  it('adds what the manifest could not see as a range', () => expect(formatLoss(report(1.43, 1))).toBe('1.4 to 2.4 s'));
+  it('adds what the manifest could not see as a range', () =>
+    expect(formatLoss(report(1.43, 1))).toBe('1.4 to 2.4 s'));
   it('shows an unseen loss alone', () => expect(formatLoss(report(0, 1))).toBe('up to 1.0 s'));
   it('shows a clean recovery', () => expect(formatLoss(report(0, 0))).toBe('none'));
 });
 
 describe('formatSessionTime', () => {
   const now = new Date(2026, 10, 10, 9, 30);
-  const at = (day: number, hours: number, minutes: number) => new Date(2026, 10, day, hours, minutes).toISOString();
+  const at = (day: number, hours: number, minutes: number) =>
+    new Date(2026, 10, day, hours, minutes).toISOString();
 
   it('says today', () => expect(formatSessionTime(at(10, 9, 5), now)).toBe('Today 09:05'));
   it('says yesterday', () => expect(formatSessionTime(at(9, 22, 13), now)).toBe('Yesterday 22:13'));
@@ -49,7 +57,13 @@ describe('formatLogLine', () => {
     ).toBe('09:12:33.456 warning audio Microphone restarted gapMs=1102'));
 
   it('leaves out empty data', () =>
-    expect(formatLogLine({ at: '2026-11-10T09:12:33.456Z', mono: 1, level: 'info', category: 'call', message: 'Connected' })).toBe(
-      '09:12:33.456 info call Connected',
-    ));
+    expect(
+      formatLogLine({
+        at: '2026-11-10T09:12:33.456Z',
+        mono: 1,
+        level: 'info',
+        category: 'call',
+        message: 'Connected',
+      }),
+    ).toBe('09:12:33.456 info call Connected'));
 });

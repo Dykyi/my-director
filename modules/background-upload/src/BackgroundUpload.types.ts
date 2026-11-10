@@ -8,7 +8,8 @@ export type StartUploadInput = {
   maxAttemptsPerPart?: number;
 };
 
-export type UploadPhase = 'preparing' | 'uploading' | 'completing' | 'verified' | 'failed' | 'cancelled';
+export type UploadPhase =
+  'preparing' | 'uploading' | 'completing' | 'verified' | 'failed' | 'cancelled';
 
 export type UploadRetry = { partNumber: number; attempt: number; reason: string; at: string };
 

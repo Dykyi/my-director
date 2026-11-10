@@ -1,5 +1,4 @@
 import { writeFileSync } from 'node:fs';
-
 import { AccessToken } from 'livekit-server-sdk';
 
 const ROOM = 'mydirector-poc';
@@ -22,7 +21,10 @@ async function tokenFor(identity) {
 const phoneToken = await tokenFor('iphone');
 const interviewerToken = await tokenFor('interviewer');
 const pageHash = new URLSearchParams({ url: LIVEKIT_URL, token: interviewerToken });
-writeFileSync(INTERVIEWER_CREDENTIALS, JSON.stringify({ url: LIVEKIT_URL, token: interviewerToken }));
+writeFileSync(
+  INTERVIEWER_CREDENTIALS,
+  JSON.stringify({ url: LIVEKIT_URL, token: interviewerToken }),
+);
 
 const extraIdentities = process.argv.slice(2);
 for (const identity of extraIdentities) {
@@ -37,4 +39,5 @@ console.log('');
 console.log(`# interviewer page (room ${ROOM}, valid ${TOKEN_TTL})`);
 console.log(`${INTERVIEWER_PAGE}#${pageHash}`);
 console.log(`# or open ${INTERVIEWER_PAGE} as is: it reads tools/interviewer/credentials.json`);
-for (const identity of extraIdentities) console.log(`# ${identity}: ${INTERVIEWER_PAGE}?as=${identity}`);
+for (const identity of extraIdentities)
+  console.log(`# ${identity}: ${INTERVIEWER_PAGE}?as=${identity}`);

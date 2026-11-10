@@ -2,7 +2,15 @@ import type { CallStatus, HealthSnapshot } from '@modules/capture-core';
 
 import { formatBytes } from '../capture/format';
 
-export function formatHealthLine({ camera, file, audio, call, audioRoute, thermal, diskFreeBytes }: HealthSnapshot): string {
+export function formatHealthLine({
+  camera,
+  file,
+  audio,
+  call,
+  audioRoute,
+  thermal,
+  diskFreeBytes,
+}: HealthSnapshot): string {
   return [
     `camera ${camera.fps.toFixed(1)} fps ${camera.width}x${camera.height}`,
     `file ${file.fps.toFixed(1)} fps ${file.writer} ${formatBytes(file.bytes)} dropped ${file.droppedFrames}`,

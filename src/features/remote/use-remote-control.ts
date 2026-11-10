@@ -49,7 +49,9 @@ export function useRemoteControl(commands: RemoteCommands) {
         lastRoomLine = line;
         console.log(line);
       }),
-      BackgroundUpload.addListener('onUploadChange', (upload) => console.log(`upload ${upload.objectKey} ${describeUpload(upload)}`)),
+      BackgroundUpload.addListener('onUploadChange', (upload) =>
+        console.log(`upload ${upload.objectKey} ${describeUpload(upload)}`),
+      ),
     ];
     return () => subscriptions.forEach((subscription) => subscription.remove());
   }, []);

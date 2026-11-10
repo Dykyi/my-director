@@ -10,7 +10,8 @@ import {
   type PermissionsState,
   type SessionSnapshot,
 } from '@modules/capture-core';
-import { callCredentials } from '@/src/config/env';
+
+import { callCredentials } from '@config/env';
 
 const LOG_LIMIT = 200;
 
@@ -26,7 +27,9 @@ export function useCaptureSession(config: CaptureConfigInput) {
   const [snapshot, setSnapshot] = useState<SessionSnapshot>(() => CaptureCore.getSnapshot());
   const [health, setHealth] = useState<HealthSnapshot | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [permissions, setPermissions] = useState<PermissionsState>(() => CaptureCore.getPermissions());
+  const [permissions, setPermissions] = useState<PermissionsState>(() =>
+    CaptureCore.getPermissions(),
+  );
   const [commandError, setCommandError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -67,9 +70,10 @@ export function useCaptureSession(config: CaptureConfigInput) {
 
   const actions = useMemo(
     () => ({
-      requestPermissions: () => run(async () => setPermissions(await CaptureCore.requestPermissions())),
+      requestPermissions: () =>
+        run(async () => setPermissions(await CaptureCore.requestPermissions())),
       prepare: () => run(() => CaptureCore.prepare(config)),
-      start: () => run(() => CaptureCore.start(callCredentials())),
+      start: () => run(() => CaptureCore.start(callCredentials)),
       pause: () => run(CaptureCore.pause),
       resume: () => run(CaptureCore.resume),
       reconnectCall: () => run(CaptureCore.reconnectCall),

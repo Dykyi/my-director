@@ -37,9 +37,14 @@ export function parseCreate(body: unknown): CreateUploadInput {
   const partSize = positiveInteger('partSize', fields.partSize);
   if (partSize < MIN_PART_SIZE) throw new InputError(`partSize must be at least ${MIN_PART_SIZE}`);
   const partCount = Math.ceil(size / partSize);
-  if (partCount > MAX_PARTS) throw new InputError(`at most ${MAX_PARTS} parts are allowed, got ${partCount}`);
+  if (partCount > MAX_PARTS)
+    throw new InputError(`at most ${MAX_PARTS} parts are allowed, got ${partCount}`);
   const digests = fields.partMd5s;
-  if (!Array.isArray(digests) || digests.length !== partCount || !digests.every((d) => typeof d === 'string' && MD5_BASE64.test(d))) {
+  if (
+    !Array.isArray(digests) ||
+    digests.length !== partCount ||
+    !digests.every((d) => typeof d === 'string' && MD5_BASE64.test(d))
+  ) {
     throw new InputError(`partMd5s must hold ${partCount} base64 MD5 digests`);
   }
   return { key: key(fields.key), size, partSize, partMd5s: digests as string[] };
@@ -47,12 +52,17 @@ export function parseCreate(body: unknown): CreateUploadInput {
 
 export function parseComplete(body: unknown): CompleteUploadInput {
   const fields = asFields(body);
-  if (!Array.isArray(fields.parts) || fields.parts.length === 0) throw new InputError('parts must be a non-empty array');
+  if (!Array.isArray(fields.parts) || fields.parts.length === 0)
+    throw new InputError('parts must be a non-empty array');
   const parts = (fields.parts as unknown[])
     .map((part) => {
       const partFields = asFields(part);
-      if (typeof partFields.etag !== 'string' || partFields.etag.length === 0) throw new InputError('every part needs an etag');
-      return { partNumber: positiveInteger('partNumber', partFields.partNumber), etag: partFields.etag };
+      if (typeof partFields.etag !== 'string' || partFields.etag.length === 0)
+        throw new InputError('every part needs an etag');
+      return {
+        partNumber: positiveInteger('partNumber', partFields.partNumber),
+        etag: partFields.etag,
+      };
     })
     .sort((a, b) => a.partNumber - b.partNumber);
   if (!parts.every((part, index) => part.partNumber === index + 1)) {

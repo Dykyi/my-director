@@ -32,7 +32,10 @@ export function useRecordings() {
     [reportError],
   );
 
-  const refresh = useCallback(() => CaptureCore.listRecordings().then(setRecordings, reportError), [reportError]);
+  const refresh = useCallback(
+    () => CaptureCore.listRecordings().then(setRecordings, reportError),
+    [reportError],
+  );
 
   useEffect(() => {
     void refresh();
@@ -50,7 +53,8 @@ export function useRecordings() {
       setRecoveryReports((current) => current.filter((report) => report.sessionId !== sessionId));
     });
 
-  const verify = (sessionId: string) => guard(async () => setVerification(await CaptureCore.verifyRecording(sessionId)));
+  const verify = (sessionId: string) =>
+    guard(async () => setVerification(await CaptureCore.verifyRecording(sessionId)));
 
   const share = (uri: string) => guard(() => Sharing.shareAsync(uri, QUICKTIME));
 
@@ -65,7 +69,14 @@ export function useRecordings() {
     recoveryReports,
     verification,
     error,
-    actions: { refresh, acknowledge, verify, share, remove, closeVerification: () => setVerification(null) },
+    actions: {
+      refresh,
+      acknowledge,
+      verify,
+      share,
+      remove,
+      closeVerification: () => setVerification(null),
+    },
   };
 }
 

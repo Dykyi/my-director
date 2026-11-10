@@ -6,7 +6,12 @@ import { ActionButton } from './action-button';
 import { SymbolIcon } from './symbol-icon';
 import { colors, gutter } from './theme';
 
-function Alert({ title, message, showSettings, onDismiss }: {
+function Alert({
+  title,
+  message,
+  showSettings,
+  onDismiss,
+}: {
   title?: string;
   message: string;
   showSettings: boolean;
@@ -39,7 +44,14 @@ function Alert({ title, message, showSettings, onDismiss }: {
         </View>
       </View>
       <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
-        {showSettings && <ActionButton title="Open Settings" variant="danger" size="compact" onPress={() => void Linking.openSettings()} />}
+        {showSettings && (
+          <ActionButton
+            title="Open Settings"
+            variant="danger"
+            size="compact"
+            onPress={() => void Linking.openSettings()}
+          />
+        )}
         <ActionButton title="Dismiss" variant="danger" size="compact" onPress={onDismiss} />
       </View>
     </View>
@@ -70,7 +82,11 @@ function Notice({ message }: { message: string }) {
   );
 }
 
-export function Notices({ snapshot, commandError, onDismiss }: {
+export function Notices({
+  snapshot,
+  commandError,
+  onDismiss,
+}: {
   snapshot: SessionSnapshot;
   commandError: string | null;
   onDismiss: () => void;
@@ -81,7 +97,12 @@ export function Notices({ snapshot, commandError, onDismiss }: {
   return (
     <View style={{ paddingHorizontal: gutter, paddingTop: 10, gap: 8 }}>
       {error ? (
-        <Alert title={error.code} message={error.message} showSettings={error.code === 'permissionDenied'} onDismiss={onDismiss} />
+        <Alert
+          title={error.code}
+          message={error.message}
+          showSettings={error.code === 'permissionDenied'}
+          onDismiss={onDismiss}
+        />
       ) : (
         commandError && <Alert message={commandError} showSettings={false} onDismiss={onDismiss} />
       )}

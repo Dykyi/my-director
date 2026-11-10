@@ -1,0 +1,12 @@
+node_modules
+.yarn
+ios
+android
+coverage
+dist
+yarn.lock
+package-lock.json
+evidence
+pulled
+tools/upload-api/.wrangler
+*.md

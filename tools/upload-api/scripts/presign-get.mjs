@@ -5,9 +5,16 @@ const MAX_DAYS = 7;
 
 const [key, daysArgument = '1'] = process.argv.slice(2);
 const days = Math.min(Number(daysArgument), MAX_DAYS);
-const { B2_S3_ENDPOINT: endpoint, B2_BUCKET: bucket, B2_KEY_ID: accessKeyId, B2_APPLICATION_KEY: secretAccessKey } = process.env;
+const {
+  B2_S3_ENDPOINT: endpoint,
+  B2_BUCKET: bucket,
+  B2_KEY_ID: accessKeyId,
+  B2_APPLICATION_KEY: secretAccessKey,
+} = process.env;
 if (!key || !(days > 0) || !endpoint || !bucket || !accessKeyId || !secretAccessKey) {
-  console.error('Usage: node --env-file=.env.local tools/upload-api/scripts/presign-get.mjs <key> [days, at most 7]');
+  console.error(
+    'Usage: node --env-file=.env.local tools/upload-api/scripts/presign-get.mjs <key> [days, at most 7]',
+  );
   process.exit(1);
 }
 

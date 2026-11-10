@@ -35,7 +35,13 @@ export async function completeUpload(uploadId: string, input: CompleteUploadInpu
   }
   const stored = await deps.storage.head(input.key);
   if (stored?.size === input.size) {
-    return { status: 200 as const, body: { verified: true, key: input.key, size: stored.size, etag: stored.etag } };
+    return {
+      status: 200 as const,
+      body: { verified: true, key: input.key, size: stored.size, etag: stored.etag },
+    };
   }
-  return { status: 422 as const, body: { verified: false, expected: input.size, actual: stored?.size ?? null } };
+  return {
+    status: 422 as const,
+    body: { verified: false, expected: input.size, actual: stored?.size ?? null },
+  };
 }

@@ -1,16 +1,25 @@
-import {
-  Room,
-  RoomEvent,
-  Track,
-} from 'https://cdn.jsdelivr.net/npm/livekit-client@2.23.0/+esm';
+import { Room, RoomEvent, Track } from 'https://cdn.jsdelivr.net/npm/livekit-client@2.23.0/+esm';
 
 const STATS_INTERVAL_MS = 1000;
 const RECORDER_MIME = 'video/webm;codecs=vp8,opus';
 const SENT_MIME = 'audio/webm;codecs=opus';
 const CSV_COLUMNS = [
-  'at', 'phone', 'frameWidth', 'frameHeight', 'framesPerSecond', 'framesDecoded', 'freezeCount',
-  'totalFreezesDuration', 'videoPacketsLost', 'videoJitter', 'videoBytesReceived',
-  'audioPacketsLost', 'audioJitter', 'audioLevel', 'concealedSamples', 'audioBytesReceived',
+  'at',
+  'phone',
+  'frameWidth',
+  'frameHeight',
+  'framesPerSecond',
+  'framesDecoded',
+  'freezeCount',
+  'totalFreezesDuration',
+  'videoPacketsLost',
+  'videoJitter',
+  'videoBytesReceived',
+  'audioPacketsLost',
+  'audioJitter',
+  'audioLevel',
+  'concealedSamples',
+  'audioBytesReceived',
 ];
 
 const $ = (id) => document.getElementById(id);
@@ -73,22 +82,34 @@ function attachRemote(track, participant) {
 }
 
 async function collectStats() {
-  const row = { at: new Date().toISOString(), phone: room?.remoteParticipants.has('iphone') ? 1 : 0 };
+  const row = {
+    at: new Date().toISOString(),
+    phone: room?.remoteParticipants.has('iphone') ? 1 : 0,
+  };
   const videoReport = await remote.video?.getRTCStatsReport();
   videoReport?.forEach((s) => {
     if (s.type !== 'inbound-rtp') return;
     Object.assign(row, {
-      frameWidth: s.frameWidth, frameHeight: s.frameHeight, framesPerSecond: s.framesPerSecond,
-      framesDecoded: s.framesDecoded, freezeCount: s.freezeCount, totalFreezesDuration: s.totalFreezesDuration,
-      videoPacketsLost: s.packetsLost, videoJitter: s.jitter, videoBytesReceived: s.bytesReceived,
+      frameWidth: s.frameWidth,
+      frameHeight: s.frameHeight,
+      framesPerSecond: s.framesPerSecond,
+      framesDecoded: s.framesDecoded,
+      freezeCount: s.freezeCount,
+      totalFreezesDuration: s.totalFreezesDuration,
+      videoPacketsLost: s.packetsLost,
+      videoJitter: s.jitter,
+      videoBytesReceived: s.bytesReceived,
     });
   });
   const audioReport = await remote.audio?.getRTCStatsReport();
   audioReport?.forEach((s) => {
     if (s.type !== 'inbound-rtp') return;
     Object.assign(row, {
-      audioPacketsLost: s.packetsLost, audioJitter: s.jitter, audioLevel: s.audioLevel,
-      concealedSamples: s.concealedSamples, audioBytesReceived: s.bytesReceived,
+      audioPacketsLost: s.packetsLost,
+      audioJitter: s.jitter,
+      audioLevel: s.audioLevel,
+      concealedSamples: s.concealedSamples,
+      audioBytesReceived: s.bytesReceived,
     });
   });
   csvRows.push(CSV_COLUMNS.map((c) => row[c] ?? '').join(','));
@@ -110,9 +131,15 @@ $('connect').onclick = async () => {
   room = new Room({ adaptiveStream: false, dynacast: false });
   room
     .on(RoomEvent.TrackSubscribed, (track, _pub, participant) => attachRemote(track, participant))
-    .on(RoomEvent.TrackUnsubscribed, (track, _pub, participant) => log(`unsubscribed ${track.kind} from ${participant.identity}`))
-    .on(RoomEvent.TrackMuted, (pub, participant) => log(`muted ${pub.kind} by ${participant.identity}`))
-    .on(RoomEvent.TrackUnmuted, (pub, participant) => log(`unmuted ${pub.kind} by ${participant.identity}`))
+    .on(RoomEvent.TrackUnsubscribed, (track, _pub, participant) =>
+      log(`unsubscribed ${track.kind} from ${participant.identity}`),
+    )
+    .on(RoomEvent.TrackMuted, (pub, participant) =>
+      log(`muted ${pub.kind} by ${participant.identity}`),
+    )
+    .on(RoomEvent.TrackUnmuted, (pub, participant) =>
+      log(`unmuted ${pub.kind} by ${participant.identity}`),
+    )
     .on(RoomEvent.ParticipantConnected, (p) => log(`participant connected ${p.identity}`))
     .on(RoomEvent.ParticipantDisconnected, (p) => log(`participant disconnected ${p.identity}`))
     .on(RoomEvent.Reconnecting, () => log('reconnecting'))
@@ -150,7 +177,11 @@ $('monitor').onchange = () => {
 
 $('record').onclick = () => {
   const id = stamp();
-  startRecorder(new MediaStream([remote.video.mediaStreamTrack, remote.audio.mediaStreamTrack]), RECORDER_MIME, `received-${id}.webm`);
+  startRecorder(
+    new MediaStream([remote.video.mediaStreamTrack, remote.audio.mediaStreamTrack]),
+    RECORDER_MIME,
+    `received-${id}.webm`,
+  );
   startRecorder(new MediaStream([speechTrack]), SENT_MIME, `sent-${id}.webm`);
   log(`recording received and sent media (${id})`);
   $('record').disabled = true;
@@ -164,12 +195,15 @@ $('stopRecord').onclick = () => {
   $('stopRecord').disabled = true;
 };
 
-$('downloadCsv').onclick = () => download(new Blob([csvRows.join('\n')], { type: 'text/csv' }), `stats-${stamp()}.csv`);
+$('downloadCsv').onclick = () =>
+  download(new Blob([csvRows.join('\n')], { type: 'text/csv' }), `stats-${stamp()}.csv`);
 
 if (!$('token').value) {
   const identity = new URLSearchParams(location.search).get('as');
   const file = identity ? `credentials-${identity}.json` : 'credentials.json';
-  const saved = await fetch(file).then((response) => (response.ok ? response.json() : null)).catch(() => null);
+  const saved = await fetch(file)
+    .then((response) => (response.ok ? response.json() : null))
+    .catch(() => null);
   if (saved) {
     $('url').value = saved.url;
     $('token').value = saved.token;

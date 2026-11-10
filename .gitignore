@@ -3,6 +3,15 @@
 # dependencies
 node_modules/
 
+# yarn 4 (corepack pins the version in package.json)
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+.pnp.*
+
 # Expo
 .expo/
 dist/

@@ -55,8 +55,10 @@ export const CaptureCore = {
   verifyRecording: (sessionId: string) => native.verifyRecording(sessionId),
   deleteRecording: (sessionId: string) => native.deleteRecording(sessionId),
   simulateCrash: native.simulateCrash ? () => native.simulateCrash?.() : undefined,
-  addListener: <Event extends keyof CaptureCoreEvents>(event: Event, listener: CaptureCoreEvents[Event]) =>
-    native.addListener(event, listener),
+  addListener: <Event extends keyof CaptureCoreEvents>(
+    event: Event,
+    listener: CaptureCoreEvents[Event],
+  ) => native.addListener(event, listener),
 };
 
 export type CaptureCommandError = Error & { code: CaptureErrorCode };

@@ -23,19 +23,46 @@ export const PHASE_PROGRESS: Partial<Record<SessionPhase, string>> = {
   stopping: 'Finishing file…',
 };
 
-export const PAUSE_REASON: Record<PauseReason, { label: string; detail: string; isFault: boolean }> = {
+export const PAUSE_REASON: Record<
+  PauseReason,
+  { label: string; detail: string; isFault: boolean }
+> = {
   user: { label: 'by you', detail: 'You paused the recording.', isFault: false },
   phoneCall: { label: 'phone call', detail: 'iOS took the microphone for a call.', isFault: false },
   audioInterrupted: { label: 'audio taken', detail: 'Another app took the audio.', isFault: false },
-  appBackground: { label: 'in background', detail: 'The app went to the background, where iOS stops the camera.', isFault: false },
-  screenLocked: { label: 'screen locked', detail: 'The screen locked, and iOS stopped the camera.', isFault: false },
-  cameraInterrupted: { label: 'camera taken', detail: 'iOS gave the camera to something else.', isFault: false },
+  appBackground: {
+    label: 'in background',
+    detail: 'The app went to the background, where iOS stops the camera.',
+    isFault: false,
+  },
+  screenLocked: {
+    label: 'screen locked',
+    detail: 'The screen locked, and iOS stopped the camera.',
+    isFault: false,
+  },
+  cameraInterrupted: {
+    label: 'camera taken',
+    detail: 'iOS gave the camera to something else.',
+    isFault: false,
+  },
   cameraError: { label: 'camera error', detail: 'The camera reported an error.', isFault: true },
-  cameraStalled: { label: 'camera stopped', detail: 'The camera stopped delivering frames.', isFault: true },
-  micStalled: { label: 'mic stopped', detail: 'The microphone stopped delivering audio.', isFault: true },
+  cameraStalled: {
+    label: 'camera stopped',
+    detail: 'The camera stopped delivering frames.',
+    isFault: true,
+  },
+  micStalled: {
+    label: 'mic stopped',
+    detail: 'The microphone stopped delivering audio.',
+    isFault: true,
+  },
   fileError: { label: 'file error', detail: 'Writing the file failed.', isFault: true },
   diskFull: { label: 'disk full', detail: 'The phone ran out of space.', isFault: true },
-  mediaServicesReset: { label: 'media reset', detail: 'iOS restarted its media services.', isFault: true },
+  mediaServicesReset: {
+    label: 'media reset',
+    detail: 'iOS restarted its media services.',
+    isFault: true,
+  },
 };
 
 export function participantNames({ participants }: CallStatus): string[] {
@@ -47,14 +74,19 @@ export function describeCall(call: CallStatus, inSession: boolean): { text: stri
     case 'connected': {
       const names = participantNames(call);
       const others = names.length > 0 ? `with ${names.join(', ')}` : 'waiting for the interviewer';
-      return { text: `Call: connected · ${call.quality} · ${call.profile} · ${others}`, tone: 'secondary' };
+      return {
+        text: `Call: connected · ${call.quality} · ${call.profile} · ${others}`,
+        tone: 'secondary',
+      };
     }
     case 'connecting':
       return { text: 'Call: connecting…', tone: 'secondary' };
     case 'reconnecting':
       return { text: 'Call: reconnecting…', tone: 'warning' };
     case 'disconnected':
-      return inSession ? { text: 'Call: lost, the recording goes on', tone: 'warning' } : { text: 'Call: not connected', tone: 'muted' };
+      return inSession
+        ? { text: 'Call: lost, the recording goes on', tone: 'warning' }
+        : { text: 'Call: not connected', tone: 'muted' };
   }
 }
 

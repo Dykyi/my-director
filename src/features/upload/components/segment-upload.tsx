@@ -16,7 +16,13 @@ const PHASE_COLOR: Record<UploadPhase, string> = {
   cancelled: colors.muted,
 };
 
-export function SegmentUpload({ upload, actions }: { upload: UploadSnapshot | undefined; actions: UploadActions }) {
+export function SegmentUpload({
+  upload,
+  actions,
+}: {
+  upload: UploadSnapshot | undefined;
+  actions: UploadActions;
+}) {
   if (!upload) return null;
   const active = ACTIVE_UPLOAD.has(upload.phase);
   const retryable = upload.phase === 'failed' && upload.uploadId !== undefined;
@@ -26,8 +32,16 @@ export function SegmentUpload({ upload, actions }: { upload: UploadSnapshot | un
         {describeUpload(upload)}
       </Text>
       {active && (
-        <View style={{ height: 6, borderRadius: 3, overflow: 'hidden', backgroundColor: colors.border }}>
-          <View style={{ width: `${uploadProgress(upload) * 100}%`, height: 6, backgroundColor: colors.progress }} />
+        <View
+          style={{ height: 6, borderRadius: 3, overflow: 'hidden', backgroundColor: colors.border }}
+        >
+          <View
+            style={{
+              width: `${uploadProgress(upload) * 100}%`,
+              height: 6,
+              backgroundColor: colors.progress,
+            }}
+          />
         </View>
       )}
       {upload.uploadId && (
@@ -37,8 +51,21 @@ export function SegmentUpload({ upload, actions }: { upload: UploadSnapshot | un
       )}
       {(active || retryable) && (
         <View style={{ flexDirection: 'row', gap: 8 }}>
-          {retryable && <ActionButton title="Retry failed parts" size="compact" onPress={() => actions.retry(upload.id)} />}
-          {active && <ActionButton title="Cancel" variant="ghost" size="compact" onPress={() => actions.cancel(upload.id)} />}
+          {retryable && (
+            <ActionButton
+              title="Retry failed parts"
+              size="compact"
+              onPress={() => actions.retry(upload.id)}
+            />
+          )}
+          {active && (
+            <ActionButton
+              title="Cancel"
+              variant="ghost"
+              size="compact"
+              onPress={() => actions.cancel(upload.id)}
+            />
+          )}
         </View>
       )}
     </View>

@@ -4,7 +4,11 @@ import { formatBytes } from '../capture/format';
 import { plural } from '../capture/session-labels';
 
 const RESTARTABLE: ReadonlySet<UploadPhase> = new Set(['failed', 'cancelled']);
-export const ACTIVE_UPLOAD: ReadonlySet<UploadPhase> = new Set(['preparing', 'uploading', 'completing']);
+export const ACTIVE_UPLOAD: ReadonlySet<UploadPhase> = new Set([
+  'preparing',
+  'uploading',
+  'completing',
+]);
 
 export function segmentObjectKey(sessionId: string, segmentIndex: number): string {
   return `${sessionId}/segment-${String(segmentIndex).padStart(3, '0')}.mov`;

@@ -4,7 +4,20 @@ const SECONDS_PER_HOUR = 3_600;
 const SECONDS_PER_MINUTE = 60;
 const BYTE_UNITS = ['B', 'KB', 'MB', 'GB'] as const;
 const BYTES_PER_UNIT = 1_024;
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+const MONTHS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+] as const;
 const LOG_TIME_START = 11;
 const LOG_TIME_END = 23;
 
@@ -13,7 +26,9 @@ export function formatDuration(totalSec: number): string {
   const hours = Math.floor(total / SECONDS_PER_HOUR);
   const minutes = Math.floor((total % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE);
   const seconds = String(total % SECONDS_PER_MINUTE).padStart(2, '0');
-  return hours > 0 ? `${hours}:${String(minutes).padStart(2, '0')}:${seconds}` : `${minutes}:${seconds}`;
+  return hours > 0
+    ? `${hours}:${String(minutes).padStart(2, '0')}:${seconds}`
+    : `${minutes}:${seconds}`;
 }
 
 export function formatBytes(bytes: number): string {
@@ -33,7 +48,11 @@ export function formatLoss({ knownLossSec, maxUnseenLossSec }: RecoveryReport): 
 }
 
 function sameDay(a: Date, b: Date): boolean {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
 }
 
 export function formatSessionTime(createdAt: string, now = new Date()): string {
@@ -46,6 +65,10 @@ export function formatSessionTime(createdAt: string, now = new Date()): string {
 }
 
 export function formatLogLine({ at, level, category, message, data }: LogEntry): string {
-  const details = data ? Object.entries(data).map(([key, value]) => ` ${key}=${value}`).join('') : '';
+  const details = data
+    ? Object.entries(data)
+        .map(([key, value]) => ` ${key}=${value}`)
+        .join('')
+    : '';
   return `${at.slice(LOG_TIME_START, LOG_TIME_END)} ${level} ${category} ${message}${details}`;
 }

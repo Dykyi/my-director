@@ -9,7 +9,9 @@ function deps(overrides: { size?: number | null; completeError?: Error } = {}) {
   const size = overrides.size === undefined ? 30 : overrides.size;
   const storage = {
     createMultipartUpload: vi.fn(async () => 'upload-1'),
-    presignPart: vi.fn(async (_key: string, _uploadId: string, partNumber: number) => `https://signed/${partNumber}`),
+    presignPart: vi.fn(
+      async (_key: string, _uploadId: string, partNumber: number) => `https://signed/${partNumber}`,
+    ),
     completeMultipartUpload: vi.fn(async () => {
       if (overrides.completeError) throw overrides.completeError;
     }),
@@ -23,7 +25,10 @@ function deps(overrides: { size?: number | null; completeError?: Error } = {}) {
 describe('createUpload', () => {
   it('starts a QuickTime upload and returns one signed URL per part with the MD5 header to send', async () => {
     const context = deps();
-    const result = await createUpload({ key: 'k', size: 30, partSize: 16, partMd5s: [MD5, MD5] }, context);
+    const result = await createUpload(
+      { key: 'k', size: 30, partSize: 16, partMd5s: [MD5, MD5] },
+      context,
+    );
     expect(context.storage.createMultipartUpload).toHaveBeenCalledWith('k', 'video/quicktime');
     expect(result.uploadId).toBe('upload-1');
     expect(result.parts).toEqual([
@@ -35,13 +40,27 @@ describe('createUpload', () => {
 });
 
 describe('completeUpload', () => {
-  const input = { key: 'k', size: 30, parts: [{ partNumber: 1, etag: '"a"' }, { partNumber: 2, etag: 'b' }] };
+  const input = {
+    key: 'k',
+    size: 30,
+    parts: [
+      { partNumber: 1, etag: '"a"' },
+      { partNumber: 2, etag: 'b' },
+    ],
+  };
 
   it('verifies when the stored size matches', async () => {
     const context = deps();
     const result = await completeUpload('upload-1', input, context);
-    expect(context.storage.completeMultipartUpload).toHaveBeenCalledWith('k', 'upload-1', input.parts);
-    expect(result).toEqual({ status: 200, body: { verified: true, key: 'k', size: 30, etag: 'final' } });
+    expect(context.storage.completeMultipartUpload).toHaveBeenCalledWith(
+      'k',
+      'upload-1',
+      input.parts,
+    );
+    expect(result).toEqual({
+      status: 200,
+      body: { verified: true, key: 'k', size: 30, etag: 'final' },
+    });
   });
 
   it('refuses when the stored size differs', async () => {
@@ -50,11 +69,17 @@ describe('completeUpload', () => {
   });
 
   it('verifies a repeated complete whose first response was lost', async () => {
-    const result = await completeUpload('upload-1', input, deps({ completeError: new Error('NoSuchUpload') }));
+    const result = await completeUpload(
+      'upload-1',
+      input,
+      deps({ completeError: new Error('NoSuchUpload') }),
+    );
     expect(result.status).toBe(200);
   });
 
   it('rethrows when completing failed and nothing was stored', async () => {
-    await expect(completeUpload('upload-1', input, deps({ size: null, completeError: new Error('boom') }))).rejects.toThrow('boom');
+    await expect(
+      completeUpload('upload-1', input, deps({ size: null, completeError: new Error('boom') })),
+    ).rejects.toThrow('boom');
   });
 });

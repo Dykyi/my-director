@@ -3,7 +3,8 @@ import { AppState } from 'react-native';
 
 import { BackgroundUpload, type UploadSnapshot } from '@modules/background-upload';
 import type { RecordingSummary, SegmentState, SegmentSummary } from '@modules/capture-core';
-import { uploadApi } from '@/src/config/env';
+
+import { uploadApi } from '@config/env';
 
 import { describeError } from '../capture/use-capture-session';
 import { ACTIVE_UPLOAD, needsUpload, segmentObjectKey } from './upload-format';
@@ -34,7 +35,10 @@ export function useUploads() {
     [reportError],
   );
 
-  const reload = useCallback(() => BackgroundUpload.getUploads().then(setUploads, reportError), [reportError]);
+  const reload = useCallback(
+    () => BackgroundUpload.getUploads().then(setUploads, reportError),
+    [reportError],
+  );
 
   useEffect(() => {
     const subscriptions = [
@@ -49,12 +53,17 @@ export function useUploads() {
     return () => subscriptions.forEach((subscription) => subscription.remove());
   }, [reload]);
 
-  const uploadFor = useCallback((objectKey: string) => uploads.find((upload) => upload.objectKey === objectKey), [uploads]);
+  const uploadFor = useCallback(
+    (objectKey: string) => uploads.find((upload) => upload.objectKey === objectKey),
+    [uploads],
+  );
 
   const uploadStatus = useCallback(
     (recording: RecordingSummary): UploadStatus => {
       const segments = recording.segments.filter((segment) => UPLOADABLE.has(segment.state));
-      const jobs = segments.map((segment) => uploadFor(segmentObjectKey(recording.sessionId, segment.index)));
+      const jobs = segments.map((segment) =>
+        uploadFor(segmentObjectKey(recording.sessionId, segment.index)),
+      );
       return {
         pending: segments.filter((_, index) => needsUpload(jobs[index])),
         uploading: jobs.some((job) => job !== undefined && ACTIVE_UPLOAD.has(job.phase)),
@@ -71,7 +80,7 @@ export function useUploads() {
         const snapshot = await BackgroundUpload.startUpload({
           fileUri: segment.uri,
           objectKey: segmentObjectKey(recording.sessionId, segment.index),
-          api: uploadApi(),
+          api: uploadApi,
         });
         setUploads((current) => withSnapshot(current, snapshot));
       }

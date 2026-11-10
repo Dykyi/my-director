@@ -12,7 +12,16 @@ const PLAYABLE: ReadonlySet<SegmentState> = new Set(['finalized', 'recovered']);
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <View style={{ flex: 1, padding: 10, gap: 2, borderRadius: 10, borderCurve: 'continuous', backgroundColor: colors.ground }}>
+    <View
+      style={{
+        flex: 1,
+        padding: 10,
+        gap: 2,
+        borderRadius: 10,
+        borderCurve: 'continuous',
+        backgroundColor: colors.ground,
+      }}
+    >
       <Text style={{ color: colors.muted, fontSize: 11 }}>{label}</Text>
       <Text selectable style={[mono, { fontSize: 16, fontWeight: '600' }]}>
         {value}
@@ -21,7 +30,12 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function RecoveryDialog({ report, onPlay, onVerify, onDismiss }: {
+export function RecoveryDialog({
+  report,
+  onPlay,
+  onVerify,
+  onDismiss,
+}: {
   report: RecoveryReport | undefined;
   onPlay: (uri: string) => void;
   onVerify: (sessionId: string) => void;
@@ -31,7 +45,12 @@ export function RecoveryDialog({ report, onPlay, onVerify, onDismiss }: {
   const lastPlayable = report.segments.findLast((segment) => PLAYABLE.has(segment.state));
   const unplayable = report.segments.filter((segment) => segment.state === 'unplayable').length;
   return (
-    <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.scrim, justifyContent: 'center', paddingHorizontal: gutter }]}>
+    <View
+      style={[
+        StyleSheet.absoluteFill,
+        { backgroundColor: colors.scrim, justifyContent: 'center', paddingHorizontal: gutter },
+      ]}
+    >
       <View
         accessibilityRole="alert"
         style={{
@@ -55,7 +74,9 @@ export function RecoveryDialog({ report, onPlay, onVerify, onDismiss }: {
               {lastPlayable ? 'What was on disk is playable.' : 'Nothing on disk could be opened.'}
             </Text>
             {unplayable > 0 && lastPlayable && (
-              <Text style={{ color: colors.recordingText, fontSize: 13 }}>{plural(unplayable, 'segment')} could not be opened.</Text>
+              <Text style={{ color: colors.recordingText, fontSize: 13 }}>
+                {plural(unplayable, 'segment')} could not be opened.
+              </Text>
             )}
           </View>
         </View>
@@ -73,8 +94,19 @@ export function RecoveryDialog({ report, onPlay, onVerify, onDismiss }: {
             onPress={() => lastPlayable && onPlay(lastPlayable.uri)}
             style={{ flex: 1 }}
           />
-          <ActionButton title="Verify" size="compact" onPress={() => onVerify(report.sessionId)} style={{ flex: 1 }} />
-          <ActionButton title="Dismiss" variant="ghost" size="compact" onPress={() => onDismiss(report.sessionId)} style={{ flex: 1 }} />
+          <ActionButton
+            title="Verify"
+            size="compact"
+            onPress={() => onVerify(report.sessionId)}
+            style={{ flex: 1 }}
+          />
+          <ActionButton
+            title="Dismiss"
+            variant="ghost"
+            size="compact"
+            onPress={() => onDismiss(report.sessionId)}
+            style={{ flex: 1 }}
+          />
         </View>
       </View>
     </View>

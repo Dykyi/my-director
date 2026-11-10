@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/../.."
+set -a && . ./.env.local && set +a
 : "${DEVICE:?Set DEVICE in .env.local to the iPhone identifier from: xcrun devicectl list devices}"
-ACTION=${1:?Usage: npm run stand -- <action>}
-BUNDLE_ID=$(node -p "require('./app.json').expo.ios.bundleIdentifier")
+ACTION=${1:?Usage: yarn stand <action>}
+BUNDLE_ID=$(node --import tsx tools/device/bundle-id.ts)
 SETTINGS_BUNDLE_ID=com.apple.Preferences
 
 launch() {

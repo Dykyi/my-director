@@ -20,7 +20,11 @@ export function EventLog({ entries }: { entries: LogEntry[] }) {
       contentContainerStyle={{ paddingHorizontal: gutter, paddingVertical: 8, gap: 3 }}
     >
       {entries.map((entry) => (
-        <Text key={`${entry.mono}-${entry.category}-${entry.message}`} selectable style={[mono, { fontSize: 11, color: LEVEL_COLOR[entry.level] }]}>
+        <Text
+          key={`${entry.mono}-${entry.category}-${entry.message}`}
+          selectable
+          style={[mono, { fontSize: 11, color: LEVEL_COLOR[entry.level] }]}
+        >
           {formatLogLine(entry)}
         </Text>
       ))}

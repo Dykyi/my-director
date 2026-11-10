@@ -2,13 +2,24 @@ import { AwsClient } from 'aws4fetch';
 
 import type { CompletedPart } from './validation';
 
-export type S3Config = { endpoint: string; bucket: string; accessKeyId: string; secretAccessKey: string };
+export type S3Config = {
+  endpoint: string;
+  bucket: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+};
 export type ListedPart = { partNumber: number; etag: string; size: number; uploadedAt: string };
 export type StoredObject = { size: number; etag: string };
 
 export interface ObjectStorage {
   createMultipartUpload(key: string, contentType: string): Promise<string>;
-  presignPart(key: string, uploadId: string, partNumber: number, md5: string, expiresSec: number): Promise<string>;
+  presignPart(
+    key: string,
+    uploadId: string,
+    partNumber: number,
+    md5: string,
+    expiresSec: number,
+  ): Promise<string>;
   completeMultipartUpload(key: string, uploadId: string, parts: CompletedPart[]): Promise<void>;
   head(key: string): Promise<StoredObject | null>;
   listParts(key: string, uploadId: string): Promise<ListedPart[]>;
@@ -41,22 +52,38 @@ export class S3Api implements ObjectStorage {
   async createMultipartUpload(key: string, contentType: string): Promise<string> {
     const url = this.objectUrl(key);
     url.searchParams.set('uploads', '');
-    const response = await this.send('CreateMultipartUpload', url, { method: 'POST', headers: { 'Content-Type': contentType } });
+    const response = await this.send('CreateMultipartUpload', url, {
+      method: 'POST',
+      headers: { 'Content-Type': contentType },
+    });
     return parseUploadId(await response.text());
   }
 
-  async presignPart(key: string, uploadId: string, partNumber: number, md5: string, expiresSec: number): Promise<string> {
+  async presignPart(
+    key: string,
+    uploadId: string,
+    partNumber: number,
+    md5: string,
+    expiresSec: number,
+  ): Promise<string> {
     const url = this.objectUrl(key);
     url.searchParams.set('partNumber', String(partNumber));
     url.searchParams.set('uploadId', uploadId);
     url.searchParams.set('X-Amz-Expires', String(expiresSec));
-    const signed = await this.client.sign(new Request(url, { method: 'PUT', headers: { 'Content-MD5': md5 } }), {
-      aws: { signQuery: true, allHeaders: true },
-    });
+    const signed = await this.client.sign(
+      new Request(url, { method: 'PUT', headers: { 'Content-MD5': md5 } }),
+      {
+        aws: { signQuery: true, allHeaders: true },
+      },
+    );
     return signed.url;
   }
 
-  async completeMultipartUpload(key: string, uploadId: string, parts: CompletedPart[]): Promise<void> {
+  async completeMultipartUpload(
+    key: string,
+    uploadId: string,
+    parts: CompletedPart[],
+  ): Promise<void> {
     const url = this.objectUrl(key);
     url.searchParams.set('uploadId', uploadId);
     await this.send('CompleteMultipartUpload', url, {
@@ -134,7 +161,8 @@ export function parseUploadId(xml: string): string {
 
 export function buildCompleteBody(parts: CompletedPart[]): string {
   const items = parts.map(
-    ({ partNumber, etag }) => `<Part><PartNumber>${partNumber}</PartNumber><ETag>"${escapeXmlText(unquoteEtag(etag))}"</ETag></Part>`,
+    ({ partNumber, etag }) =>
+      `<Part><PartNumber>${partNumber}</PartNumber><ETag>"${escapeXmlText(unquoteEtag(etag))}"</ETag></Part>`,
   );
   return `<CompleteMultipartUpload xmlns="${S3_XMLNS}">${items.join('')}</CompleteMultipartUpload>`;
 }

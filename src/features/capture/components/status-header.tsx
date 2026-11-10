@@ -14,7 +14,8 @@ const PILL_LOOK: Record<PillTone, { background: string; text: string }> = {
 };
 
 function PillMark({ tone }: { tone: PillTone }) {
-  if (tone === 'paused') return <SymbolIcon name="pause.fill" size={10} color={colors.pausedText} />;
+  if (tone === 'paused')
+    return <SymbolIcon name="pause.fill" size={10} color={colors.pausedText} />;
   return (
     <View
       style={{
@@ -37,7 +38,14 @@ export function StatusHeader({ snapshot }: { snapshot: SessionSnapshot }) {
   const callLine = describeCall(call, sessionId !== undefined);
   return (
     <View
-      style={{ paddingHorizontal: gutter, paddingTop: 14, paddingBottom: 10, gap: 4, borderBottomWidth: 1, borderColor: colors.border }}
+      style={{
+        paddingHorizontal: gutter,
+        paddingTop: 14,
+        paddingBottom: 10,
+        gap: 4,
+        borderBottomWidth: 1,
+        borderColor: colors.border,
+      }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
         <View
@@ -53,14 +61,32 @@ export function StatusHeader({ snapshot }: { snapshot: SessionSnapshot }) {
           }}
         >
           <PillMark tone={pill.tone} />
-          <Text style={{ color: look.text, fontSize: 13, fontWeight: '700', letterSpacing: 0.8 }}>{pill.label}</Text>
+          <Text style={{ color: look.text, fontSize: 13, fontWeight: '700', letterSpacing: 0.8 }}>
+            {pill.label}
+          </Text>
         </View>
         {reason ? (
-          <Text style={{ color: reason.isFault ? colors.recordingText : colors.pausedText, fontSize: 14, fontWeight: '600' }}>
+          <Text
+            style={{
+              color: reason.isFault ? colors.recordingText : colors.pausedText,
+              fontSize: 14,
+              fontWeight: '600',
+            }}
+          >
             {reason.label}
           </Text>
         ) : (
-          <Text selectable style={[mono, { fontSize: 20, fontWeight: '600', color: phase === 'recording' ? colors.text : colors.muted }]}>
+          <Text
+            selectable
+            style={[
+              mono,
+              {
+                fontSize: 20,
+                fontWeight: '600',
+                color: phase === 'recording' ? colors.text : colors.muted,
+              },
+            ]}
+          >
             {formatDuration(snapshot.recordedSec)}
           </Text>
         )}

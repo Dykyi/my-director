@@ -10,7 +10,15 @@ import { colors, gutter, mono } from './theme';
 
 type CardHandlers = Omit<RecordingCardProps, 'recording' | 'isActive'>;
 
-export function RecordingsView({ recordings, activeSessionId, diskFreeBytes, error, onBack, onSimulateCrash, ...handlers }: CardHandlers & {
+export function RecordingsView({
+  recordings,
+  activeSessionId,
+  diskFreeBytes,
+  error,
+  onBack,
+  onSimulateCrash,
+  ...handlers
+}: CardHandlers & {
   recordings: RecordingSummary[];
   activeSessionId?: string;
   diskFreeBytes?: number;
@@ -20,7 +28,17 @@ export function RecordingsView({ recordings, activeSessionId, diskFreeBytes, err
 }) {
   return (
     <View style={{ flex: 1 }}>
-      <View style={{ height: 52, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', gap: 4, borderBottomWidth: 1, borderColor: colors.border }}>
+      <View
+        style={{
+          height: 52,
+          paddingHorizontal: 8,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 4,
+          borderBottomWidth: 1,
+          borderColor: colors.border,
+        }}
+      >
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Back to capture"
@@ -29,11 +47,16 @@ export function RecordingsView({ recordings, activeSessionId, diskFreeBytes, err
         >
           <SymbolIcon name="chevron.left" size={20} color={colors.accent} />
         </Pressable>
-        <Text accessibilityRole="header" style={{ color: colors.text, fontSize: 17, fontWeight: '700' }}>
+        <Text
+          accessibilityRole="header"
+          style={{ color: colors.text, fontSize: 17, fontWeight: '700' }}
+        >
           Recordings
         </Text>
         {diskFreeBytes !== undefined && (
-          <Text style={{ marginLeft: 'auto', paddingRight: 8, color: colors.muted, fontSize: 13 }}>{formatBytes(diskFreeBytes)} free</Text>
+          <Text style={{ marginLeft: 'auto', paddingRight: 8, color: colors.muted, fontSize: 13 }}>
+            {formatBytes(diskFreeBytes)} free
+          </Text>
         )}
       </View>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: gutter, gap: 12 }}>
@@ -46,14 +69,34 @@ export function RecordingsView({ recordings, activeSessionId, diskFreeBytes, err
           <Text style={[mono, { color: colors.muted }]}>No recordings yet</Text>
         ) : (
           recordings.map((recording) => (
-            <RecordingCard key={recording.sessionId} recording={recording} isActive={recording.sessionId === activeSessionId} {...handlers} />
+            <RecordingCard
+              key={recording.sessionId}
+              recording={recording}
+              isActive={recording.sessionId === activeSessionId}
+              {...handlers}
+            />
           ))
         )}
       </ScrollView>
       {onSimulateCrash && (
-        <View style={{ paddingHorizontal: gutter, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderColor: colors.border }}>
+        <View
+          style={{
+            paddingHorizontal: gutter,
+            paddingVertical: 12,
+            flexDirection: 'row',
+            alignItems: 'center',
+            borderTopWidth: 1,
+            borderColor: colors.border,
+          }}
+        >
           <Text style={{ color: colors.muted, fontSize: 12 }}>Debug build</Text>
-          <ActionButton title="Simulate crash" variant="danger" size="compact" onPress={onSimulateCrash} style={{ marginLeft: 'auto' }} />
+          <ActionButton
+            title="Simulate crash"
+            variant="danger"
+            size="compact"
+            onPress={onSimulateCrash}
+            style={{ marginLeft: 'auto' }}
+          />
         </View>
       )}
     </View>

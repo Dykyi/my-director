@@ -50,7 +50,8 @@ export default {
       }
       return json({ error: 'not found' }, 404);
     } catch (error) {
-      if (error instanceof InputError || error instanceof SyntaxError) return json({ error: error.message }, 400);
+      if (error instanceof InputError || error instanceof SyntaxError)
+        return json({ error: error.message }, 400);
       console.error(error);
       return json({ error: 'internal error' }, 500);
     }

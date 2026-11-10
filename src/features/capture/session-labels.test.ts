@@ -2,7 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 
 import type { CallStatus } from '@modules/capture-core';
 
-import { noCall, participant } from '@/src/test/call-fixtures';
+import { noCall, participant } from '@test/call-fixtures';
 
 import { describeCall } from './session-labels';
 
@@ -13,7 +13,16 @@ describe('describeCall', () => {
     expect(describeCall(call({}), false)).toEqual({ text: 'Call: not connected', tone: 'muted' }));
 
   it('names who is in the call', () =>
-    expect(describeCall(call({ state: 'connected', quality: 'excellent', participants: [participant('interviewer')] }), true)).toEqual({
+    expect(
+      describeCall(
+        call({
+          state: 'connected',
+          quality: 'excellent',
+          participants: [participant('interviewer')],
+        }),
+        true,
+      ),
+    ).toEqual({
       text: 'Call: connected · excellent · standard · with interviewer',
       tone: 'secondary',
     }));
@@ -24,8 +33,14 @@ describe('describeCall', () => {
     ));
 
   it('warns while reconnecting', () =>
-    expect(describeCall(call({ state: 'reconnecting' }), true)).toEqual({ text: 'Call: reconnecting…', tone: 'warning' }));
+    expect(describeCall(call({ state: 'reconnecting' }), true)).toEqual({
+      text: 'Call: reconnecting…',
+      tone: 'warning',
+    }));
 
   it('warns when the call is lost during a session', () =>
-    expect(describeCall(call({}), true)).toEqual({ text: 'Call: lost, the recording goes on', tone: 'warning' }));
+    expect(describeCall(call({}), true)).toEqual({
+      text: 'Call: lost, the recording goes on',
+      tone: 'warning',
+    }));
 });

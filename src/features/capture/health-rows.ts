@@ -1,4 +1,9 @@
-import type { CallStatus, HealthSnapshot, SessionPhase, SessionSnapshot } from '@modules/capture-core';
+import type {
+  CallStatus,
+  HealthSnapshot,
+  SessionPhase,
+  SessionSnapshot,
+} from '@modules/capture-core';
 
 import { formatBytes } from './format';
 import { participantNames, type Tone } from './session-labels';
@@ -27,7 +32,11 @@ function meterBars(levelDb: number): number {
 function audioRow({ audio }: HealthSnapshot, phase: SessionPhase): HealthRow {
   const silent = audio.lastBufferAgeMs < 0 || audio.lastBufferAgeMs > MIC_SILENT_AFTER_MS;
   if (silent && RECORDING_PHASES.has(phase) && audio.lastBufferAgeMs >= 0) {
-    return { label: 'Audio', value: `no audio for ${(audio.lastBufferAgeMs / MS_PER_SEC).toFixed(1)} s`, tone: 'error' };
+    return {
+      label: 'Audio',
+      value: `no audio for ${(audio.lastBufferAgeMs / MS_PER_SEC).toFixed(1)} s`,
+      tone: 'error',
+    };
   }
   if (silent) return { label: 'Audio', value: 'mic off', tone: 'muted' };
   return {
@@ -42,7 +51,11 @@ function fileRow({ file }: HealthSnapshot): HealthRow {
   const size = formatBytes(file.bytes);
   switch (file.writer) {
     case 'writing':
-      return { label: 'File', value: `${file.fps.toFixed(1)} fps  ${size}  drops ${file.droppedFrames}`, tone: 'normal' };
+      return {
+        label: 'File',
+        value: `${file.fps.toFixed(1)} fps  ${size}  drops ${file.droppedFrames}`,
+        tone: 'normal',
+      };
     case 'finishing':
       return { label: 'File', value: `finishing · ${size}`, tone: 'secondary' };
     case 'failed':
@@ -61,7 +74,8 @@ function callRow({ call }: HealthSnapshot): HealthRow {
 }
 
 function roomRow(call: CallStatus): HealthRow {
-  if (call.state === 'disconnected' || call.room === undefined) return { label: 'Room', value: 'not joined', tone: 'muted' };
+  if (call.state === 'disconnected' || call.room === undefined)
+    return { label: 'Room', value: 'not joined', tone: 'muted' };
   const names = participantNames(call);
   return names.length > 0
     ? { label: 'Room', value: `${call.room} · ${names.join(', ')}`, tone: 'normal' }
@@ -70,12 +84,19 @@ function roomRow(call: CallStatus): HealthRow {
 
 const routeTone = (port: string): Tone => (port.includes(BLUETOOTH_PORT) ? 'accent' : 'normal');
 
-export function healthRows(health: HealthSnapshot, { phase, call }: Pick<SessionSnapshot, 'phase' | 'call'>): HealthRow[] {
+export function healthRows(
+  health: HealthSnapshot,
+  { phase, call }: Pick<SessionSnapshot, 'phase' | 'call'>,
+): HealthRow[] {
   const { camera, audioRoute } = health;
   return [
     camera.width === 0
       ? { label: 'Camera', value: 'off', tone: 'muted' }
-      : { label: 'Camera', value: `${camera.fps.toFixed(1)} fps ${camera.width}×${camera.height}`, tone: 'normal' },
+      : {
+          label: 'Camera',
+          value: `${camera.fps.toFixed(1)} fps ${camera.width}×${camera.height}`,
+          tone: 'normal',
+        },
     fileRow(health),
     audioRow(health, phase),
     { label: 'Input', value: audioRoute.input, tone: routeTone(audioRoute.input) },

@@ -44,5 +44,10 @@ export const toneColor: Record<Tone, string> = {
   error: colors.recordingText,
 };
 
-export const mono: TextStyle = { fontFamily: 'Menlo', fontSize: 12, color: colors.text, fontVariant: ['tabular-nums'] };
+export const mono: TextStyle = {
+  fontFamily: 'Menlo',
+  fontSize: 12,
+  color: colors.text,
+  fontVariant: ['tabular-nums'],
+};
 export const gutter = 16;

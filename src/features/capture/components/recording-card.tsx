@@ -1,7 +1,12 @@
 import type { ReactNode } from 'react';
 import { Alert, Text, View } from 'react-native';
 
-import type { RecordingState, RecordingSummary, SegmentState, SegmentSummary } from '@modules/capture-core';
+import type {
+  RecordingState,
+  RecordingSummary,
+  SegmentState,
+  SegmentSummary,
+} from '@modules/capture-core';
 
 import { formatBytes, formatDuration, formatSessionTime } from '../format';
 import { PAUSE_REASON, plural } from '../session-labels';
@@ -28,23 +33,60 @@ export type RecordingCardProps = {
   renderActions?: (recording: RecordingSummary) => ReactNode;
 };
 
-function SegmentRow({ segment, onPlay, onShare }: { segment: SegmentSummary; onPlay: () => void; onShare: () => void }) {
+function SegmentRow({
+  segment,
+  onPlay,
+  onShare,
+}: {
+  segment: SegmentSummary;
+  onPlay: () => void;
+  onShare: () => void;
+}) {
   const playable = PLAYABLE.has(segment.state);
   const reason = segment.pauseReason ? ` · ${PAUSE_REASON[segment.pauseReason].label}` : '';
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-      <Text selectable numberOfLines={2} style={[mono, { flex: 1, color: segment.state === 'unplayable' ? colors.recordingText : colors.secondary }]}>
-        seg {segment.index}  {formatDuration(segment.durationSec)}  {segment.state}
+      <Text
+        selectable
+        numberOfLines={2}
+        style={[
+          mono,
+          {
+            flex: 1,
+            color: segment.state === 'unplayable' ? colors.recordingText : colors.secondary,
+          },
+        ]}
+      >
+        seg {segment.index} {formatDuration(segment.durationSec)} {segment.state}
         {reason}
         {segment.failure ? ` · ${segment.failure}` : ''}
       </Text>
-      <IconButton icon="play.fill" label={`Play segment ${segment.index}`} disabled={!playable} onPress={onPlay} />
-      <IconButton icon="square.and.arrow.up" label={`Share segment ${segment.index}`} disabled={!playable} onPress={onShare} />
+      <IconButton
+        icon="play.fill"
+        label={`Play segment ${segment.index}`}
+        disabled={!playable}
+        onPress={onPlay}
+      />
+      <IconButton
+        icon="square.and.arrow.up"
+        label={`Share segment ${segment.index}`}
+        disabled={!playable}
+        onPress={onShare}
+      />
     </View>
   );
 }
 
-export function RecordingCard({ recording, isActive, onPlay, onShare, onVerify, onDelete, renderSegment, renderActions }: RecordingCardProps) {
+export function RecordingCard({
+  recording,
+  isActive,
+  onPlay,
+  onShare,
+  onVerify,
+  onDelete,
+  renderSegment,
+  renderActions,
+}: RecordingCardProps) {
   const pill = STATE_PILL[recording.state];
   const confirmDelete = () =>
     Alert.alert(
@@ -68,9 +110,12 @@ export function RecordingCard({ recording, isActive, onPlay, onShare, onVerify, 
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
-        <Text style={{ color: colors.text, fontSize: 15, fontWeight: '700' }}>{formatSessionTime(recording.createdAt)}</Text>
+        <Text style={{ color: colors.text, fontSize: 15, fontWeight: '700' }}>
+          {formatSessionTime(recording.createdAt)}
+        </Text>
         <Text selectable style={[mono, { flexShrink: 1, color: colors.muted }]}>
-          {formatDuration(recording.totalSec)} · {plural(recording.segments.length, 'seg')} · {formatBytes(recording.totalBytes)}
+          {formatDuration(recording.totalSec)} · {plural(recording.segments.length, 'seg')} ·{' '}
+          {formatBytes(recording.totalBytes)}
         </Text>
         <Text
           style={{
@@ -91,14 +136,31 @@ export function RecordingCard({ recording, isActive, onPlay, onShare, onVerify, 
       <View style={{ gap: 2 }}>
         {recording.segments.map((segment) => (
           <View key={segment.index}>
-            <SegmentRow segment={segment} onPlay={() => onPlay(segment.uri)} onShare={() => onShare(segment.uri)} />
+            <SegmentRow
+              segment={segment}
+              onPlay={() => onPlay(segment.uri)}
+              onShare={() => onShare(segment.uri)}
+            />
             {renderSegment?.(recording, segment)}
           </View>
         ))}
       </View>
       <View style={{ flexDirection: 'row', gap: 8 }}>
-        <ActionButton title="Verify" size="compact" onPress={() => onVerify(recording.sessionId)} style={{ flex: 1 }} />
-        {!isActive && <ActionButton title="Delete" variant="ghost" size="compact" onPress={confirmDelete} style={{ flex: 1 }} />}
+        <ActionButton
+          title="Verify"
+          size="compact"
+          onPress={() => onVerify(recording.sessionId)}
+          style={{ flex: 1 }}
+        />
+        {!isActive && (
+          <ActionButton
+            title="Delete"
+            variant="ghost"
+            size="compact"
+            onPress={confirmDelete}
+            style={{ flex: 1 }}
+          />
+        )}
         {renderActions?.(recording)}
       </View>
     </View>

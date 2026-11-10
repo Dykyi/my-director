@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react';
 import { Pressable, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { captureConfig } from '@/src/config/capture-config';
-import { useRemoteControl } from '@/src/features/remote/use-remote-control';
-import { SegmentUpload } from '@/src/features/upload/components/segment-upload';
-import { UploadButton } from '@/src/features/upload/components/upload-button';
-import { segmentObjectKey } from '@/src/features/upload/upload-format';
-import { useUploads } from '@/src/features/upload/use-uploads';
+import { captureConfig } from '@config/capture-config';
+import { useRemoteControl } from '@features/remote/use-remote-control';
+import { SegmentUpload } from '@features/upload/components/segment-upload';
+import { UploadButton } from '@features/upload/components/upload-button';
+import { segmentObjectKey } from '@features/upload/upload-format';
+import { useUploads } from '@features/upload/use-uploads';
 
 import { Controls } from './components/controls';
 import { EventLog } from './components/event-log';
@@ -46,7 +46,8 @@ function RecordingsLink({ count, onPress }: { count: number; onPress: () => void
 }
 
 export function CaptureScreen() {
-  const { snapshot, health, logs, permissions, commandError, actions } = useCaptureSession(captureConfig);
+  const { snapshot, health, logs, permissions, commandError, actions } =
+    useCaptureSession(captureConfig);
   const recordings = useRecordings();
   const uploads = useUploads();
   const [playing, setPlaying] = useState<string | null>(null);
@@ -81,7 +82,8 @@ export function CaptureScreen() {
       recordings.actions.closeVerification();
       setPlaying(null);
     },
-    'dismiss-recovery': () => recoveryReport && recordings.actions.acknowledge(recoveryReport.sessionId),
+    'dismiss-recovery': () =>
+      recoveryReport && recordings.actions.acknowledge(recoveryReport.sessionId),
     sigkill: () => actions.simulateCrash?.(),
   });
 
@@ -100,17 +102,32 @@ export function CaptureScreen() {
           onVerify={recordings.actions.verify}
           onDelete={recordings.actions.remove}
           renderSegment={(recording, segment) => (
-            <SegmentUpload upload={uploads.uploadFor(segmentObjectKey(recording.sessionId, segment.index))} actions={uploads.actions} />
+            <SegmentUpload
+              upload={uploads.uploadFor(segmentObjectKey(recording.sessionId, segment.index))}
+              actions={uploads.actions}
+            />
           )}
           renderActions={(recording) => (
-            <UploadButton status={uploads.uploadStatus(recording)} onUpload={() => uploads.actions.startRecording(recording)} />
+            <UploadButton
+              status={uploads.uploadStatus(recording)}
+              onUpload={() => uploads.actions.startRecording(recording)}
+            />
           )}
         />
       ) : (
         <>
           <StatusHeader snapshot={snapshot} />
-          <Notices snapshot={snapshot} commandError={commandError} onDismiss={actions.dismissError} />
-          <PreviewPanel snapshot={snapshot} health={health} permissions={permissions} onRequestPermissions={actions.requestPermissions} />
+          <Notices
+            snapshot={snapshot}
+            commandError={commandError}
+            onDismiss={actions.dismissError}
+          />
+          <PreviewPanel
+            snapshot={snapshot}
+            health={health}
+            permissions={permissions}
+            onRequestPermissions={actions.requestPermissions}
+          />
           <Controls snapshot={snapshot} actions={actions} />
           <HealthPanel health={health} snapshot={snapshot} />
           <EventLog entries={logs} />
@@ -123,7 +140,10 @@ export function CaptureScreen() {
         onVerify={recordings.actions.verify}
         onDismiss={recordings.actions.acknowledge}
       />
-      <VerificationSheet report={recordings.verification} onClose={recordings.actions.closeVerification} />
+      <VerificationSheet
+        report={recordings.verification}
+        onClose={recordings.actions.closeVerification}
+      />
       <PlayerModal uri={playing} onClose={() => setPlaying(null)} />
     </SafeAreaView>
   );

@@ -11,7 +11,13 @@ export type CallProfileName = 'standard' | 'reduced' | 'minimal';
 export type CallVideoProfile = { width: number; height: number; fps: number };
 
 export type CaptureConfig = {
-  camera: { position: CameraPosition; width: number; height: number; fps: number; stabilization: StabilizationMode };
+  camera: {
+    position: CameraPosition;
+    width: number;
+    height: number;
+    fps: number;
+    stabilization: StabilizationMode;
+  };
   recording: {
     codec: RecordingCodec;
     videoBitrate: number;
@@ -31,8 +37,17 @@ export type CaptureConfig = {
   };
   audio: { noiseSuppression: boolean; autoGainControl: boolean; resyncThresholdMs: number };
   session: { resumePolicy: ResumePolicy; heartbeatIntervalSec: number; resumeTimeoutMs: number };
-  health: { videoStallMs: number; audioStallMs: number; fileStallMs: number; micRestartGraceMs: number };
-  storage: { minFreeSpaceToStartMB: number; lowSpaceWarningMB: number; criticalFreeSpaceMB: number };
+  health: {
+    videoStallMs: number;
+    audioStallMs: number;
+    fileStallMs: number;
+    micRestartGraceMs: number;
+  };
+  storage: {
+    minFreeSpaceToStartMB: number;
+    lowSpaceWarningMB: number;
+    criticalFreeSpaceMB: number;
+  };
 };
 
 export type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K] };
@@ -41,26 +56,63 @@ export type CaptureConfigInput = DeepPartial<CaptureConfig>;
 export type CallCredentials = { url: string; token: string };
 
 export type SessionPhase =
-  | 'idle' | 'preparing' | 'ready' | 'starting' | 'recording'
-  | 'pausing' | 'paused' | 'resuming' | 'stopping';
+  | 'idle'
+  | 'preparing'
+  | 'ready'
+  | 'starting'
+  | 'recording'
+  | 'pausing'
+  | 'paused'
+  | 'resuming'
+  | 'stopping';
 
 export type PauseReason =
-  | 'user' | 'phoneCall' | 'audioInterrupted' | 'appBackground' | 'screenLocked'
-  | 'cameraInterrupted' | 'cameraError' | 'cameraStalled' | 'micStalled'
-  | 'fileError' | 'diskFull' | 'mediaServicesReset';
+  | 'user'
+  | 'phoneCall'
+  | 'audioInterrupted'
+  | 'appBackground'
+  | 'screenLocked'
+  | 'cameraInterrupted'
+  | 'cameraError'
+  | 'cameraStalled'
+  | 'micStalled'
+  | 'fileError'
+  | 'diskFull'
+  | 'mediaServicesReset';
 
 export type InterruptionSource = 'audioSession' | 'camera' | 'appBackground';
 export type CallConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
 export type CallQuality = 'excellent' | 'good' | 'poor' | 'lost' | 'unknown';
 
 export type CaptureErrorCode =
-  | 'permissionDenied' | 'configInvalid' | 'cameraFormatUnsupported' | 'cameraUnavailable'
-  | 'cameraStalled' | 'cameraRuntimeError' | 'micUnavailable' | 'audioStalled'
-  | 'fileWriterFailed' | 'fileStalled' | 'fileFpsLow' | 'diskSpaceLow' | 'diskFull'
-  | 'callConnectFailed' | 'callDisconnected' | 'callPublishFailed'
-  | 'mediaServicesReset' | 'resumeBlocked' | 'recoveryUnplayable' | 'invalidState' | 'startInterrupted';
+  | 'permissionDenied'
+  | 'configInvalid'
+  | 'cameraFormatUnsupported'
+  | 'cameraUnavailable'
+  | 'cameraStalled'
+  | 'cameraRuntimeError'
+  | 'micUnavailable'
+  | 'audioStalled'
+  | 'fileWriterFailed'
+  | 'fileStalled'
+  | 'fileFpsLow'
+  | 'diskSpaceLow'
+  | 'diskFull'
+  | 'callConnectFailed'
+  | 'callDisconnected'
+  | 'callPublishFailed'
+  | 'mediaServicesReset'
+  | 'resumeBlocked'
+  | 'recoveryUnplayable'
+  | 'invalidState'
+  | 'startInterrupted';
 
-export type CaptureError = { code: CaptureErrorCode; message: string; at: string; recoverable: boolean };
+export type CaptureError = {
+  code: CaptureErrorCode;
+  message: string;
+  at: string;
+  recoverable: boolean;
+};
 export type CaptureWarning = { code: CaptureErrorCode; message: string; since: string };
 
 export type TrackStatus = 'none' | 'live' | 'muted';
@@ -105,8 +157,20 @@ export type AudioRoute = { input: string; output: string };
 export type HealthSnapshot = {
   at: string;
   camera: { fps: number; width: number; height: number };
-  file: { fps: number; droppedFrames: number; bytes: number; segmentSec: number; writer: 'idle' | 'writing' | 'finishing' | 'failed' };
-  audio: { levelDb: number; lastBufferAgeMs: number; driftMs: number; resyncCount: number; sampleRate: number };
+  file: {
+    fps: number;
+    droppedFrames: number;
+    bytes: number;
+    segmentSec: number;
+    writer: 'idle' | 'writing' | 'finishing' | 'failed';
+  };
+  audio: {
+    levelDb: number;
+    lastBufferAgeMs: number;
+    driftMs: number;
+    resyncCount: number;
+    sampleRate: number;
+  };
   call: {
     sentWidth: number;
     sentHeight: number;
@@ -122,7 +186,14 @@ export type HealthSnapshot = {
 };
 
 export type LogLevel = 'debug' | 'info' | 'warning' | 'error';
-export type LogEntry = { at: string; mono: number; level: LogLevel; category: string; message: string; data?: Record<string, string> };
+export type LogEntry = {
+  at: string;
+  mono: number;
+  level: LogLevel;
+  category: string;
+  message: string;
+  data?: Record<string, string>;
+};
 
 export type SegmentState = 'writing' | 'finalized' | 'recovered' | 'unplayable';
 export type SegmentSummary = {
@@ -159,9 +230,25 @@ export type RecoveryReport = {
 export type PermissionStatus = 'granted' | 'denied' | 'undetermined';
 export type PermissionsState = { camera: PermissionStatus; microphone: PermissionStatus };
 
-export type VerificationCheck = { id: string; label: string; expected: string; actual: string; pass: boolean };
-export type SegmentVerification = { index: number; uri: string; checks: VerificationCheck[]; pass: boolean };
-export type VerificationReport = { sessionId: string; verifiedAt: string; segments: SegmentVerification[]; pass: boolean };
+export type VerificationCheck = {
+  id: string;
+  label: string;
+  expected: string;
+  actual: string;
+  pass: boolean;
+};
+export type SegmentVerification = {
+  index: number;
+  uri: string;
+  checks: VerificationCheck[];
+  pass: boolean;
+};
+export type VerificationReport = {
+  sessionId: string;
+  verifiedAt: string;
+  segments: SegmentVerification[];
+  pass: boolean;
+};
 
 export type CaptureCoreEvents = {
   onStateChange: (snapshot: SessionSnapshot) => void;

@@ -1,6 +1,9 @@
 import type { CallStatus, ParticipantStatus } from '@modules/capture-core';
 
-export const participant = (identity: string, overrides: Partial<ParticipantStatus> = {}): ParticipantStatus => ({
+export const participant = (
+  identity: string,
+  overrides: Partial<ParticipantStatus> = {},
+): ParticipantStatus => ({
   identity,
   joinedAt: '2026-11-10T09:17:40.000Z',
   quality: 'excellent',
@@ -19,7 +22,9 @@ export const noCall: CallStatus = {
   profile: 'standard',
 };
 
-export const inRoom = (participants: ParticipantStatus[] = [participant('interviewer')]): CallStatus => ({
+export const inRoom = (
+  participants: ParticipantStatus[] = [participant('interviewer')],
+): CallStatus => ({
   ...noCall,
   state: 'connected',
   room: 'mydirector-poc',

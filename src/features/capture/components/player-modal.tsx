@@ -11,7 +11,12 @@ function Player({ uri }: { uri: string }) {
 
 export function PlayerModal({ uri, onClose }: { uri: string | null; onClose: () => void }) {
   return (
-    <Modal visible={uri !== null} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+    <Modal
+      visible={uri !== null}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
       <View style={{ flex: 1, backgroundColor: colors.ground, padding: gutter, gap: 12 }}>
         {uri && <Player uri={uri} />}
         <ActionButton title="Close" onPress={onClose} />
