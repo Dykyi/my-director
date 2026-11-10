@@ -1,15 +1,19 @@
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { View } from 'react-native';
+import { withUniwind } from 'uniwind';
 
-import { ActionButton } from '@features/capture/components/action-button';
-import { colors, gutter } from '@features/capture/components/theme';
+import { CloseButton } from '@ui/icon-button';
+
+const Video = withUniwind(VideoView);
 
 export function Player({ uri, onClose }: { uri: string; onClose: () => void }) {
   const player = useVideoPlayer(uri, (instance) => instance.play());
   return (
-    <View style={{ flex: 1, backgroundColor: colors.ground, padding: gutter, gap: 12 }}>
-      <VideoView player={player} style={{ flex: 1 }} nativeControls contentFit="contain" />
-      <ActionButton title="Close" onPress={onClose} />
+    <View className="flex-1 bg-backdrop">
+      <Video player={player} className="flex-1" nativeControls contentFit="contain" />
+      <View className="absolute right-4 top-4">
+        <CloseButton onPress={onClose} />
+      </View>
     </View>
   );
 }

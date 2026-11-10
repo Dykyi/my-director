@@ -29,7 +29,13 @@ const button = cva(
         compact: 'h-11 rounded-sm',
       },
       disabled: { true: 'border-border bg-transparent' },
+      iconOnly: { true: 'px-0' },
     },
+    compoundVariants: [
+      { iconOnly: true, size: 'large', className: 'w-15' },
+      { iconOnly: true, size: 'regular', className: 'w-12' },
+      { iconOnly: true, size: 'compact', className: 'w-11' },
+    ],
   },
 );
 
@@ -77,6 +83,7 @@ const icon = cva('', {
       regular: 'size-3.5',
       compact: 'size-3.25',
     } satisfies Record<ButtonSize, string>,
+    iconOnly: { true: 'size-4.5' },
   },
 });
 
@@ -94,6 +101,7 @@ export function Button({
   size = 'regular',
   icon: iconName,
   disabled = false,
+  iconOnly = false,
   className,
 }: {
   variant?: ButtonVariant;
@@ -102,26 +110,34 @@ export function Button({
   onPress?: () => void;
   icon?: IconName;
   disabled?: boolean;
+  iconOnly?: boolean;
   className?: string;
 }) {
   const bold = FILLED.has(variant) && !disabled;
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={title}
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
-      className={cn(button({ variant, size, disabled }), className)}
+      className={cn(button({ variant, size, disabled, iconOnly }), className)}
     >
       {iconName && (
-        <Icon name={iconName} className={icon({ size })} tint={cn(tint({ variant, disabled }))} />
+        <Icon
+          name={iconName}
+          className={cn(icon({ size, iconOnly }))}
+          tint={cn(tint({ variant, disabled }))}
+        />
       )}
-      <Text
-        variant={bold ? LABEL[size].bold : LABEL[size].quiet}
-        className={cn(label({ variant, disabled }))}
-      >
-        {title}
-      </Text>
+      {!iconOnly && (
+        <Text
+          variant={bold ? LABEL[size].bold : LABEL[size].quiet}
+          className={cn(label({ variant, disabled }))}
+        >
+          {title}
+        </Text>
+      )}
     </Pressable>
   );
 }

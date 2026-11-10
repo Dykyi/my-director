@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { InputError, MIN_PART_SIZE, parseComplete, parseCreate } from '../src/validation';
+import { InputError, MIN_PART_SIZE, parseComplete, parseCreate, parseKey } from '../src/validation';
 
 const MD5 = 'rL0Y20zC+Fzt72VPzMSk2A==';
 const SIZE = 482_344_960;
@@ -70,4 +70,15 @@ describe('parseComplete', () => {
         ],
       }),
     ).toThrow(InputError));
+});
+
+describe('parseKey', () => {
+  it('accepts a segment key', () =>
+    expect(parseKey('2026-11-10T09-12-33Z-4F2A/segment-001.mov')).toBe(
+      '2026-11-10T09-12-33Z-4F2A/segment-001.mov',
+    ));
+  it('rejects a missing or unsafe key', () => {
+    expect(() => parseKey(null)).toThrow(InputError);
+    expect(() => parseKey('a/../b')).toThrow(InputError);
+  });
 });

@@ -18,6 +18,7 @@ function deps(overrides: { size?: number | null; completeError?: Error } = {}) {
     head: vi.fn(async () => (size === null ? null : { size, etag: 'final' })),
     listParts: vi.fn(async () => []),
     abortMultipartUpload: vi.fn(async () => {}),
+    deleteObject: vi.fn(async () => {}),
   };
   return { storage, now: () => NOW } satisfies Deps;
 }

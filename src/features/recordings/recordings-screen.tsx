@@ -1,50 +1,76 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
+import { ScrollView } from 'react-native';
 
 import { useSession } from '@features/capture/capture-session-context';
 import { TabScreen } from '@features/shell/tab-screen';
-import { SegmentUpload } from '@features/upload/components/segment-upload';
-import { UploadButton } from '@features/upload/components/upload-button';
+import { UploadProgress } from '@features/upload/components/upload-progress';
 import { segmentObjectKey } from '@features/upload/upload-format';
 import { useUploadsState } from '@features/upload/uploads-context';
-import { formatBytes } from '@shared/format';
+import { formatBytes, plural } from '@shared/format';
+import { EmptyState } from '@ui/empty-state';
+import { Text } from '@ui/text';
 
-import { RecordingsView } from './components/recordings-view';
+import { RecordingCard, type CardHandlers } from './components/recording-card';
+import { PLAYABLE } from './recording-labels';
 import { useRecordingsState } from './recordings-context';
+import { useConfirmDelete } from './use-confirm-delete';
 
 export function RecordingsScreen() {
-  const { snapshot, health, actions: session } = useSession();
+  const { snapshot, health } = useSession();
   const { recordings, error, actions } = useRecordingsState();
   const uploads = useUploadsState();
   const { refresh } = actions;
   useFocusEffect(useCallback(() => void refresh(), [refresh]));
+
+  const confirmDelete = useConfirmDelete();
+
+  const handlers: CardHandlers = {
+    play: (recording) => {
+      const segment = recording.segments.find((candidate) => PLAYABLE.has(candidate.state));
+      if (segment) router.navigate({ pathname: '/player', params: { uri: segment.uri } });
+    },
+    verify: (recording) => router.navigate(`/verification/${recording.sessionId}`),
+    upload: (recording) => void uploads.actions.startRecording(recording),
+    cancel: (recording) => void uploads.actions.cancelRecording(recording),
+    delete: confirmDelete,
+  };
+
+  const fact = [
+    plural(recordings.length, 'session'),
+    health && `${formatBytes(health.diskFreeBytes)} free`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  const failure = error ?? uploads.error;
   return (
-    <TabScreen
-      title="Recordings"
-      fact={health ? `${formatBytes(health.diskFreeBytes)} free` : undefined}
-    >
-      <RecordingsView
-        recordings={recordings}
-        activeSessionId={snapshot.sessionId}
-        error={error ?? uploads.error}
-        onSimulateCrash={__DEV__ ? session.simulateCrash : undefined}
-        onPlay={(uri) => router.navigate({ pathname: '/player', params: { uri } })}
-        onShare={actions.share}
-        onVerify={(id) => router.navigate(`/verification/${id}`)}
-        onDelete={actions.remove}
-        renderSegment={(recording, segment) => (
-          <SegmentUpload
-            upload={uploads.uploadFor(segmentObjectKey(recording.sessionId, segment.index))}
-            actions={uploads.actions}
-          />
+    <TabScreen title="Recordings" fact={fact}>
+      <ScrollView className="flex-1" contentContainerClassName="gap-3 p-4">
+        {failure && (
+          <Text selectable variant="footnote" className="text-danger">
+            {failure}
+          </Text>
         )}
-        renderActions={(recording) => (
-          <UploadButton
-            status={uploads.uploadStatus(recording)}
-            onUpload={() => uploads.actions.startRecording(recording)}
-          />
+        {recordings.length === 0 ? (
+          <EmptyState icon="film" title="No recordings yet" text="Start one on the Record tab." />
+        ) : (
+          recordings.map((recording) => (
+            <RecordingCard
+              key={recording.sessionId}
+              recording={recording}
+              status={uploads.uploadStatus(recording)}
+              isActive={recording.sessionId === snapshot.sessionId}
+              handlers={handlers}
+              renderUpload={(segment) => (
+                <UploadProgress
+                  upload={uploads.uploadFor(segmentObjectKey(recording.sessionId, segment.index))}
+                  actions={uploads.actions}
+                />
+              )}
+            />
+          ))
         )}
-      />
+      </ScrollView>
     </TabScreen>
   );
 }

@@ -10,7 +10,7 @@ import { formatLogLine } from '@shared/format';
 import { formatHealthLine, formatRoomLine } from './remote-format';
 import { standAction } from './stand-routes';
 
-const HEALTH_LOG_INTERVAL_MS = 10_000;
+export const HEALTH_LOG_INTERVAL_MS = 10_000;
 
 export type RemoteCommands = Readonly<Record<string, () => unknown>>;
 

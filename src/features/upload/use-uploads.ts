@@ -7,6 +7,7 @@ import type { RecordingSummary, SegmentState, SegmentSummary } from '@modules/ca
 import { uploadApi } from '@config/env';
 import { describeError } from '@shared/describe-error';
 
+import { deleteFromBucket } from './bucket';
 import { ACTIVE_UPLOAD, needsUpload, segmentObjectKey } from './upload-format';
 
 const UPLOADABLE: ReadonlySet<SegmentState> = new Set(['finalized', 'recovered']);
@@ -28,8 +29,10 @@ export function useUploads() {
       setError(null);
       try {
         await action();
+        return true;
       } catch (caught) {
         reportError(caught);
+        return false;
       }
     },
     [reportError],
@@ -73,6 +76,14 @@ export function useUploads() {
     [uploadFor],
   );
 
+  const keysInBucket = useCallback(
+    (recording: RecordingSummary) =>
+      recording.segments
+        .map((segment) => segmentObjectKey(recording.sessionId, segment.index))
+        .filter((key) => uploadFor(key)?.phase === 'verified'),
+    [uploadFor],
+  );
+
   const startRecording = (recording: RecordingSummary) =>
     guard(async () => {
       await BackgroundUpload.requestNotificationPermission();
@@ -89,7 +100,28 @@ export function useUploads() {
   const retry = (id: string) => guard(() => BackgroundUpload.retryFailedParts(id));
   const cancel = (id: string) => guard(() => BackgroundUpload.cancelUpload(id));
 
-  return { error, uploadFor, uploadStatus, actions: { startRecording, retry, cancel } };
+  const cancelRecording = (recording: RecordingSummary) =>
+    guard(async () => {
+      const jobs = recording.segments.map((segment) =>
+        uploadFor(segmentObjectKey(recording.sessionId, segment.index)),
+      );
+      for (const job of jobs) {
+        if (job && ACTIVE_UPLOAD.has(job.phase)) await BackgroundUpload.cancelUpload(job.id);
+      }
+    });
+
+  const removeFromBucket = (recording: RecordingSummary) =>
+    guard(async () => {
+      for (const key of keysInBucket(recording)) await deleteFromBucket(uploadApi, key);
+    });
+
+  return {
+    error,
+    uploadFor,
+    uploadStatus,
+    keysInBucket,
+    actions: { startRecording, retry, cancel, cancelRecording, removeFromBucket },
+  };
 }
 
 export type UploadActions = ReturnType<typeof useUploads>['actions'];

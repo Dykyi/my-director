@@ -22,7 +22,13 @@ export function StatTile({ label, value }: { label: string; value: string }) {
       <Text variant="stat-label" className="text-muted">
         {label}
       </Text>
-      <Text selectable variant="stat" className="text-foreground">
+      <Text
+        selectable
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        variant="stat"
+        className="text-foreground"
+      >
         {value}
       </Text>
     </View>

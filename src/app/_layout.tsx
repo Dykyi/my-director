@@ -13,6 +13,7 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="verification/[sessionId]" options={{ presentation: 'pageSheet' }} />
         <Stack.Screen name="player" options={{ presentation: 'pageSheet' }} />
+        <Stack.Screen name="room" options={{ presentation: 'pageSheet' }} />
         <Stack.Screen
           name="recovery"
           options={{

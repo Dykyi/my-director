@@ -1,12 +1,13 @@
-import { ScrollView, Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import type { VerificationReport as Report } from '@modules/capture-core';
 
-import { ActionButton } from '@features/capture/components/action-button';
-import { colors, gutter, mono } from '@features/capture/components/theme';
+import { Button } from '@ui/button';
+import { Sheet } from '@ui/sheet';
+import { Text } from '@ui/text';
 
 const verdict = (pass: boolean) => (pass ? 'PASS' : 'FAIL');
-const verdictColor = (pass: boolean) => (pass ? colors.level : colors.recordingText);
+const verdictText = (pass: boolean) => (pass ? 'text-success' : 'text-danger');
 
 export function VerificationReport({
   report,
@@ -16,40 +17,39 @@ export function VerificationReport({
   onClose: () => void;
 }) {
   return (
-    <View style={{ flex: 1, backgroundColor: colors.ground, padding: gutter, gap: 12 }}>
-      {report && (
+    <Sheet title="Verification" subtitle={report?.sessionId} onClose={onClose}>
+      {report ? (
         <>
-          <View style={{ gap: 2 }}>
-            <Text style={{ color: verdictColor(report.pass), fontSize: 22, fontWeight: '700' }}>
-              {verdict(report.pass)}
-            </Text>
-            <Text selectable style={[mono, { color: colors.muted }]}>
-              {report.sessionId}
-            </Text>
-          </View>
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: 14 }}>
-            {report.segments.map((segment) => (
-              <View key={segment.index} style={{ gap: 4 }}>
-                <Text style={{ color: colors.text, fontSize: 15, fontWeight: '600' }}>
-                  Segment {segment.index} ·{' '}
-                  <Text style={{ color: verdictColor(segment.pass) }}>{verdict(segment.pass)}</Text>
+          <Text variant="verdict" className={verdictText(report.pass)}>
+            {verdict(report.pass)}
+          </Text>
+          {report.segments.map((segment) => (
+            <View key={segment.index} className="gap-1">
+              <Text variant="row-title" className="text-foreground">
+                Segment {segment.index} ·{' '}
+                <Text variant="row-title" className={verdictText(segment.pass)}>
+                  {verdict(segment.pass)}
                 </Text>
-                {segment.checks.map((check) => (
-                  <Text
-                    key={check.id}
-                    selectable
-                    style={[mono, { color: check.pass ? colors.secondary : colors.recordingText }]}
-                  >
-                    {check.pass ? '✓' : '✗'} {check.label}: {check.actual} (expected{' '}
-                    {check.expected})
-                  </Text>
-                ))}
-              </View>
-            ))}
-          </ScrollView>
+              </Text>
+              {segment.checks.map((check) => (
+                <Text
+                  key={check.id}
+                  selectable
+                  variant="mono-value"
+                  className={check.pass ? 'text-subtle' : 'text-danger'}
+                >
+                  {check.pass ? '✓' : '✗'} {check.label}: {check.actual} (expected {check.expected})
+                </Text>
+              ))}
+            </View>
+          ))}
         </>
+      ) : (
+        <Text variant="callout" className="text-muted">
+          Checking the files…
+        </Text>
       )}
-      <ActionButton title="Close" onPress={onClose} />
-    </View>
+      <Button title="Close" onPress={onClose} />
+    </Sheet>
   );
 }

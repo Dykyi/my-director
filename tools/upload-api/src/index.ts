@@ -1,7 +1,7 @@
 import { isAuthorized } from './auth';
 import { completeUpload, createUpload, type Deps } from './handlers';
 import { S3Api } from './s3';
-import { InputError, parseComplete, parseCreate } from './validation';
+import { InputError, parseComplete, parseCreate, parseKey } from './validation';
 
 function json(body: unknown, status = 200): Response {
   return Response.json(body, { status });
@@ -31,8 +31,12 @@ export default {
     const url = new URL(request.url);
     const [resource, rawUploadId, action] = url.pathname.split('/').filter(Boolean);
     try {
-      if (resource !== 'uploads') return json({ error: 'not found' }, 404);
       const deps = depsFor(env);
+      if (resource === 'objects' && request.method === 'DELETE' && rawUploadId === undefined) {
+        await deps.storage.deleteObject(parseKey(url.searchParams.get('key')));
+        return new Response(null, { status: 204 });
+      }
+      if (resource !== 'uploads') return json({ error: 'not found' }, 404);
       if (request.method === 'POST' && rawUploadId === undefined) {
         return json(await createUpload(parseCreate(await request.json()), deps));
       }

@@ -17,7 +17,7 @@ function asFields(body: unknown): Fields {
   return body as Fields;
 }
 
-function key(value: unknown): string {
+export function parseKey(value: unknown): string {
   if (typeof value !== 'string' || !SAFE_KEY.test(value) || value.includes('..')) {
     throw new InputError('key is missing or has unsafe characters');
   }
@@ -47,7 +47,7 @@ export function parseCreate(body: unknown): CreateUploadInput {
   ) {
     throw new InputError(`partMd5s must hold ${partCount} base64 MD5 digests`);
   }
-  return { key: key(fields.key), size, partSize, partMd5s: digests as string[] };
+  return { key: parseKey(fields.key), size, partSize, partMd5s: digests as string[] };
 }
 
 export function parseComplete(body: unknown): CompleteUploadInput {
@@ -68,5 +68,5 @@ export function parseComplete(body: unknown): CompleteUploadInput {
   if (!parts.every((part, index) => part.partNumber === index + 1)) {
     throw new InputError('parts must be numbered 1..n without gaps or duplicates');
   }
-  return { key: key(fields.key), size: positiveInteger('size', fields.size), parts };
+  return { key: parseKey(fields.key), size: positiveInteger('size', fields.size), parts };
 }

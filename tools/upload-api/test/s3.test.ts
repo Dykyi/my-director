@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { buildCompleteBody, parseListParts, parseUploadId, regionOf, S3Api } from '../src/s3';
+import {
+  buildCompleteBody,
+  parseListParts,
+  parseUploadId,
+  parseVersionIds,
+  regionOf,
+  S3Api,
+} from '../src/s3';
 
 const ENDPOINT = 'https://s3.eu-central-003.backblazeb2.com';
 const BUCKET = 'mydirector-poc-4f2a';
@@ -141,5 +148,33 @@ describe('parseListParts', () => {
       { partNumber: 1, etag: 'abc', size: 16_777_216, uploadedAt: '2026-11-10T09:00:00.000Z' },
       { partNumber: 2, etag: 'def', size: 5, uploadedAt: '2026-11-10T09:00:05.000Z' },
     ]);
+  });
+});
+
+const VERSIONS = `<ListVersionsResult><Version><Key>${KEY}</Key><VersionId>v2</VersionId></Version>
+  <DeleteMarker><Key>${KEY}</Key><VersionId>m1</VersionId></DeleteMarker>
+  <Version><Key>${KEY}</Key><VersionId>v1</VersionId></Version>
+  <Version><Key>${KEY}.bak</Key><VersionId>other</VersionId></Version></ListVersionsResult>`;
+
+describe('parseVersionIds', () => {
+  it('takes every version and delete marker of exactly this key', () =>
+    expect(parseVersionIds(VERSIONS, KEY)).toEqual(['v2', 'm1', 'v1']));
+});
+
+describe('deleteObject', () => {
+  it('lists the versions of the key and deletes each by its id, since a plain DELETE only hides the file', async () => {
+    const sent: Request[] = [];
+    vi.stubGlobal('fetch', async (request: Request) => {
+      sent.push(request);
+      return sent.length === 1 ? new Response(VERSIONS) : new Response(null, { status: 204 });
+    });
+    await api.deleteObject(KEY);
+    const [list, ...deletes] = sent.map((request) => new URL(request.url));
+    expect(list?.pathname).toBe(`/${BUCKET}/`);
+    expect(list?.searchParams.has('versions')).toBe(true);
+    expect(list?.searchParams.get('prefix')).toBe(KEY);
+    expect(sent.slice(1).map((request) => request.method)).toEqual(['DELETE', 'DELETE', 'DELETE']);
+    expect(deletes.map((url) => url.pathname)).toEqual(Array(3).fill(`/${BUCKET}/${KEY}`));
+    expect(deletes.map((url) => url.searchParams.get('versionId'))).toEqual(['v2', 'm1', 'v1']);
   });
 });

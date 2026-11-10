@@ -1,167 +1,105 @@
 import type { ReactNode } from 'react';
-import { Alert, Text, View } from 'react-native';
+import { View } from 'react-native';
 
-import type {
-  RecordingState,
-  RecordingSummary,
-  SegmentState,
-  SegmentSummary,
-} from '@modules/capture-core';
+import type { RecordingSummary, SegmentSummary } from '@modules/capture-core';
 
-import { ActionButton, IconButton } from '@features/capture/components/action-button';
-import { colors, mono } from '@features/capture/components/theme';
-import { PAUSE_REASON } from '@features/capture/session-labels';
-import { formatBytes, formatDuration, formatSessionTime, plural } from '@shared/format';
+import type { UploadStatus } from '@features/upload/use-uploads';
+import { formatSessionTime } from '@shared/format';
+import { Button } from '@ui/button';
+import { Chip } from '@ui/chip';
+import type { IconName } from '@ui/icons';
+import { Text } from '@ui/text';
 
-const STATE_PILL: Record<RecordingState, { background: string; text: string }> = {
-  recording: { background: colors.recordingSurface, text: colors.recordingText },
-  paused: { background: colors.pausedSurface, text: colors.pausedText },
-  finished: { background: colors.okSurface, text: colors.level },
-  recovered: { background: colors.pausedSurface, text: colors.pausedText },
+import {
+  cardActions,
+  recordingChip,
+  recordingMeta,
+  recoveredNote,
+  segmentLine,
+  type CardAction,
+} from '../recording-labels';
+
+const UPLOAD_NOTE =
+  'Keeps going with the screen locked. Each 16 MB part is checked by MD5; done only when the server confirms.';
+
+export type CardHandlers = Record<CardAction, (recording: RecordingSummary) => void>;
+
+type ActionButton = {
+  title: string;
+  variant: 'raised' | 'upload' | 'ghost' | 'delete';
+  icon?: IconName;
+  iconOnly?: boolean;
 };
 
-const PLAYABLE: ReadonlySet<SegmentState> = new Set(['finalized', 'recovered']);
-
-export type RecordingCardProps = {
-  recording: RecordingSummary;
-  isActive: boolean;
-  onPlay: (uri: string) => void;
-  onShare: (uri: string) => void;
-  onVerify: (sessionId: string) => void;
-  onDelete: (sessionId: string) => void;
-  renderSegment?: (recording: RecordingSummary, segment: SegmentSummary) => ReactNode;
-  renderActions?: (recording: RecordingSummary) => ReactNode;
+const ACTION_BUTTON: Record<CardAction, ActionButton> = {
+  play: { title: 'Play', variant: 'raised' },
+  verify: { title: 'Verify', variant: 'raised' },
+  upload: { title: 'Upload', variant: 'upload' },
+  cancel: { title: 'Cancel', variant: 'ghost' },
+  delete: { title: 'Delete recording', variant: 'delete', icon: 'trash', iconOnly: true },
 };
-
-function SegmentRow({
-  segment,
-  onPlay,
-  onShare,
-}: {
-  segment: SegmentSummary;
-  onPlay: () => void;
-  onShare: () => void;
-}) {
-  const playable = PLAYABLE.has(segment.state);
-  const reason = segment.pauseReason ? ` · ${PAUSE_REASON[segment.pauseReason].label}` : '';
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-      <Text
-        selectable
-        numberOfLines={2}
-        style={[
-          mono,
-          {
-            flex: 1,
-            color: segment.state === 'unplayable' ? colors.recordingText : colors.secondary,
-          },
-        ]}
-      >
-        seg {segment.index} {formatDuration(segment.durationSec)} {segment.state}
-        {reason}
-        {segment.failure ? ` · ${segment.failure}` : ''}
-      </Text>
-      <IconButton
-        icon="play.fill"
-        label={`Play segment ${segment.index}`}
-        disabled={!playable}
-        onPress={onPlay}
-      />
-      <IconButton
-        icon="square.and.arrow.up"
-        label={`Share segment ${segment.index}`}
-        disabled={!playable}
-        onPress={onShare}
-      />
-    </View>
-  );
-}
 
 export function RecordingCard({
   recording,
+  status,
   isActive,
-  onPlay,
-  onShare,
-  onVerify,
-  onDelete,
-  renderSegment,
-  renderActions,
-}: RecordingCardProps) {
-  const pill = STATE_PILL[recording.state];
-  const confirmDelete = () =>
-    Alert.alert(
-      'Delete this recording?',
-      `${plural(recording.segments.length, 'segment')}, ${formatBytes(recording.totalBytes)} will be removed from the phone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => onDelete(recording.sessionId) },
-      ],
-    );
+  handlers,
+  renderUpload,
+}: {
+  recording: RecordingSummary;
+  status: UploadStatus;
+  isActive: boolean;
+  handlers: CardHandlers;
+  renderUpload: (segment: SegmentSummary) => ReactNode;
+}) {
+  const chip = recordingChip(recording, status);
   return (
-    <View
-      style={{
-        padding: 14,
-        gap: 10,
-        borderRadius: 14,
-        borderCurve: 'continuous',
-        borderWidth: 1,
-        borderColor: colors.border,
-        backgroundColor: colors.surface,
-      }}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
-        <Text style={{ color: colors.text, fontSize: 15, fontWeight: '700' }}>
-          {formatSessionTime(recording.createdAt)}
-        </Text>
-        <Text selectable style={[mono, { flexShrink: 1, color: colors.muted }]}>
-          {formatDuration(recording.totalSec)} · {plural(recording.segments.length, 'seg')} ·{' '}
-          {formatBytes(recording.totalBytes)}
-        </Text>
-        <Text
-          style={{
-            marginLeft: 'auto',
-            paddingVertical: 2,
-            paddingHorizontal: 8,
-            borderRadius: 999,
-            overflow: 'hidden',
-            backgroundColor: pill.background,
-            color: pill.text,
-            fontSize: 12,
-            fontWeight: '600',
-          }}
-        >
-          {recording.state}
-        </Text>
+    <View className="gap-2.5 rounded-lg border border-border border-continuous bg-surface p-3.5">
+      <View className="flex-row items-start gap-2">
+        <View className="flex-1 gap-0.5">
+          <Text variant="card-title" className="text-foreground">
+            {formatSessionTime(recording.createdAt)}
+          </Text>
+          <Text selectable variant="mono-value" className="text-muted">
+            {recordingMeta(recording)}
+          </Text>
+        </View>
+        <Chip label={chip.label} tone={chip.tone} />
       </View>
-      <View style={{ gap: 2 }}>
+      {recording.state === 'recovered' && (
+        <Text variant="footnote" className="text-subtle">
+          {recoveredNote(recording)}
+        </Text>
+      )}
+      <View className="gap-2">
         {recording.segments.map((segment) => (
-          <View key={segment.index}>
-            <SegmentRow
-              segment={segment}
-              onPlay={() => onPlay(segment.uri)}
-              onShare={() => onShare(segment.uri)}
-            />
-            {renderSegment?.(recording, segment)}
+          <View key={segment.index} className="gap-1.5">
+            <Text selectable variant="mono-value" className="text-subtle">
+              {segmentLine(segment)}
+            </Text>
+            {renderUpload(segment)}
           </View>
         ))}
       </View>
-      <View style={{ flexDirection: 'row', gap: 8 }}>
-        <ActionButton
-          title="Verify"
-          size="compact"
-          onPress={() => onVerify(recording.sessionId)}
-          style={{ flex: 1 }}
-        />
-        {!isActive && (
-          <ActionButton
-            title="Delete"
-            variant="ghost"
-            size="compact"
-            onPress={confirmDelete}
-            style={{ flex: 1 }}
-          />
-        )}
-        {renderActions?.(recording)}
+      {status.uploading && (
+        <Text variant="caption" className="text-muted">
+          {UPLOAD_NOTE}
+        </Text>
+      )}
+      <View className="flex-row gap-2">
+        {cardActions(status, isActive).map((action) => {
+          const { iconOnly, ...button } = ACTION_BUTTON[action];
+          return (
+            <Button
+              key={action}
+              {...button}
+              iconOnly={iconOnly}
+              size="compact"
+              className={iconOnly ? undefined : 'flex-1'}
+              onPress={() => handlers[action](recording)}
+            />
+          );
+        })}
       </View>
     </View>
   );

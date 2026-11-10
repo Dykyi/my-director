@@ -1,0 +1,59 @@
+import { View } from 'react-native';
+
+import { Button } from '@ui/button';
+import { Chip } from '@ui/chip';
+import { QualityChip } from '@ui/quality-chip';
+import { Text } from '@ui/text';
+
+import type { ConnectionView } from '../room-labels';
+import { RoomCard } from './room-card';
+
+export function ConnectionCard({
+  view,
+  canReconnect,
+  onReconnect,
+}: {
+  view: ConnectionView;
+  canReconnect: boolean;
+  onReconnect: () => void;
+}) {
+  return (
+    <RoomCard>
+      <View className="flex-row items-center gap-2.5">
+        {view.live ? (
+          <View className="size-2.5 rounded-pill bg-success" />
+        ) : (
+          <View className="size-2.5 rounded-pill border-[1.5px] border-muted" />
+        )}
+        <View className="flex-1 gap-0.5">
+          <Text variant="row-title" className="text-foreground">
+            {view.title}
+          </Text>
+          {view.detail ? (
+            <Text selectable variant="footnote" className="text-muted">
+              {view.detail}
+            </Text>
+          ) : null}
+        </View>
+        {'lit' in view.chip ? (
+          <QualityChip {...view.chip} className="self-center" />
+        ) : (
+          <Chip label={view.chip.label} tone={view.chip.tone} className="self-center" />
+        )}
+      </View>
+      {view.text !== undefined && (
+        <Text variant="callout" className="text-subtle">
+          {view.text}
+        </Text>
+      )}
+      {canReconnect && (
+        <View className="gap-1.5">
+          <Button title="Reconnect" size="compact" icon="rotate" onPress={onReconnect} />
+          <Text variant="caption" className="text-muted">
+            Leaves the room and joins again. The recording on the phone keeps going.
+          </Text>
+        </View>
+      )}
+    </RoomCard>
+  );
+}

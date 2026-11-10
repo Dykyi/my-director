@@ -24,6 +24,7 @@ export interface ObjectStorage {
   head(key: string): Promise<StoredObject | null>;
   listParts(key: string, uploadId: string): Promise<ListedPart[]>;
   abortMultipartUpload(key: string, uploadId: string): Promise<void>;
+  deleteObject(key: string): Promise<void>;
 }
 
 const B2_HOST = /^s3\.([a-z0-9-]+)\.backblazeb2\.com$/;
@@ -115,6 +116,18 @@ export class S3Api implements ObjectStorage {
     await this.send('AbortMultipartUpload', url, { method: 'DELETE' });
   }
 
+  async deleteObject(key: string): Promise<void> {
+    const list = new URL(`/${this.config.bucket}/`, this.config.endpoint);
+    list.searchParams.set('versions', '');
+    list.searchParams.set('prefix', key);
+    const xml = await (await this.send('ListObjectVersions', list, { method: 'GET' })).text();
+    for (const versionId of parseVersionIds(xml, key)) {
+      const url = this.objectUrl(key);
+      url.searchParams.set('versionId', versionId);
+      await this.send('DeleteObject', url, { method: 'DELETE' });
+    }
+  }
+
   async presignGet(key: string, expiresSec: number): Promise<string> {
     const url = this.objectUrl(key);
     url.searchParams.set('X-Amz-Expires', String(expiresSec));
@@ -174,4 +187,11 @@ export function parseListParts(xml: string): ListedPart[] {
     size: Number(tag(part, 'Size')),
     uploadedAt: tag(part, 'LastModified'),
   }));
+}
+
+export function parseVersionIds(xml: string, key: string): string[] {
+  return [...xml.matchAll(/<(Version|DeleteMarker)>([\s\S]*?)<\/\1>/g)]
+    .map(([, , entry = '']) => entry)
+    .filter((entry) => tag(entry, 'Key') === key)
+    .map((entry) => tag(entry, 'VersionId'));
 }
