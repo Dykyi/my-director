@@ -15,7 +15,7 @@ struct FileRateWatch: Sendable {
   mutating func update(fps: Double, segmentSec: Double, at now: Double) -> HealthReaction? {
     let isLow = segmentSec > Self.warmUpSec && fps < targetFps - Self.toleranceFps
     switch low.update(isLow, at: now) {
-    case .began: return .warn(.fileFpsLow, "File is recording at \(String(format: "%.1f", fps)) fps")
+    case .began: return .warn(.fileFpsLow, "File is recording at \(fps.oneDecimal) fps")
     case .ended: return .clearWarning(.fileFpsLow)
     case nil: return nil
     }

@@ -36,8 +36,7 @@ final class SessionController {
     profiles: CaptureConfig.defaults.call.thermalProfiles,
     recoveryDelay: CaptureConfig.defaults.call.thermalRecoveryDelaySec
   )
-  private var healthMonitor = HealthMonitor(health: CaptureConfig.defaults.health)
-  private var watchedSince: [HeartbeatSource: Double] = [:]
+  private var healthWatch = HealthWatch(health: CaptureConfig.defaults.health)
   private var fileRateWatch = FileRateWatch(targetFps: CaptureConfig.defaults.camera.fps)
   private var lastFileBytes: Int64 = 0
   private var diskFreeBytes: Int64 = 0
@@ -51,9 +50,9 @@ final class SessionController {
   private var sequence: Task<Void, Never>?
   private let segmentWork = SerialTaskQueue()
   private let phaseWaiters = PhaseWaiters()
-  private var backgroundTask = UIBackgroundTaskIdentifier.invalid
+  private let library: RecordingLibrary
+  private let backgroundTask: BackgroundTask
   private var lastSummary: RecordingSummary?
-  private(set) var recoveryReports: [RecoveryReport] = []
 
   nonisolated init() {
     let ioQueue = DispatchQueue(label: "capture-core.io", qos: .utility)
@@ -67,10 +66,17 @@ final class SessionController {
     callPublisher = CallPublisher(log: log)
     store = .documents
     files = SessionFiles(store: store, log: log, queue: ioQueue)
+    library = RecordingLibrary(store: store, files: files, log: log)
+    backgroundTask = BackgroundTask(log: log)
     routeMonitor = AudioRouteMonitor(log: log)
   }
 
-  func activate() {
+  func activate() async {
+    guard healthLoop == nil else {
+      emitSnapshot()
+      if !recoveryReports.isEmpty { onRecoveryFound?(recoveryReports) }
+      return
+    }
     log.info("camera", "Capture session created")
     pipeline.setCallSink(callPublisher.scaler)
     callPublisher.onStatusChange = { [weak self] status in self?.send(.callChanged(status)) }
@@ -89,6 +95,7 @@ final class SessionController {
       }
     }
     emitSnapshot()
+    await recoverUnfinishedSessions()
   }
 
   func prepare(overrides: [String: Any]) async throws -> CaptureConfig {
@@ -103,7 +110,7 @@ final class SessionController {
       throw Failure(code: .permissionDenied, message: "Camera and microphone access are required")
     }
     adopt(resolved)
-    send(.prepareRequested(resolved.session.resumePolicy))
+    send(.prepareRequested(resolved.session.resumePolicy, callProfile: thermalPolicy.current))
     let state = await waitForPhase(in: [.ready, .idle])
     if state.phase == .idle, let error = state.error {
       throw Failure(error)
@@ -149,7 +156,8 @@ final class SessionController {
 
   func reconnectCall() async throws {
     guard machine.state.hasSession else { throw invalidState("reconnect the call") }
-    try await callPublisher.ensureJoined(rotationAngle: camera.captureRotationAngle)
+    let publish = RejoinPlan.publishesTracks(in: machine.state.phase)
+    try await callPublisher.ensureJoined(rotationAngle: camera.captureRotationAngle, publish: publish)
     if machine.state.phase != .recording { await callPublisher.setMuted(true, reason: machine.state.pauseReason) }
   }
 
@@ -157,60 +165,28 @@ final class SessionController {
     send(.errorDismissed)
   }
 
+  var recoveryReports: [RecoveryReport] { library.recoveryReports }
+
   func listRecordings() async -> [RecordingSummary] {
-    let store = store
-    let scan = await Task.detached { store.scan() }.value
-    return scan.manifests.map { RecordingSummary($0, directory: store.directory(for: $0.id)) }
+    await library.list()
   }
 
   func acknowledgeRecovery(sessionId: String) throws {
-    var recovered = try store.load(sessionId)
-    recovered.acknowledgedAt = Date()
-    try store.save(recovered)
-    recoveryReports.removeAll { $0.sessionId == sessionId }
+    try library.acknowledgeRecovery(sessionId: sessionId)
   }
 
   func verifyRecording(sessionId: String) async throws -> VerificationReport {
-    let manifest = try store.load(sessionId)
-    let report = await RecordingVerifier.verify(manifest, directory: store.directory(for: sessionId))
-    files.save(report)
-    return report
+    try await library.verify(sessionId: sessionId)
   }
 
   func deleteRecording(sessionId: String) throws {
     guard sessionId != manifest?.id else { throw invalidState("delete the active recording") }
-    try store.delete(sessionId)
-    recoveryReports.removeAll { $0.sessionId == sessionId }
+    try library.delete(sessionId: sessionId)
   }
 
-  func recoverUnfinishedSessions() async {
-    let store = store
-    let scan = await Task.detached { store.scan() }.value
-    for name in scan.unreadable {
-      log.error("recovery", "Unreadable session manifest", ["session": name])
-    }
-    for unfinished in scan.manifests where unfinished.isUnfinished {
-      var inspections: [Int: SegmentInspection] = [:]
-      for segment in unfinished.segments where segment.state == .writing {
-        inspections[segment.index] = await RecoveryInspector.inspect(store.segmentURL(sessionId: unfinished.id, index: segment.index))
-      }
-      let (recovered, report) = Recovery.recover(unfinished, inspections: inspections, directory: store.directory(for: unfinished.id))
-      files.save(recovered)
-      recoveryReports.append(report)
-      log.warning("recovery", "Unfinished recording found", [
-        "sessionId": report.sessionId,
-        "recoveredSec": oneDecimal(report.recoveredSec),
-        "knownLossSec": oneDecimal(report.knownLossSec),
-        "maxUnseenLossSec": oneDecimal(report.maxUnseenLossSec),
-        "unplayable": String(report.segments.filter { $0.state == .unplayable }.count),
-      ])
-    }
-    for manifest in scan.manifests {
-      if let pending = Recovery.pendingReport(manifest, directory: store.directory(for: manifest.id)) {
-        recoveryReports.append(pending)
-      }
-    }
-    if !recoveryReports.isEmpty { onRecoveryFound?(recoveryReports) }
+  private func recoverUnfinishedSessions() async {
+    let reports = await library.recoverUnfinished()
+    if !reports.isEmpty { onRecoveryFound?(reports) }
   }
 
   private func send(_ event: SessionEvent) {
@@ -246,21 +222,21 @@ final class SessionController {
       sequence = Task {
         do {
           try await runStart(sessionId: sessionId)
-          send(.startSucceeded)
+          send(.startSucceeded(sessionId: sessionId))
         } catch is CancellationError {
-          await abortStart()
+          return
         } catch {
-          send(.startFailed(Failure(error, fallback: .callConnectFailed)))
+          send(.startFailed(sessionId: sessionId, Failure(error, fallback: .callConnectFailed)))
         }
       }
-    case .abortStart:
+    case .abortStart(let sessionId):
       sequence?.cancel()
       sequence = nil
-      Task { await abortStart() }
+      abortStart(sessionId: sessionId)
     case .openSegment(let index):
       segmentWork.enqueue { await self.openSegment(index: index) }
     case .closeSegment(let index):
-      watchedSince = [:]
+      healthWatch.stopWatching()
       segmentWork.enqueue { await self.closeSegment(index: index) }
     case .muteCall(let muted):
       let reason = machine.state.pauseReason
@@ -295,9 +271,9 @@ final class SessionController {
     case .finishSession:
       finishSession()
     case .beginBackgroundTask:
-      beginBackgroundTask()
+      backgroundTask.begin()
     case .endBackgroundTask:
-      endBackgroundTask()
+      backgroundTask.end()
     case .setIdleTimerDisabled(let disabled):
       UIApplication.shared.isIdleTimerDisabled = disabled
     case .saveManifest:
@@ -361,14 +337,18 @@ final class SessionController {
     manifest?.room = callPublisher.status.room
   }
 
-  private func abortStart() async {
-    await callPublisher.leave()
+  /// Runs at once, so a Start pressed right after cannot lose its microphone or its session folder.
+  private func abortStart(sessionId: String) {
+    // Before leaving, as in Stop: the room stops the audio engine, and a mic still marked as needed would restart it.
     microphone.stop()
-    guard let abandoned = manifest else { return }
-    manifest = nil
-    log.attachFile(at: nil)
-    files.delete(sessionId: abandoned.id)
+    if manifest?.id == sessionId {
+      manifest = nil
+      log.attachFile(at: nil)
+      files.delete(sessionId: sessionId)
+    }
+    Task { await callPublisher.leave() }
   }
+
 
   /// Local resources first: they recover fast and decide whether rejoining the call makes sense.
   private func runResume() async throws {
@@ -376,7 +356,7 @@ final class SessionController {
     try Task.checkCancellation()
     try await startMicrophone()
     try Task.checkCancellation()
-    try await callPublisher.ensureJoined(rotationAngle: camera.captureRotationAngle)
+    try await callPublisher.ensureJoined(rotationAngle: camera.captureRotationAngle, publish: true)
     try Task.checkCancellation()
     await callPublisher.setMuted(false, reason: nil)
   }
@@ -394,13 +374,13 @@ final class SessionController {
   }
 
   private func runStop() async {
-    beginBackgroundTask()
-    watchedSince = [:]
+    backgroundTask.begin()
+    healthWatch.stopWatching()
     await segmentWork.enqueue { await self.closeSegment(index: self.machine.state.segmentIndex) }.value
     // Before leaving: the room stops the audio engine, and a mic still marked as needed would restart it.
     microphone.stop()
     await callPublisher.leave()
-    endBackgroundTask()
+    backgroundTask.end()
     send(.stopFinished)
   }
 
@@ -417,8 +397,7 @@ final class SessionController {
     saveManifest()
     lastFileBytes = 0
     fileRateWatch = FileRateWatch(targetFps: config.camera.fps)
-    let now = HostClock.now()
-    watchedSince = Dictionary(uniqueKeysWithValues: HeartbeatSource.allCases.map { ($0, now) })
+    healthWatch.watchSegment(openedAt: HostClock.now())
     log.info("writer", "Segment \(index) opened", [
       "file": url.lastPathComponent,
       "rotation": String(camera.captureRotationAngle),
@@ -453,7 +432,7 @@ final class SessionController {
     files.save(finished)
     let directory = store.directory(for: finished.id)
     lastSummary = RecordingSummary(finished, directory: directory)
-    log.info("session", "Session finished", ["segments": String(finished.segments.count), "recordedSec": oneDecimal(finished.recordedSec)])
+    log.info("session", "Session finished", ["segments": String(finished.segments.count), "recordedSec": finished.recordedSec.oneDecimal])
     log.attachFile(at: nil)
     Task {
       let report = await RecordingVerifier.verify(finished, directory: directory)
@@ -469,7 +448,7 @@ final class SessionController {
     let stats = pipeline.statsSnapshot
     let micRestart = [microphone.lastEngineStopAt, routeMonitor.lastInputChangeAt].compactMap { $0 }.max()
     let restartedAt = micRestart.map { [HeartbeatSource.microphone: $0] } ?? [:]
-    for edge in healthMonitor.evaluate(now: now, lastBeats: pipeline.heartbeats.snapshot(), watchedSince: watchedSince, restartedAt: restartedAt) {
+    for edge in healthWatch.edges(now: now, phase: machine.state.phase, lastBeats: pipeline.heartbeats.snapshot(), restartedAt: restartedAt) {
       react(to: edge)
     }
     if machine.state.phase == .recording {
@@ -494,7 +473,7 @@ final class SessionController {
   }
 
   private func react(to edge: HealthEdge) {
-    let thresholdMs = Int(healthMonitor.threshold(for: edge.source) * 1000)
+    let thresholdMs = healthWatch.thresholdMs(for: edge.source)
     log.log(edge.stalled ? .warning : .info, "health", "\(edge.source.rawValue) \(edge.stalled ? "stalled" : "recovered")", ["thresholdMs": String(thresholdMs)])
     if let reaction = edge.reaction(thresholdMs: thresholdMs) { apply(reaction) }
   }
@@ -565,7 +544,7 @@ final class SessionController {
     config = resolved
     configCache.withLock { $0 = resolved }
     thermalPolicy = ThermalPolicy(profiles: resolved.call.thermalProfiles, recoveryDelay: resolved.call.thermalRecoveryDelaySec)
-    healthMonitor = HealthMonitor(health: resolved.health)
+    healthWatch = HealthWatch(health: resolved.health)
     heartbeatGate = IntervalGate(every: resolved.session.heartbeatIntervalSec)
     callPublisher.configure(call: resolved.call, audio: resolved.audio)
   }
@@ -598,23 +577,5 @@ final class SessionController {
 
   private func saveManifest() {
     if let manifest { files.save(manifest) }
-  }
-
-  private func beginBackgroundTask() {
-    guard backgroundTask == .invalid else { return }
-    backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "capture-core.finish-segment") { [weak self] in
-      self?.log.warning("session", "Background time expired before the segment finished")
-      self?.endBackgroundTask()
-    }
-  }
-
-  private func endBackgroundTask() {
-    guard backgroundTask != .invalid else { return }
-    UIApplication.shared.endBackgroundTask(backgroundTask)
-    backgroundTask = .invalid
-  }
-
-  private func oneDecimal(_ value: Double) -> String {
-    String(format: "%.1f", value)
   }
 }

@@ -110,9 +110,9 @@ final class EngineInputTap: AudioEngineObserver, @unchecked Sendable {
     log.info("audio", "Microphone tap timing", [
       "frames": String(buffer.frameLength),
       "sampleRate": String(Int(buffer.format.sampleRate)),
-      "stampBehindDeliveryMs": String(format: "%.1f", (HostClock.now() - stampedAt) * 1000),
-      "inputLatencyMs": String(format: "%.1f", session.inputLatency * 1000),
-      "ioBufferMs": String(format: "%.1f", session.ioBufferDuration * 1000),
+      "stampBehindDeliveryMs": ((HostClock.now() - stampedAt) * 1000).oneDecimal,
+      "inputLatencyMs": (session.inputLatency * 1000).oneDecimal,
+      "ioBufferMs": (session.ioBufferDuration * 1000).oneDecimal,
     ])
   }
 

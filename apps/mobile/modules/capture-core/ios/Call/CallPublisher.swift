@@ -18,25 +18,29 @@ final class CallPublisher: NSObject, RoomDelegate {
   /// Status events come in bursts; one update per this delay is enough for the screen.
   private static let statusRefreshDelay = Duration.milliseconds(250)
 
+  private struct Joined {
+    let room: Room
+    var videoTrack: LocalVideoTrack?
+    var connectedAt: Date?
+    var reconnectCount = 0
+    var isMuted = false
+    var quality = CallQuality.unknown
+    var bitrate = BitrateMeter()
+  }
+
   let scaler: CallFrameScaler
   var onStatusChange: ((CallStatus) -> Void)?
   private(set) var status = CallStatus()
 
   private let log: EventLog
   private let muteChanges = SerialTaskQueue()
-  private var room: Room?
-  private var videoTrack: LocalVideoTrack?
+  private var joined: Joined?
   private var credentials: CallCredentials?
   private var callConfig = CaptureConfig.defaults.call
   private var audio = CaptureConfig.defaults.audio
   private var profile = defaultProfile
   private var rotationAngle = CameraSource.portraitRotationAngle
-  private var quality = CallQuality.unknown
-  private var connectedAt: Date?
-  private var reconnectCount = 0
-  private var isMuted = false
   private var refreshScheduled = false
-  private var bitrate = BitrateMeter()
 
   nonisolated init(log: EventLog) {
     self.log = log
@@ -49,11 +53,17 @@ final class CallPublisher: NSObject, RoomDelegate {
     self.audio = audio
   }
 
-  func join(_ credentials: CallCredentials, profile: CallVideoProfile, rotationAngle: Double) async throws {
+  func join(_ credentials: CallCredentials, profile: CallVideoProfile, rotationAngle: Double, publish: Bool = true) async throws {
     self.credentials = credentials
     self.profile = profile
     self.rotationAngle = rotationAngle
     scaler.apply(profile)
+    let room = try await connect(credentials)
+    if publish { try await publishTracks(in: room) }
+    refreshStatus()
+  }
+
+  private func connect(_ credentials: CallCredentials) async throws -> Room {
     let room = Room(delegate: self, connectOptions: nil, roomOptions: RoomOptions(
       defaultAudioCaptureOptions: AudioCaptureOptions(
         echoCancellation: true,
@@ -65,7 +75,7 @@ final class CallPublisher: NSObject, RoomDelegate {
       // Backgrounding pauses the session; LiveKit's own suspension would fight that.
       suspendLocalVideoTracksInBackground: false
     ))
-    self.room = room
+    joined = Joined(room: room)
     do {
       let timeout = callConfig.connectTimeoutSec
       let timedOut = Failure(code: .callConnectFailed, message: "No connection after \(Int(timeout)) s")
@@ -73,35 +83,43 @@ final class CallPublisher: NSObject, RoomDelegate {
       try await withTimeout(seconds: timeout, throwing: timedOut) {
         try await room.connect(url: credentials.url, token: credentials.token)
       }
-      connectedAt = Date()
     } catch {
-      self.room = nil
-      await room.disconnect()
+      await abandon(room)
       throw Failure(code: .callConnectFailed, message: (error as? Failure)?.message ?? error.localizedDescription)
     }
-    try await publishTracks(in: room)
+    if joined?.room === room { joined?.connectedAt = Date() }
+    return room
+  }
+
+  private func abandon(_ room: Room) async {
+    if joined?.room === room { joined = nil }
+    await room.disconnect()
     refreshStatus()
   }
 
+  /// Changes run one at a time, so a Resume cancelled mid-unmute still ends muted.
   func setMuted(_ muted: Bool, reason: PauseReason?) async {
     await muteChanges.enqueue { await self.changeMute(muted, reason: reason) }.value
   }
 
   /// The reason goes first, so the interviewer page can say why before the picture goes dark.
   private func changeMute(_ muted: Bool, reason: PauseReason?) async {
-    guard let room, let videoTrack else { return }
+    guard let room = joined?.room else { return }
     await sharePauseReason(muted ? reason : nil, in: room)
     do {
-      if muted { try await videoTrack.mute() } else { try await videoTrack.unmute() }
-      _ = try await room.localParticipant.setMicrophone(enabled: !muted)
+      if let videoTrack = joined?.videoTrack {
+        if muted { try await videoTrack.mute() } else { try await videoTrack.unmute() }
+        _ = try await room.localParticipant.setMicrophone(enabled: !muted)
+      }
       log.info("call", muted ? "Tracks muted" : "Tracks unmuted")
-      isMuted = muted
+      if joined?.room === room { joined?.isMuted = muted }
       refreshStatus()
     } catch {
       log.warning("call", "Mute change failed", ["muted": String(muted), "error": error.localizedDescription])
     }
   }
 
+  /// The interviewer page reads this attribute. Needs `canUpdateOwnMetadata` in the token.
   private func sharePauseReason(_ reason: PauseReason?, in room: Room) async {
     do {
       try await room.localParticipant.set(attributes: [Self.pauseReasonAttribute: reason?.rawValue ?? ""])
@@ -110,18 +128,30 @@ final class CallPublisher: NSObject, RoomDelegate {
     }
   }
 
-  func ensureJoined(rotationAngle: Double) async throws {
+  func ensureJoined(rotationAngle: Double, publish: Bool) async throws {
     self.rotationAngle = rotationAngle
-    scaler.attach(videoTrack?.capturer as? BufferCapturer, rotationAngle: rotationAngle)
-    let state = room?.connectionState
-    if state == .connected { return }
-    if state == .connecting || state == .reconnecting, try await waitUntilConnected(timeout: callConfig.connectTimeoutSec) { return }
+    scaler.attach(joined?.videoTrack?.capturer as? BufferCapturer, rotationAngle: rotationAngle)
+    if try await staysConnected() { return try await publishIfMissing(publish) }
     guard let credentials else {
       throw Failure(code: .callConnectFailed, message: "No credentials to rejoin the room")
     }
     log.info("call", "Rejoining the room")
     await leave()
-    try await join(credentials, profile: profile, rotationAngle: rotationAngle)
+    try await join(credentials, profile: profile, rotationAngle: rotationAngle, publish: publish)
+  }
+
+  private func staysConnected() async throws -> Bool {
+    switch RejoinPlan(connection: joined.map { CallConnectionState($0.room.connectionState) }) {
+    case .keep: return true
+    case .waitForReconnect: return try await waitUntilConnected(timeout: callConfig.connectTimeoutSec)
+    case .rejoin: return false
+    }
+  }
+
+  private func publishIfMissing(_ publish: Bool) async throws {
+    guard publish, let joined, joined.videoTrack == nil else { return }
+    try await publishTracks(in: joined.room)
+    refreshStatus()
   }
 
   func apply(_ profile: CallVideoProfile) {
@@ -132,14 +162,8 @@ final class CallPublisher: NSObject, RoomDelegate {
 
   func leave() async {
     scaler.attach(nil, rotationAngle: rotationAngle)
-    guard let room else { return }
-    self.room = nil
-    videoTrack = nil
-    bitrate = BitrateMeter()
-    quality = .unknown
-    connectedAt = nil
-    reconnectCount = 0
-    isMuted = false
+    guard let room = joined?.room else { return }
+    joined = nil
     await room.disconnect()
     refreshStatus()
     log.info("call", "Left the room")
@@ -147,8 +171,9 @@ final class CallPublisher: NSObject, RoomDelegate {
 
   func outboundVideoStats() -> HealthSnapshot.Call {
     let dropped = scaler.droppedFrameCount
-    guard let stream = videoTrack?.statistics?.outboundRtpStream.first else { return .idle(droppedFrames: dropped) }
-    let kbps = stream.bytesSent.map { bitrate.update(bytesSent: $0, timestampUs: stream.timestamp) } ?? bitrate.kbps
+    guard let stream = joined?.videoTrack?.statistics?.outboundRtpStream.first else { return .idle(droppedFrames: dropped) }
+    if let bytes = stream.bytesSent { joined?.bitrate.update(bytesSent: bytes, timestampUs: stream.timestamp) }
+    let kbps = joined?.bitrate.kbps ?? 0
     return HealthSnapshot.Call(
       sentWidth: Int(stream.frameWidth ?? 0),
       sentHeight: Int(stream.frameHeight ?? 0),
@@ -178,9 +203,10 @@ final class CallPublisher: NSObject, RoomDelegate {
       _ = try await room.localParticipant.setMicrophone(enabled: true)
     } catch {
       scaler.attach(nil, rotationAngle: rotationAngle)
+      await abandon(room)
       throw Failure(code: .callPublishFailed, message: error.localizedDescription)
     }
-    videoTrack = track
+    if joined?.room === room { joined?.videoTrack = track }
     log.info("call", "Tracks published", [
       "video": "\(profile.width)x\(profile.height)@\(profile.fps)",
       "codec": callConfig.codec.rawValue,
@@ -189,24 +215,25 @@ final class CallPublisher: NSObject, RoomDelegate {
   }
 
   private func waitUntilConnected(timeout: Double) async throws -> Bool {
-    try await poll(every: Self.connectPollInterval, timeout: timeout) { room?.connectionState == .connected }
+    try await poll(every: Self.connectPollInterval, timeout: timeout) { joined?.room.connectionState == .connected }
   }
 
   private func refreshStatus() {
-    guard let room else {
+    guard let joined else {
       status = CallStatus()
       onStatusChange?(status)
       return
     }
+    let room = joined.room
     status = CallStatus(
       state: CallConnectionState(room.connectionState),
       room: room.name,
       identity: room.localParticipant.identity?.stringValue,
-      connectedAt: connectedAt,
-      reconnectCount: reconnectCount,
-      isMuted: isMuted,
+      connectedAt: joined.connectedAt,
+      reconnectCount: joined.reconnectCount,
+      isMuted: joined.isMuted,
       participants: ParticipantStatus.ordered(room.remoteParticipants.values.map(ParticipantStatus.init)),
-      quality: quality
+      quality: joined.quality
     )
     onStatusChange?(status)
   }
@@ -224,7 +251,7 @@ final class CallPublisher: NSObject, RoomDelegate {
   /// Delegate callbacks arrive off the main actor; events of a room already left are dropped.
   private nonisolated func onMain(of room: Room, _ work: @escaping @MainActor (CallPublisher) -> Void) {
     Task { @MainActor in
-      guard room === self.room else { return }
+      guard room === self.joined?.room else { return }
       work(self)
     }
   }
@@ -240,7 +267,7 @@ final class CallPublisher: NSObject, RoomDelegate {
   nonisolated func room(_ room: Room, didStartReconnectWithMode reconnectMode: ReconnectMode) {
     let mode = "\(reconnectMode)"
     onMain(of: room) { publisher in
-      publisher.reconnectCount += 1
+      publisher.joined?.reconnectCount += 1
       publisher.log.info("call", "Reconnecting", ["mode": mode])
       publisher.refreshStatus()
     }
@@ -267,8 +294,8 @@ final class CallPublisher: NSObject, RoomDelegate {
     let isLocal = participant is LocalParticipant
     onMain(of: room) { publisher in
       guard isLocal else { return publisher.scheduleRefresh() }
-      guard quality != publisher.quality else { return }
-      publisher.quality = quality
+      guard quality != publisher.joined?.quality else { return }
+      publisher.joined?.quality = quality
       publisher.log.info("call", "Connection quality changed", ["quality": quality.rawValue])
       publisher.refreshStatus()
     }

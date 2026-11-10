@@ -178,7 +178,7 @@ final class MediaPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
       reportWriterFailure(failure)
     }
     if let correction = writer.takeCorrection() {
-      log.warning("audio", "Audio clock resynced", ["correctionMs": String(format: "%.1f", correction * 1000)])
+      log.warning("audio", "Audio clock resynced", ["correctionMs": (correction * 1000).oneDecimal])
     }
     stats.withLock { stats in
       stats.audioDriftMs = writer.audioDriftSec * 1000

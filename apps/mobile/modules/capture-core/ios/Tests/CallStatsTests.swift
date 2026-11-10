@@ -5,7 +5,10 @@ import Testing
 struct BitrateMeterTests {
   private func rates(_ samples: [(bytes: UInt64, timestampUs: Double)]) -> [Double] {
     var meter = BitrateMeter()
-    return samples.map { meter.update(bytesSent: $0.bytes, timestampUs: $0.timestampUs) }
+    return samples.map { sample in
+      meter.update(bytesSent: sample.bytes, timestampUs: sample.timestampUs)
+      return meter.kbps
+    }
   }
 
   @Test func needsTwoSamples() {
@@ -43,5 +46,24 @@ struct FailedCheckIdsTests {
       SegmentVerification(index: 2, uri: "", checks: [check("audioStart", false)], pass: false),
     ], pass: false)
     #expect(report.failedCheckIds == ["1:gaps", "2:audioStart"])
+  }
+}
+
+struct RejoinPlanTests {
+  @Test func followsTheConnection() {
+    #expect(RejoinPlan(connection: .connected) == .keep)
+    #expect(RejoinPlan(connection: .connecting) == .waitForReconnect)
+    #expect(RejoinPlan(connection: .reconnecting) == .waitForReconnect)
+    #expect(RejoinPlan(connection: .disconnected) == .rejoin)
+    #expect(RejoinPlan(connection: nil) == .rejoin)
+  }
+}
+
+struct RejoinTracksTests {
+  @Test func onlyARecordingPhonePublishesOnRejoin() {
+    #expect(RejoinPlan.publishesTracks(in: .recording))
+    #expect(!RejoinPlan.publishesTracks(in: .paused))
+    #expect(!RejoinPlan.publishesTracks(in: .pausing))
+    #expect(!RejoinPlan.publishesTracks(in: .resuming))
   }
 }

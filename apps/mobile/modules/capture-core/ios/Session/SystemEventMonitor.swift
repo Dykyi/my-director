@@ -123,7 +123,7 @@ final class SystemEventMonitor: NSObject, CXCallObserverDelegate {
   private func enteringForeground() {
     let seconds = backgroundedAt.map { HostClock.now() - $0 } ?? 0
     backgroundedAt = nil
-    log.info("system", "App entering foreground", ["backgroundSec": String(format: "%.1f", seconds)])
+    log.info("system", "App entering foreground", ["backgroundSec": seconds.oneDecimal])
     onEvent(.session(.interruptionEnded(.appBackground)))
   }
 

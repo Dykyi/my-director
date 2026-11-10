@@ -18,12 +18,12 @@ struct SessionState: Equatable, Sendable {
 }
 
 enum SessionEvent: Equatable, Sendable {
-  case prepareRequested(ResumePolicy)
+  case prepareRequested(ResumePolicy, callProfile: CallProfileName)
   case cameraStarted
   case cameraFailed(Failure)
   case startRequested(sessionId: String)
-  case startSucceeded
-  case startFailed(Failure)
+  case startSucceeded(sessionId: String)
+  case startFailed(sessionId: String, Failure)
   case pauseRequested
   case resumeRequested
   case resumeSucceeded
@@ -46,7 +46,7 @@ enum SessionEvent: Equatable, Sendable {
 enum SessionEffect: Equatable, Sendable {
   case startCamera
   case runStartSequence(sessionId: String)
-  case abortStart
+  case abortStart(sessionId: String)
   case openSegment(Int)
   case closeSegment(Int)
   case muteCall(Bool)
@@ -80,8 +80,9 @@ struct SessionMachine: Sendable {
 
   mutating func handle(_ event: SessionEvent, at now: Date) -> [SessionEffect] {
     switch (state.phase, event) {
-    case (.idle, .prepareRequested(let policy)), (.ready, .prepareRequested(let policy)):
+    case (.idle, .prepareRequested(let policy, let callProfile)), (.ready, .prepareRequested(let policy, let callProfile)):
       state.resumePolicy = policy
+      state.call.profile = callProfile
       state.phase = .preparing
       state.error = nil
       return [.startCamera]
@@ -104,12 +105,13 @@ struct SessionMachine: Sendable {
       state.error = nil
       return [.runStartSequence(sessionId: sessionId)]
 
-    case (.starting, .startSucceeded):
+    // A result of an aborted Start can arrive after the next Start began.
+    case (.starting, .startSucceeded(let sessionId)) where sessionId == state.sessionId:
       state.phase = .recording
       state.segmentIndex = 1
       return [.openSegment(1), .saveManifest, .setIdleTimerDisabled(true)]
 
-    case (.starting, .startFailed(let failure)):
+    case (.starting, .startFailed(let sessionId, let failure)) where sessionId == state.sessionId:
       return abortStart(failure, at: now)
 
     case (.starting, .interruptionBegan(let source, _)):
@@ -248,12 +250,13 @@ struct SessionMachine: Sendable {
   }
 
   private mutating func abortStart(_ failure: Failure, at now: Date) -> [SessionEffect] {
+    guard let sessionId = state.sessionId else { return [] }
     state.phase = .ready
     state.sessionId = nil
     state.startedAt = nil
     state.error = CaptureError(failure, at: now)
     keepOnlyDeviceWarnings()
-    return [.abortStart]
+    return [.abortStart(sessionId: sessionId)]
   }
 
   private mutating func keepOnlyDeviceWarnings() {

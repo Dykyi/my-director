@@ -142,3 +142,34 @@ struct SustainedConditionTests {
     #expect(condition.update(true, at: 6) == .began)
   }
 }
+
+struct HealthWatchTests {
+  private let beats: [HeartbeatSource: Double] = [.camera: 10.9, .microphone: 10.9, .fileVideo: 10.9, .fileAudio: 10.9, .fileBytes: 10.9]
+
+  @Test func watchesEveryStreamOfTheOpenSegment() {
+    var watch = HealthWatch(health: CaptureConfig.defaults.health)
+    watch.watchSegment(openedAt: 10)
+    var silentCamera = beats
+    silentCamera[.camera] = nil
+    #expect(watch.edges(now: 11.5, phase: .recording, lastBeats: silentCamera, restartedAt: [:]) == [HealthEdge(source: .camera, stalled: true)])
+  }
+
+  @Test func aClosedSegmentIsNotWatched() {
+    var watch = HealthWatch(health: CaptureConfig.defaults.health)
+    watch.watchSegment(openedAt: 10)
+    watch.stopWatching()
+    #expect(watch.edges(now: 20, phase: .recording, lastBeats: [:], restartedAt: [:]).isEmpty)
+  }
+
+  @Test func thresholdsReadInMilliseconds() {
+    let watch = HealthWatch(health: CaptureConfig.defaults.health)
+    #expect(watch.thresholdMs(for: .camera) == 1000)
+    #expect(watch.thresholdMs(for: .fileBytes) == 5000)
+  }
+
+  @Test func aPauseRightAfterOpeningRaisesNoStall() {
+    var watch = HealthWatch(health: CaptureConfig.defaults.health)
+    watch.watchSegment(openedAt: 10)
+    #expect(watch.edges(now: 15, phase: .paused, lastBeats: [:], restartedAt: [:]).isEmpty)
+  }
+}

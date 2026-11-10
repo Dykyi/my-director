@@ -19,13 +19,13 @@ struct SessionMachineTests {
 
   private func ready(policy: ResumePolicy = .manual) -> Run {
     var run = Run()
-    run.send(.prepareRequested(policy), .cameraStarted)
+    run.send(.prepareRequested(policy, callProfile: .standard), .cameraStarted)
     return run
   }
 
   private func recording(policy: ResumePolicy = .manual) -> Run {
     var run = ready(policy: policy)
-    run.send(.startRequested(sessionId: Self.sessionId), .startSucceeded)
+    run.send(.startRequested(sessionId: Self.sessionId), .startSucceeded(sessionId: Self.sessionId))
     return run
   }
 
@@ -39,13 +39,13 @@ struct SessionMachineTests {
     var run = ready()
     run.send(.startRequested(sessionId: Self.sessionId))
     #expect(run.state.startedAt == Self.now)
-    run.send(.startSucceeded, .stopRequested, .segmentClosed(index: 1, failure: nil), .stopFinished)
+    run.send(.startSucceeded(sessionId: Self.sessionId), .stopRequested, .segmentClosed(index: 1, failure: nil), .stopFinished)
     #expect(run.state.startedAt == nil)
   }
 
   @Test func abortedStartClearsTheStamp() {
     var run = ready()
-    run.send(.startRequested(sessionId: Self.sessionId), .startFailed(Failure(code: .callConnectFailed, message: "timeout")))
+    run.send(.startRequested(sessionId: Self.sessionId), .startFailed(sessionId: Self.sessionId, Failure(code: .callConnectFailed, message: "timeout")))
     #expect(run.state.startedAt == nil)
   }
 
@@ -55,7 +55,7 @@ struct SessionMachineTests {
     run.send(.startRequested(sessionId: Self.sessionId))
     #expect(run.state.phase == .starting)
     #expect(run.lastEffects == [.runStartSequence(sessionId: Self.sessionId)])
-    run.send(.startSucceeded)
+    run.send(.startSucceeded(sessionId: Self.sessionId))
     #expect(run.state.phase == .recording)
     #expect(run.lastEffects == [.openSegment(1), .saveManifest, .setIdleTimerDisabled(true)])
     run.send(.stopRequested)
@@ -250,7 +250,7 @@ struct SessionMachineTests {
     var run = ready()
     run.send(.startRequested(sessionId: Self.sessionId), .callChanged(CallStatus(state: .connecting, room: "mydirector-poc")))
     #expect(run.state.warnings.isEmpty)
-    run.send(.startFailed(Failure(code: .callConnectFailed, message: "timeout")))
+    run.send(.startFailed(sessionId: Self.sessionId, Failure(code: .callConnectFailed, message: "timeout")))
     #expect(run.state.warnings.isEmpty)
   }
 
@@ -274,7 +274,7 @@ struct SessionMachineTests {
       .warningRaised(code: .diskSpaceLow, message: "1.0 GB left"),
       .startRequested(sessionId: Self.sessionId),
       .warningRaised(code: .callPublishFailed, message: "publish timeout"),
-      .startFailed(Failure(code: .callPublishFailed, message: "publish timeout"))
+      .startFailed(sessionId: Self.sessionId, Failure(code: .callPublishFailed, message: "publish timeout"))
     )
     #expect(Set(run.state.warnings.keys) == [.diskSpaceLow])
   }
@@ -303,7 +303,7 @@ struct SessionMachineTests {
     run.send(.startRequested(sessionId: Self.sessionId), .interruptionBegan(.appBackground, .appBackground))
     #expect(run.state.phase == .ready)
     #expect(run.state.error?.code == .startInterrupted)
-    #expect(run.lastEffects == [.abortStart])
+    #expect(run.lastEffects == [.abortStart(sessionId: Self.sessionId)])
   }
 
   @Test func callDuringStartSaysWhatToDo() {
@@ -314,11 +314,11 @@ struct SessionMachineTests {
 
   @Test func failedStartReturnsToReady() {
     var run = ready()
-    run.send(.startRequested(sessionId: Self.sessionId), .startFailed(Failure(code: .callConnectFailed, message: "timeout")))
+    run.send(.startRequested(sessionId: Self.sessionId), .startFailed(sessionId: Self.sessionId, Failure(code: .callConnectFailed, message: "timeout")))
     #expect(run.state.phase == .ready)
     #expect(run.state.sessionId == nil)
     #expect(run.state.error?.code == .callConnectFailed)
-    #expect(run.lastEffects == [.abortStart])
+    #expect(run.lastEffects == [.abortStart(sessionId: Self.sessionId)])
   }
 
   @Test func thermalChangeAppliesProfileOnce() {
@@ -342,7 +342,29 @@ struct SessionMachineTests {
     #expect(run.state == before)
     #expect(run.lastEffects.isEmpty)
   }
+
+  @Test func prepareStartsFromTheCallProfileOfTheNewSession() {
+    var run = ready()
+    run.send(.thermalChanged(.serious, profile: .reduced))
+    run.send(.prepareRequested(.manual, callProfile: .standard))
+    #expect(run.state.call.profile == .standard)
+    run.send(.cameraStarted, .thermalChanged(.serious, profile: .reduced))
+    #expect(run.lastEffects == [.applyCallProfile(.reduced)])
+  }
+
+  @Test func resultsOfAnAbortedStartAreIgnored() {
+    var run = ready()
+    run.send(.startRequested(sessionId: "old"), .startFailed(sessionId: "old", Failure(code: .callConnectFailed, message: "timeout")))
+    run.send(.startRequested(sessionId: "new"))
+    run.send(.startFailed(sessionId: "old", Failure(code: .callConnectFailed, message: "cancelled")))
+    #expect(run.lastEffects.isEmpty)
+    run.send(.startSucceeded(sessionId: "old"))
+    #expect(run.state.phase == .starting)
+    run.send(.startSucceeded(sessionId: "new"))
+    #expect(run.state.phase == .recording)
+  }
 }
+
 
 struct FailureTests {
   @Test func keepsCodeAndMessageOfAStampedError() {

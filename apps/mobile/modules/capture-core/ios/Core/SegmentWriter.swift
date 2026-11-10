@@ -13,6 +13,7 @@ final class SegmentWriter: @unchecked Sendable {
   enum AppendResult: Equatable {
     case appended
     case skipped
+    /// Returned once, on the append that broke the writer.
     case failed(Failure)
   }
 
@@ -29,11 +30,10 @@ final class SegmentWriter: @unchecked Sendable {
   private let videoInput: AVAssetWriterInput
   private let audioInput: AVAssetWriterInput
   private let audioFactory: AudioSampleBufferFactory
-  private let frameDuration: CMTime
+  private let fps: Int
   private var timeline: AudioTimeline
   private var state = State.awaitingFirstFrame
-  private var firstVideoTime = CMTime.invalid
-  private var lastVideoTime = CMTime.invalid
+  private var span: VideoSpan?
   private var pendingCorrection: Double?
   private var videoStopped = false
   private var audioEnd = 0.0
@@ -41,12 +41,12 @@ final class SegmentWriter: @unchecked Sendable {
 
   var writtenSec: Double {
     guard case .writing = state else { return 0 }
-    return (lastVideoTime + frameDuration - firstVideoTime).seconds
+    return span?.durationSec ?? 0
   }
 
   var audioCoversVideo: Bool {
-    guard case .writing = state else { return true }
-    return audioEnd >= (lastVideoTime + frameDuration).seconds
+    guard case .writing = state, let end = span?.end else { return true }
+    return audioEnd >= end.seconds
   }
 
   var audioDriftSec: Double { timeline.smoothedDrift }
@@ -55,7 +55,7 @@ final class SegmentWriter: @unchecked Sendable {
   init(settings: Settings) throws {
     url = settings.url
     audioSampleRate = settings.audio.sampleRate
-    frameDuration = CMTime(value: 1, timescale: CMTimeScale(settings.camera.fps))
+    fps = settings.camera.fps
     timeline = AudioTimeline(configuration: settings.audio)
     audioFactory = try AudioSampleBufferFactory(sampleRate: settings.audio.sampleRate)
     do {
@@ -63,6 +63,7 @@ final class SegmentWriter: @unchecked Sendable {
     } catch {
       throw Failure(code: .fileWriterFailed, message: error.localizedDescription)
     }
+    // Fragments make an unfinished file playable up to the last fragment.
     writer.movieFragmentInterval = CMTime(seconds: settings.recording.fragmentIntervalSec, preferredTimescale: Self.timescale)
     writer.initialMovieFragmentInterval = CMTime(seconds: settings.recording.initialFragmentIntervalSec, preferredTimescale: Self.timescale)
 
@@ -100,7 +101,7 @@ final class SegmentWriter: @unchecked Sendable {
       return .skipped
     case .awaitingFirstFrame:
       writer.startSession(atSourceTime: time)
-      firstVideoTime = time
+      span = VideoSpan(start: time, fps: fps)
       state = .writing
     case .writing:
       break
@@ -110,7 +111,7 @@ final class SegmentWriter: @unchecked Sendable {
       return .skipped
     }
     guard videoInput.append(sampleBuffer) else { return .failed(markFailed()) }
-    lastVideoTime = time
+    span?.appended(at: time)
     return .appended
   }
 
@@ -126,7 +127,8 @@ final class SegmentWriter: @unchecked Sendable {
       }
       let kept = UnsafeBufferPointer(rebasing: samples[placement.droppedFrames...])
       let end = placement.presentationTime + Double(kept.count) / audioSampleRate
-      guard !kept.isEmpty, end > firstVideoTime.seconds else { return .skipped }
+      // The writer trims audio that starts before the segment; buffers that end before it are skipped.
+      guard !kept.isEmpty, let start = span?.start, end > start.seconds else { return .skipped }
       let result = append(audio: try audioFactory.makeBuffer(samples: kept, presentationTime: placement.presentationTime))
       if case .appended = result { audioEnd = end }
       return result
@@ -143,19 +145,17 @@ final class SegmentWriter: @unchecked Sendable {
   func finish() async -> SegmentOutcome {
     switch state {
     case .awaitingFirstFrame:
-      writer.cancelWriting()
-      state = .finished
-      try? FileManager.default.removeItem(at: url)
-      return .empty
+      return discard()
     case .failed(let message):
+      // The fragments written so far stay on disk for RecoveryInspector.
       return .failed(message: message)
     case .finished:
       preconditionFailure("A segment is finished once")
     case .writing:
       break
     }
-    let end = lastVideoTime + frameDuration
-    padAudioTail(to: end.seconds)
+    guard let span, let end = span.end else { return discard() }
+    padAudioTail(to: end.seconds, segmentStart: span.start.seconds)
     state = .finished
     writer.endSession(atSourceTime: end)
     videoInput.markAsFinished()
@@ -164,12 +164,18 @@ final class SegmentWriter: @unchecked Sendable {
     guard writer.status == .completed else {
       return .failed(message: writer.error?.localizedDescription ?? "finishWriting ended with status \(writer.status.rawValue)")
     }
-    return .finalized(durationSec: (end - firstVideoTime).seconds, bytes: url.fileSize)
+    return .finalized(durationSec: span.durationSec, bytes: url.fileSize)
   }
 
-  private func padAudioTail(to videoEnd: Double) {
-    let frames = AudioTail.silenceFrames(
-      audioEnd: audioEnd, videoEnd: videoEnd, segmentStart: firstVideoTime.seconds, sampleRate: audioSampleRate)
+  private func discard() -> SegmentOutcome {
+    writer.cancelWriting()
+    state = .finished
+    try? FileManager.default.removeItem(at: url)
+    return .empty
+  }
+
+  private func padAudioTail(to videoEnd: Double, segmentStart: Double) {
+    let frames = AudioTail.silenceFrames(audioEnd: audioEnd, videoEnd: videoEnd, segmentStart: segmentStart, sampleRate: audioSampleRate)
     guard frames > 0, let silence = try? audioFactory.makeSilence(frameCount: frames, presentationTime: audioEnd) else { return }
     if case .appended = append(audio: silence) { audioEnd = videoEnd }
   }

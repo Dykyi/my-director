@@ -8,7 +8,9 @@ public final class CaptureCoreModule: Module {
     var reports: [RecoveryReport]
   }
 
-  private lazy var controller = SessionController()
+  /// One per process: a JS reload replaces the module, not the session it may be recording.
+  private static let sharedController = SessionController()
+  private var controller: SessionController { Self.sharedController }
 
   var captureSession: AVCaptureSession { controller.captureSession }
 
@@ -23,8 +25,7 @@ public final class CaptureCoreModule: Module {
         controller.onSnapshot = { self?.emit("onStateChange", $0) }
         controller.onHealth = { self?.emit("onHealth", $0) }
         controller.onRecoveryFound = { self?.emit("onRecoveryFound", RecoveryEvent(reports: $0)) }
-        controller.activate()
-        await controller.recoverUnfinishedSessions()
+        await controller.activate()
       }
     }
 
