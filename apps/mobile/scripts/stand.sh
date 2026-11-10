@@ -1,10 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
-cd "$(dirname "$0")/../../.."
-set -a && . ./.env.local && set +a
-: "${DEVICE:?Set DEVICE in .env.local to the iPhone identifier from: xcrun devicectl list devices}"
+source "$(dirname "$0")/device-env.sh"
 ACTION=${1:?Usage: yarn stand <action>}
-BUNDLE_ID=$(cd apps/mobile && node --import tsx scripts/bundle-id.ts)
 SETTINGS_BUNDLE_ID=com.apple.Preferences
 
 launch() {

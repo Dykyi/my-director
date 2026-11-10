@@ -1,4 +1,5 @@
-import { S3Api } from '../src/s3.ts';
+// Prints a presigned GET URL for a bucket object, signed by the Worker's own B2 client.
+import { B2Storage } from '../src/b2-storage.ts';
 
 const SECONDS_PER_DAY = 86_400;
 /** SigV4 presigned URLs live at most 7 days. */
@@ -17,5 +18,5 @@ if (!key || !(days > 0) || !endpoint || !bucket || !accessKeyId || !secretAccess
   process.exit(1);
 }
 
-const storage = new S3Api({ endpoint, bucket, accessKeyId, secretAccessKey });
+const storage = new B2Storage({ endpoint, bucket, accessKeyId, secretAccessKey });
 console.log(await storage.presignGet(key, days * SECONDS_PER_DAY));

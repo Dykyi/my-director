@@ -1,18 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  buildCompleteBody,
-  parseListParts,
-  parseUploadId,
-  parseVersionIds,
-  regionOf,
-  S3Api,
-} from '../src/s3';
+import { B2Storage, regionOf } from '../src/b2-storage';
+import { buildCompleteBody, parseUploadId } from '../src/s3-xml';
+import { S3Error } from '../src/storage';
+import { KEY, VERSIONS } from './b2-fixtures';
 
 const ENDPOINT = 'https://s3.eu-central-003.backblazeb2.com';
 const BUCKET = 'mydirector-poc-4f2a';
-const KEY = 's/segment-001.mov';
-const api = new S3Api({
+const api = new B2Storage({
   endpoint: ENDPOINT,
   bucket: BUCKET,
   accessKeyId: 'B2KEYIDEXAMPLE',
@@ -113,52 +108,42 @@ describe('completeMultipartUpload', () => {
   });
 });
 
-describe('head', () => {
+describe('headObject', () => {
   it('maps HeadObject headers to the stored size and unquoted ETag', async () => {
     const sent = stubB2(
       new Response(null, {
         headers: { 'Content-Length': '482344960', ETag: '"3729bf569924c845dfe90bfe6281a9ff-29"' },
       }),
     );
-    await expect(api.head(KEY)).resolves.toEqual({
+    await expect(api.headObject(KEY)).resolves.toEqual({
       size: 482_344_960,
       etag: '3729bf569924c845dfe90bfe6281a9ff-29',
     });
     expect((await sent).method).toBe('HEAD');
   });
 
+  it('throws the S3 error code for the caller to act on', async () => {
+    void stubB2(
+      new Response('<Error><Code>NoSuchUpload</Code></Error>', {
+        status: 404,
+        statusText: 'Not Found',
+      }),
+    );
+    const failure = api.listParts(KEY, 'upload-1');
+    await expect(failure).rejects.toBeInstanceOf(S3Error);
+    await expect(failure).rejects.toMatchObject({ code: 'NoSuchUpload', status: 404 });
+  });
+
   it('reports a missing object as null', async () => {
     void stubB2(new Response(null, { status: 404 }));
-    await expect(api.head(KEY)).resolves.toBeNull();
+    await expect(api.headObject(KEY)).resolves.toBeNull();
   });
 
   it('bypasses the Cloudflare cache, which would send the signed HEAD of a .bin key to B2 as a GET', async () => {
     const sent = stubB2(new Response(null, { status: 404 }));
-    await api.head('s/sample.bin');
+    await api.headObject('s/sample.bin');
     expect((await sent).cache).toBe('no-store');
   });
-});
-
-describe('parseListParts', () => {
-  it('reads part numbers, sizes and unquoted ETags', () => {
-    const xml = `<ListPartsResult><Part><ETag>"abc"</ETag><LastModified>2026-11-10T09:00:00.000Z</LastModified>
-      <PartNumber>1</PartNumber><Size>16777216</Size></Part><Part><ETag>&quot;def&quot;</ETag>
-      <LastModified>2026-11-10T09:00:05.000Z</LastModified><PartNumber>2</PartNumber><Size>5</Size></Part></ListPartsResult>`;
-    expect(parseListParts(xml)).toEqual([
-      { partNumber: 1, etag: 'abc', size: 16_777_216, uploadedAt: '2026-11-10T09:00:00.000Z' },
-      { partNumber: 2, etag: 'def', size: 5, uploadedAt: '2026-11-10T09:00:05.000Z' },
-    ]);
-  });
-});
-
-const VERSIONS = `<ListVersionsResult><Version><Key>${KEY}</Key><VersionId>v2</VersionId></Version>
-  <DeleteMarker><Key>${KEY}</Key><VersionId>m1</VersionId></DeleteMarker>
-  <Version><Key>${KEY}</Key><VersionId>v1</VersionId></Version>
-  <Version><Key>${KEY}.bak</Key><VersionId>other</VersionId></Version></ListVersionsResult>`;
-
-describe('parseVersionIds', () => {
-  it('takes every version and delete marker of exactly this key', () =>
-    expect(parseVersionIds(VERSIONS, KEY)).toEqual(['v2', 'm1', 'v1']));
 });
 
 describe('deleteObject', () => {

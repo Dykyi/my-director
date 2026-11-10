@@ -1,3 +1,4 @@
+// Polls the Worker for uploaded parts, so the Mac screen proves progress while the phone is locked.
 const POLL_MS = 5_000;
 const [uploadId, key] = process.argv.slice(2);
 const { EXPO_PUBLIC_UPLOAD_API_URL: api, EXPO_PUBLIC_UPLOAD_API_TOKEN: token } = process.env;

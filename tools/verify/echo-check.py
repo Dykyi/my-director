@@ -1,42 +1,16 @@
 #!/usr/bin/env python3
-"""Looks for the interviewer's voice in what the room received from the phone (TP-ECHO).
+"""Looks for the interviewer's voice in what the room received from the phone.
 
-`sent` is what the interviewer page published, `received` is what it got back from the phone; both recordings
-start with the same click on the page, so the echo can only lag by the round trip.
+`sent` is what the interviewer page published, `received` is what it got back from the phone;
+both recordings start with the same click on the page, so the echo can only lag by the round trip.
 """
 import argparse
-import json
 import sys
 from pathlib import Path
 
-import numpy as np
-
 import media
-
-RATE = 16_000
-WINDOW_SEC = 5
-MAX_LAG_SEC = 1.5
-SPEECH_RMS = 0.01
-FRAME = RATE // 50
-MIN_SPEECH_SHARE = 0.5
-ECHO_THRESHOLD = 0.1
-
-
-def speech_share(samples: np.ndarray) -> float:
-    """Share of 20 ms frames in which the interviewer is speaking."""
-    frames = samples[: len(samples) // FRAME * FRAME].reshape(-1, FRAME)
-    return float(np.mean(np.sqrt(np.mean(frames**2, axis=1)) >= SPEECH_RMS))
-
-
-def peak_correlation(reference: np.ndarray, segment: np.ndarray) -> float:
-    """Largest normalized cross-correlation of `reference` inside `segment`, over all lags, via FFT."""
-    size = len(segment)
-    spectrum = np.fft.rfft(segment, size) * np.conj(np.fft.rfft(reference, size))
-    correlation = np.fft.irfft(spectrum, size)[: size - len(reference) + 1]
-    energy = np.concatenate(([0.0], np.cumsum(segment**2)))
-    window_energy = energy[len(reference):] - energy[: size - len(reference) + 1]
-    norms = np.sqrt(window_energy * np.sum(reference**2))
-    return float(np.max(np.abs(correlation) / np.maximum(norms, 1e-12)))
+from echo_analysis import ECHO_THRESHOLD, SAMPLE_RATE, echo_peaks
+from report import emit
 
 
 def main() -> int:
@@ -46,25 +20,20 @@ def main() -> int:
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
 
-    sent = media.audio_samples(args.sent, RATE)
-    received = media.audio_samples(args.received, RATE)
-    window, max_lag = WINDOW_SEC * RATE, int(MAX_LAG_SEC * RATE)
-    peaks = []
-    for start in range(0, len(sent) - window, window):
-        reference = sent[start : start + window]
-        segment = received[start : start + window + max_lag]
-        if len(segment) < window + max_lag:
-            break
-        if speech_share(reference) < MIN_SPEECH_SHARE:
-            continue
-        peaks.append({"atSec": start / RATE, "correlation": peak_correlation(reference, segment)})
-
+    sent = media.audio_samples(args.sent, SAMPLE_RATE)
+    peaks = echo_peaks(sent, media.audio_samples(args.received, SAMPLE_RATE))
     max_correlation = max((peak["correlation"] for peak in peaks), default=0.0)
-    report = {"windows": len(peaks), "maxCorrelation": max_correlation, "threshold": ECHO_THRESHOLD, "peaks": peaks}
-    if args.json:
-        print(json.dumps(report, indent=2))
-    else:
-        print(f"windows with interviewer speech: {len(peaks)}, max correlation {max_correlation:.3f} (echo if > {ECHO_THRESHOLD})")
+    report = {
+        "windows": len(peaks),
+        "maxCorrelation": max_correlation,
+        "threshold": ECHO_THRESHOLD,
+        "peaks": peaks,
+    }
+    text = (
+        f"windows with interviewer speech: {len(peaks)}, "
+        f"max correlation {max_correlation:.3f} (echo if > {ECHO_THRESHOLD})"
+    )
+    emit(report, args.json, text)
     return 0 if max_correlation < ECHO_THRESHOLD else 1
 
 

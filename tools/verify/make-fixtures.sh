@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Synthetic files with known properties, so the analysis scripts can be trusted.
 set -euo pipefail
 cd "$(dirname "$0")"
 mkdir -p fixtures
@@ -19,5 +20,7 @@ FLASH="drawbox=x=0:y=0:w=iw:h=ih:color=white:t=fill:enable='lt(mod(t\,1)\,0.066)
 
 "${FF[@]}" -f lavfi -i "testsrc2=s=720x1280:r=30:d=10" -f lavfi -i "sine=f=440:sample_rate=48000:d=10" \
   -c:v hevc_videotoolbox -b:v 3M -tag:v hvc1 -c:a aac -ac 1 fixtures/small.mov
+
+"${FF[@]}" -i fixtures/good.mov -itsoffset 0.08 -i fixtures/good.mov -map 0:v -map 1:a -c copy fixtures/late-audio.mov
 
 echo "fixtures ready: $(ls fixtures | tr '\n' ' ')"

@@ -1,3 +1,4 @@
+// Secrets only, so wrangler.jsonc names no account.
 interface Env {
   B2_S3_ENDPOINT: string;
   B2_BUCKET: string;

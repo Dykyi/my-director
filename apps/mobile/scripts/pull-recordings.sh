@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-cd "$(dirname "$0")/../../.."
-set -a && . ./.env.local && set +a
-: "${DEVICE:?Set DEVICE in .env.local to the iPhone identifier from: xcrun devicectl list devices}"
-BUNDLE_ID=$(cd apps/mobile && node --import tsx scripts/bundle-id.ts)
+source "$(dirname "$0")/device-env.sh"
 DESTINATION="pulled/${1:-$(date +%Y-%m-%d_%H-%M)}"
 mkdir -p "$DESTINATION"
 xcrun devicectl device copy from --device "$DEVICE" --domain-type appDataContainer \

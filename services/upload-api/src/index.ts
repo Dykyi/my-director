@@ -1,21 +1,31 @@
-import { isAuthorized } from './auth';
-import { completeUpload, createUpload, type Deps } from './handlers';
-import { S3Api } from './s3';
-import { InputError, parseComplete, parseCreate, parseKey } from './validation';
+import { isAuthorized } from './auth.ts';
+import { B2Storage } from './b2-storage.ts';
+import { completeUpload, createUpload, type Dependencies } from './handlers.ts';
+import { isNoSuchUpload } from './storage.ts';
+import { InputError, parseComplete, parseCreate, parseKey } from './validation.ts';
 
-function json(body: unknown, status = 200): Response {
-  return Response.json(body, { status });
+const json = (body: unknown, status = 200) => Response.json(body, { status });
+const noContent = () => new Response(null, { status: 204 });
+const notFound = (error = 'not found') => json({ error }, 404);
+
+function errorResponse(error: unknown): Response {
+  if (error instanceof InputError || error instanceof SyntaxError)
+    return json({ error: error.message }, 400);
+  console.error(error);
+  return json({ error: 'internal error' }, 500);
 }
 
-function requireKey(url: URL): string {
-  const key = url.searchParams.get('key');
-  if (!key) throw new InputError('key query parameter is required');
-  return key;
+function decodeUploadId(raw: string | undefined): string {
+  try {
+    return decodeURIComponent(raw ?? '');
+  } catch {
+    throw new InputError('upload id is not valid');
+  }
 }
 
-function depsFor(env: Env): Deps {
+function dependenciesFor(env: Env): Dependencies {
   return {
-    storage: new S3Api({
+    storage: new B2Storage({
       endpoint: env.B2_S3_ENDPOINT,
       bucket: env.B2_BUCKET,
       accessKeyId: env.B2_KEY_ID,
@@ -31,33 +41,41 @@ export default {
     const url = new URL(request.url);
     const [resource, rawUploadId, action] = url.pathname.split('/').filter(Boolean);
     try {
-      const deps = depsFor(env);
+      const dependencies = dependenciesFor(env);
+      const { storage } = dependencies;
       if (resource === 'objects' && request.method === 'DELETE' && rawUploadId === undefined) {
-        await deps.storage.deleteObject(parseKey(url.searchParams.get('key')));
-        return new Response(null, { status: 204 });
+        await storage.deleteObject(parseKey(url.searchParams.get('key')));
+        return noContent();
       }
-      if (resource !== 'uploads') return json({ error: 'not found' }, 404);
+      if (resource !== 'uploads') return notFound();
       if (request.method === 'POST' && rawUploadId === undefined) {
-        return json(await createUpload(parseCreate(await request.json()), deps));
+        return json(await createUpload(parseCreate(await request.json()), dependencies));
       }
-      const uploadId = decodeURIComponent(rawUploadId ?? '');
+      const uploadId = decodeUploadId(rawUploadId);
       if (request.method === 'POST' && action === 'complete') {
-        const result = await completeUpload(uploadId, parseComplete(await request.json()), deps);
+        const result = await completeUpload(
+          uploadId,
+          parseComplete(await request.json()),
+          dependencies,
+        );
         return json(result.body, result.status);
       }
       if (request.method === 'GET' && action === 'parts') {
-        return json({ parts: await deps.storage.listParts(requireKey(url), uploadId) });
+        const parts = await storage
+          .listParts(parseKey(url.searchParams.get('key')), uploadId)
+          .catch((error: unknown) => {
+            if (isNoSuchUpload(error)) return null;
+            throw error;
+          });
+        return parts ? json({ parts }) : notFound('upload not found');
       }
       if (request.method === 'DELETE' && action === undefined) {
-        await deps.storage.abortMultipartUpload(requireKey(url), uploadId);
-        return new Response(null, { status: 204 });
+        await storage.abortMultipartUpload(parseKey(url.searchParams.get('key')), uploadId);
+        return noContent();
       }
-      return json({ error: 'not found' }, 404);
+      return notFound();
     } catch (error) {
-      if (error instanceof InputError || error instanceof SyntaxError)
-        return json({ error: error.message }, 400);
-      console.error(error);
-      return json({ error: 'internal error' }, 500);
+      return errorResponse(error);
     }
   },
 } satisfies ExportedHandler<Env>;

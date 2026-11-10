@@ -1,5 +1,6 @@
 const encoder = new TextEncoder();
 
+// Compared in constant time, so the token cannot be guessed byte by byte from response timing.
 export function isAuthorized(request: Request, token: string | undefined): boolean {
   // Fail closed: a Worker deployed without its secret must not accept `Bearer undefined`.
   if (!token) return false;

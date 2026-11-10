@@ -6,7 +6,11 @@ import {
   TOKENS,
 } from '@mydirector/design-system';
 
-writeFileSync('src/theme/theme.css', renderThemeCss(TOKENS));
-writeFileSync('src/theme/colors.ts', renderThemeColors(TOKENS));
-writeFileSync('src/theme/type-styles.ts', renderTypeStyles(TOKENS));
-console.log('Updated src/theme/theme.css, colors.ts and type-styles.ts');
+const THEME_FILES = {
+  'src/theme/theme.css': renderThemeCss,
+  'src/theme/colors.ts': renderThemeColors,
+  'src/theme/type-styles.ts': renderTypeStyles,
+};
+
+for (const [file, render] of Object.entries(THEME_FILES)) writeFileSync(file, render(TOKENS));
+console.log(`Updated ${Object.keys(THEME_FILES).join(', ')}`);

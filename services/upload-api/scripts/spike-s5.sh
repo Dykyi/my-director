@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Checks that B2 takes presigned part PUTs bound to Content-MD5, rejects a corrupted part,
+# lists parts and lets the Worker complete and verify the object.
 set -euo pipefail
 cd "$(dirname "$0")/../../.."
 set -a && . apps/mobile/.env.local && set +a

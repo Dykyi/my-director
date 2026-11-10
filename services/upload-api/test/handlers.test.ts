@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { completeUpload, createUpload, PART_URL_TTL_SEC, type Deps } from '../src/handlers';
+import { completeUpload, createUpload, PART_URL_TTL_SEC, type Dependencies } from '../src/handlers';
+import { S3Error } from '../src/storage';
 
 const NOW = new Date('2026-11-10T09:00:00.000Z');
 const MD5 = 'rL0Y20zC+Fzt72VPzMSk2A==';
@@ -15,12 +16,12 @@ function deps(overrides: { size?: number | null; completeError?: Error } = {}) {
     completeMultipartUpload: vi.fn(async () => {
       if (overrides.completeError) throw overrides.completeError;
     }),
-    head: vi.fn(async () => (size === null ? null : { size, etag: 'final' })),
+    headObject: vi.fn(async () => (size === null ? null : { size, etag: 'final' })),
     listParts: vi.fn(async () => []),
     abortMultipartUpload: vi.fn(async () => {}),
     deleteObject: vi.fn(async () => {}),
   };
-  return { storage, now: () => NOW } satisfies Deps;
+  return { storage, now: () => NOW } satisfies Dependencies;
 }
 
 describe('createUpload', () => {
@@ -73,9 +74,16 @@ describe('completeUpload', () => {
     const result = await completeUpload(
       'upload-1',
       input,
-      deps({ completeError: new Error('NoSuchUpload') }),
+      deps({ completeError: new S3Error('CompleteMultipartUpload', 404, 'NoSuchUpload') }),
     );
     expect(result.status).toBe(200);
+  });
+
+  it('rethrows any other failure, even when an object of that size exists', async () => {
+    const invalidPart = new S3Error('CompleteMultipartUpload', 400, 'InvalidPart');
+    await expect(
+      completeUpload('upload-1', input, deps({ completeError: invalidPart })),
+    ).rejects.toBe(invalidPart);
   });
 
   it('rethrows when completing failed and nothing was stored', async () => {
