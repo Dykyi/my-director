@@ -8,12 +8,12 @@ yarn.lock
 package-lock.json
 evidence
 pulled
-tools/upload-api/.wrangler
+services/upload-api/.wrangler
 *.md
 # Generated: yarn tokens writes the theme files (the theme test compares them byte for byte), Metro writes the Uniwind types.
-src/theme/colors.ts
-src/theme/type-styles.ts
-src/theme/theme.css
-src/uniwind-types.d.ts
+apps/mobile/src/theme/colors.ts
+apps/mobile/src/theme/type-styles.ts
+apps/mobile/src/theme/theme.css
+apps/mobile/src/uniwind-types.d.ts
 # Written by the Storybook Metro plugin on every start.
-.rnstorybook/storybook.requires.ts
+apps/mobile/.rnstorybook/storybook.requires.ts

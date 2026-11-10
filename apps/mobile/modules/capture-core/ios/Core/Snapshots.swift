@@ -1,0 +1,102 @@
+import Foundation
+
+struct SessionSnapshot: Codable, Equatable, Sendable {
+  var phase: SessionPhase
+  var sessionId: String?
+  var startedAt: Date?
+  var segmentIndex: Int
+  var recordedSec: Double
+  var pauseReason: PauseReason?
+  var activeInterruptions: [InterruptionSource]
+  var call: CallStatus
+  var thermal: ThermalLevel
+  var error: CaptureError?
+  var warnings: [CaptureWarning]
+
+  init(state: SessionState, recordedSec: Double) {
+    phase = state.phase
+    sessionId = state.sessionId
+    startedAt = state.startedAt
+    segmentIndex = state.segmentIndex
+    self.recordedSec = recordedSec
+    pauseReason = state.pauseReason
+    activeInterruptions = state.interruptions.sorted()
+    call = state.call
+    thermal = state.thermal
+    error = state.error
+    warnings = state.warnings.values.sorted { ($0.since, $0.code.rawValue) < ($1.since, $1.code.rawValue) }
+  }
+}
+
+enum SystemPressureLevel: String, Codable, Sendable { case nominal, fair, serious, critical, shutdown }
+
+struct AudioRoute: Codable, Equatable, Sendable {
+  struct Port: Equatable, Sendable {
+    var name: String
+    var type: String
+  }
+
+  static let noPort = "none"
+  static let unknown = AudioRoute(input: noPort, output: noPort)
+
+  var input: String
+  var output: String
+}
+
+extension AudioRoute {
+  init(inputs: [Port], outputs: [Port]) {
+    self.init(input: Self.describe(inputs), output: Self.describe(outputs))
+  }
+
+  /// iOS can list more than one port on a side; they keep its order.
+  private static func describe(_ ports: [Port]) -> String {
+    ports.isEmpty ? noPort : ports.map { "\($0.name) (\($0.type))" }.joined(separator: " + ")
+  }
+}
+
+struct HealthSnapshot: Codable, Equatable, Sendable {
+  struct Camera: Codable, Equatable, Sendable {
+    var fps: Double
+    var width: Int
+    var height: Int
+  }
+
+  enum WriterState: String, Codable, Sendable { case idle, writing, finishing, failed }
+
+  struct File: Codable, Equatable, Sendable {
+    var fps: Double
+    var droppedFrames: Int
+    var bytes: Int64
+    var segmentSec: Double
+    var writer: WriterState
+  }
+
+  struct Audio: Codable, Equatable, Sendable {
+    var levelDb: Double
+    var lastBufferAgeMs: Double
+    var driftMs: Double
+    var resyncCount: Int
+    var sampleRate: Double
+  }
+
+  enum QualityLimitation: String, Codable, Sendable { case none, cpu, bandwidth, other }
+
+  struct Call: Codable, Equatable, Sendable {
+    var sentWidth: Int
+    var sentHeight: Int
+    var sentFps: Double
+    var bitrateKbps: Double
+    var droppedFrames: Int
+    var qualityLimitation: QualityLimitation
+  }
+
+  var at: Date
+  var camera: Camera
+  var file: File
+  var audio: Audio
+  var call: Call
+  var thermal: ThermalLevel
+  var systemPressure: SystemPressureLevel
+  var audioRoute: AudioRoute
+  var diskFreeBytes: Int64
+}

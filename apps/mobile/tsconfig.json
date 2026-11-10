@@ -1,0 +1,17 @@
+{
+  "extends": ["expo/tsconfig.base", "../../tsconfig.base.json"],
+  "compilerOptions": {
+    "paths": {
+      "@app/*": ["./src/app/*"],
+      "@assets/*": ["./assets/*"],
+      "@config/*": ["./src/config/*"],
+      "@features/*": ["./src/features/*"],
+      "@modules/*": ["./modules/*"],
+      "@shared/*": ["./src/shared/*"],
+      "@test/*": ["./src/test/*"],
+      "@theme/*": ["./src/theme/*"],
+      "@ui/*": ["./src/ui/*"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx", ".rnstorybook/**/*.ts", ".rnstorybook/**/*.tsx"]
+}

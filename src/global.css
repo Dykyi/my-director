@@ -1,5 +1,0 @@
-@import 'tailwindcss';
-@import 'uniwind';
-@import './theme/theme.css';
-
-@source '../.rnstorybook';
