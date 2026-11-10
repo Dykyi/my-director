@@ -22,7 +22,7 @@ const recording: CaptureConfig['recording'] = {
   videoBitrate: 6_000_000,
   keyFrameIntervalSec: 1,
   audioBitrate: 128_000,
-  fragmentIntervalSec: 2,
+  fragmentIntervalSec: 1,
   initialFragmentIntervalSec: 1,
 };
 const profiles = {

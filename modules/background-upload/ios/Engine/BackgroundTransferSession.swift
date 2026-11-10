@@ -1,4 +1,4 @@
-import Foundation
+import UIKit
 
 @MainActor
 protocol BackgroundTransferDelegate: AnyObject {
@@ -13,9 +13,15 @@ final class BackgroundTransferSession: NSObject, URLSessionDataDelegate {
   private static let resourceTimeoutSec: TimeInterval = 24 * 60 * 60
   private static let connectionsPerHost = 4
 
+  private struct PromptRequest {
+    var task: Task<Void, Never>
+    var backgroundTask: UIBackgroundTaskIdentifier
+  }
+
   weak var delegate: BackgroundTransferDelegate?
   private var responseBodies: [Int: Data] = [:]
   private var lastTotalBytesSent: [Int: Int64] = [:]
+  private var promptRequests: [String: PromptRequest] = [:]
 
   private lazy var session: URLSession = {
     let configuration = URLSessionConfiguration.background(withIdentifier: Self.identifier)
@@ -42,6 +48,26 @@ final class BackgroundTransferSession: NSObject, URLSessionDataDelegate {
     task.resume()
   }
 
+  func uploadPromptly(_ request: URLRequest, fromFile file: URL, tag: TaskTag, delaySec: Double) -> Bool {
+    guard delaySec == 0, UIApplication.shared.applicationState == .background else {
+      upload(request, fromFile: file, tag: tag, delaySec: delaySec)
+      return false
+    }
+    let name = tag.taskDescription
+    let backgroundTask = UIApplication.shared.beginBackgroundTask(withName: name) { [weak self] in
+      guard let self, let task = endPromptRequest(name) else { return }
+      task.cancel()
+      upload(request, fromFile: file, tag: tag, delaySec: 0)
+    }
+    let task = Task {
+      let (status, body, error) = await Self.send(request, fromFile: file)
+      guard endPromptRequest(name) != nil else { return }
+      delegate?.transfer(tag, finishedWith: status, etag: nil, body: body, error: error)
+    }
+    promptRequests[name] = PromptRequest(task: task, backgroundTask: backgroundTask)
+    return true
+  }
+
   func liveTags() async -> [TaskTag] {
     await session.allTasks
       .filter { $0.state != .canceling && ($0.error as? URLError)?.code != .cancelled }
@@ -51,6 +77,24 @@ final class BackgroundTransferSession: NSObject, URLSessionDataDelegate {
   func cancelTasks(of jobId: String) async {
     for task in await session.allTasks where TaskTag(task.taskDescription)?.jobId == jobId {
       task.cancel()
+    }
+    for name in promptRequests.keys where TaskTag(name)?.jobId == jobId {
+      endPromptRequest(name)?.cancel()
+    }
+  }
+
+  private func endPromptRequest(_ name: String) -> Task<Void, Never>? {
+    guard let request = promptRequests.removeValue(forKey: name) else { return nil }
+    UIApplication.shared.endBackgroundTask(request.backgroundTask)
+    return request.task
+  }
+
+  private static func send(_ request: URLRequest, fromFile file: URL) async -> (status: Int?, body: Data, error: Error?) {
+    do {
+      let (body, response) = try await URLSession.shared.upload(for: request, fromFile: file)
+      return ((response as? HTTPURLResponse)?.statusCode, body, nil)
+    } catch {
+      return (nil, Data(), error)
     }
   }
 

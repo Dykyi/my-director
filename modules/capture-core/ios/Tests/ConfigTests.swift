@@ -108,7 +108,7 @@ struct ConfigValidatorTests {
   }
 
   @Test func fileStallMustExceedTwoFragments() {
-    #expect(problems { $0.health.fileStallMs = 4000 }.contains { $0.hasPrefix("health.fileStallMs") })
+    #expect(problems { $0.health.fileStallMs = 2 * $0.recording.fragmentIntervalSec * 1000 }.contains { $0.hasPrefix("health.fileStallMs") })
   }
 
   @Test func micRestartGraceMustCoverTheAudioStall() {

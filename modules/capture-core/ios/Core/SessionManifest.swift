@@ -53,6 +53,7 @@ struct SessionManifest: Codable, Equatable, Sendable {
   var heartbeatAt: Date?
   var lastVideoSec: Double?
   var acknowledgedAt: Date?
+  var recoveryLoss: RecoveryLoss?
 
   var recordedSec: Double { segments.compactMap(\.durationSec).reduce(0, +) }
   var totalBytes: Int64 { segments.compactMap(\.bytes).reduce(0, +) }

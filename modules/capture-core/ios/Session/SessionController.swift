@@ -210,6 +210,11 @@ final class SessionController {
         "unplayable": String(report.segments.filter { $0.state == .unplayable }.count),
       ])
     }
+    for manifest in scan.manifests {
+      if let pending = Recovery.pendingReport(manifest, directory: store.directory(for: manifest.id)) {
+        recoveryReports.append(pending)
+      }
+    }
     if !recoveryReports.isEmpty { onRecoveryFound?(recoveryReports) }
   }
 

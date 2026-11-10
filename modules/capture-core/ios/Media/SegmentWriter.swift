@@ -155,8 +155,9 @@ final class SegmentWriter: @unchecked Sendable {
     case .writing:
       break
     }
-    state = .finished
     let end = lastVideoTime + frameDuration
+    padAudioTail(to: end.seconds)
+    state = .finished
     writer.endSession(atSourceTime: end)
     videoInput.markAsFinished()
     audioInput.markAsFinished()
@@ -166,6 +167,13 @@ final class SegmentWriter: @unchecked Sendable {
     }
     let bytes = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize).flatMap { $0 } ?? 0
     return .finalized(durationSec: (end - firstVideoTime).seconds, bytes: Int64(bytes))
+  }
+
+  private func padAudioTail(to videoEnd: Double) {
+    let frames = AudioTail.silenceFrames(
+      audioEnd: audioEnd, videoEnd: videoEnd, segmentStart: firstVideoTime.seconds, sampleRate: audioSampleRate)
+    guard frames > 0, let silence = try? audioFactory.makeSilence(frameCount: frames, presentationTime: audioEnd) else { return }
+    if case .appended = append(audio: silence) { audioEnd = videoEnd }
   }
 
   private func append(audio buffer: CMSampleBuffer) -> AppendResult {

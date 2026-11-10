@@ -11,7 +11,7 @@ const config: CaptureConfig = {
     videoBitrate: 6_000_000,
     keyFrameIntervalSec: 1,
     audioBitrate: 128_000,
-    fragmentIntervalSec: 2,
+    fragmentIntervalSec: 1,
     initialFragmentIntervalSec: 1,
   },
   call: {
@@ -33,7 +33,7 @@ const config: CaptureConfig = {
     connectTimeoutSec: 15,
   },
   audio: { noiseSuppression: true, autoGainControl: true, resyncThresholdMs: 40 },
-  session: { resumePolicy: 'manual', heartbeatIntervalSec: 1, resumeTimeoutMs: 3_000 },
+  session: { resumePolicy: 'manual', heartbeatIntervalSec: 0.5, resumeTimeoutMs: 3_000 },
   health: {
     videoStallMs: 1_000,
     audioStallMs: 1_000,
@@ -75,7 +75,7 @@ describe('settingsGroups', () => {
       ['Video', 'HEVC · 6 Mbit/s'],
       ['Keyframe', 'every 1 s'],
       ['Audio', 'AAC 48 kHz mono · 128 kbit/s'],
-      ['Saved to disk', 'every 2 s (first 1 s)'],
+      ['Saved to disk', 'every 1 s'],
       ['Free space', '2 GB to start · warn at 1 GB'],
     ]));
 
@@ -126,5 +126,15 @@ describe('settingsGroups', () => {
           channel: 'production',
         }),
       ).toBe('update 0195b3c4 · production'));
+  });
+});
+
+describe('saved to disk', () => {
+  it('names the first fragment when it is shorter', () => {
+    const slow = { ...config, recording: { ...config.recording, fragmentIntervalSec: 2 } };
+    const fileRows = settingsGroups(slow, about, call).find((group) => group.id === 'file')?.rows;
+    expect(fileRows?.find((row) => row.label === 'Saved to disk')?.value).toBe(
+      'every 2 s (first 1 s)',
+    );
   });
 });

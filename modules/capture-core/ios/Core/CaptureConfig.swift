@@ -127,7 +127,7 @@ struct CaptureConfig: Codable, Equatable, Sendable {
       videoBitrate: 6_000_000,
       keyFrameIntervalSec: 1,
       audioBitrate: 128_000,
-      fragmentIntervalSec: 2,
+      fragmentIntervalSec: 1,
       initialFragmentIntervalSec: 1
     ),
     call: Call(
@@ -144,7 +144,7 @@ struct CaptureConfig: Codable, Equatable, Sendable {
       connectTimeoutSec: 15
     ),
     audio: Audio(noiseSuppression: true, autoGainControl: true, resyncThresholdMs: 40),
-    session: Session(resumePolicy: .manual, heartbeatIntervalSec: 1, resumeTimeoutMs: 3000),
+    session: Session(resumePolicy: .manual, heartbeatIntervalSec: 0.5, resumeTimeoutMs: 3000),
     health: Health(videoStallMs: 1000, audioStallMs: 500, fileStallMs: 5000, micRestartGraceMs: 3000),
     storage: Storage(minFreeSpaceToStartMB: 2048, lowSpaceWarningMB: 1024, criticalFreeSpaceMB: 300)
   )

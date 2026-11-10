@@ -56,6 +56,16 @@ function processing({ noiseSuppression, autoGainControl }: CaptureConfig['audio'
     .join(' · ');
 }
 
+function savedToDisk({
+  fragmentIntervalSec,
+  initialFragmentIntervalSec,
+}: CaptureConfig['recording']) {
+  const every = `every ${fragmentIntervalSec} s`;
+  return initialFragmentIntervalSec === fragmentIntervalSec
+    ? every
+    : `${every} (first ${initialFragmentIntervalSec} s)`;
+}
+
 function updateText({ enabled, embedded, updateId, channel }: UpdateInfo): string {
   if (!enabled) return 'Off';
   const source =
@@ -95,10 +105,7 @@ export function settingsGroups(
           label: 'Audio',
           value: `${AUDIO_FORMAT} · ${recording.audioBitrate / BITS_PER_KBIT} kbit/s`,
         },
-        {
-          label: 'Saved to disk',
-          value: `every ${recording.fragmentIntervalSec} s (first ${recording.initialFragmentIntervalSec} s)`,
-        },
+        { label: 'Saved to disk', value: savedToDisk(recording) },
         {
           label: 'Free space',
           value: `${gigabytes(storage.minFreeSpaceToStartMB)} to start · warn at ${gigabytes(storage.lowSpaceWarningMB)}`,

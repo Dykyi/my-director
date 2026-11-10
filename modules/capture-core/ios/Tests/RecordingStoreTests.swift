@@ -82,6 +82,19 @@ struct RecoveryTests {
     #expect(report.segments.last?.failure == "moov missing")
   }
 
+  @Test func recoveryIsOfferedAgainUntilAcknowledged() {
+    let inspection = SegmentInspection(playable: true, durationSec: 151.0, bytes: 114_000_000, failureReason: nil)
+    let directory = Fixtures.temporaryDirectory()
+    var (manifest, report) = Recovery.recover(crashedManifest(), inspections: [2: inspection], directory: directory)
+    #expect(Recovery.pendingReport(manifest, directory: directory) == report)
+    manifest.acknowledgedAt = Fixtures.createdAt
+    #expect(Recovery.pendingReport(manifest, directory: directory) == nil)
+  }
+
+  @Test func finishedSessionIsNeverOffered() {
+    #expect(Recovery.pendingReport(Fixtures.manifest(), directory: Fixtures.temporaryDirectory()) == nil)
+  }
+
   @Test func sessionPausedAtCrashLostNothing() {
     var manifest = Fixtures.manifest()
     manifest.openSegment(index: 1, at: Fixtures.createdAt)

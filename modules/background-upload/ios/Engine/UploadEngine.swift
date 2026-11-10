@@ -234,8 +234,9 @@ final class UploadEngine: BackgroundTransferDelegate {
         let body = store.completeURL(for: job.id)
         try store.write(UploadCoding.encoder().encode(job.completeRequest), to: body)
         let request = try UploadApiClient(api: job.api).completeRequest(uploadId: uploadId)
-        transfers.upload(request, fromFile: body, tag: TaskTag(jobId: job.id, kind: .complete(attempt: job.completeAttempt)), delaySec: delaySec)
-        log.append(job.id, "complete.started", ["attempt": "\(job.completeAttempt)", "delaySec": "\(delaySec)"])
+        let tag = TaskTag(jobId: job.id, kind: .complete(attempt: job.completeAttempt))
+        let regularSession = transfers.uploadPromptly(request, fromFile: body, tag: tag, delaySec: delaySec)
+        log.append(job.id, "complete.started", ["attempt": "\(job.completeAttempt)", "delaySec": "\(delaySec)", "regularSession": "\(regularSession)"])
       } catch {
         Task { apply(.completeFinished(status: nil, response: nil, error: error.localizedDescription), to: job.id) }
       }
