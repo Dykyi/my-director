@@ -6,10 +6,10 @@ import { Text } from './text';
 export type SegmentOption<T extends string> = { value: T; label: string };
 
 const TRACK =
-  'flex-row self-end rounded-[9px] border border-border border-continuous bg-background p-0.5';
+  'flex-row self-end rounded-segmented border border-border border-continuous bg-background p-0.5';
 
 const segment = cva(
-  'h-8 min-w-19 items-center justify-center rounded-[7px] border-continuous px-3',
+  'h-8 min-w-19 items-center justify-center rounded-segment border-continuous px-3',
   {
     variants: { selected: { true: '' }, locked: { true: '' } },
     compoundVariants: [

@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import { Button } from '@ui/button';
 import { Chip } from '@ui/chip';
 import { QualityChip } from '@ui/quality-chip';
+import { StatusDot } from '@ui/status-dot';
 import { Text } from '@ui/text';
 
 import type { ConnectionView } from '../room-labels';
@@ -20,11 +21,7 @@ export function ConnectionCard({
   return (
     <RoomCard>
       <View className="flex-row items-center gap-2.5">
-        {view.live ? (
-          <View className="size-2.5 rounded-pill bg-success" />
-        ) : (
-          <View className="size-2.5 rounded-pill border-[1.5px] border-muted" />
-        )}
+        <StatusDot tone={view.live ? 'live' : 'idle'} />
         <View className="flex-1 gap-0.5">
           <Text variant="row-title" className="text-foreground">
             {view.title}

@@ -1,3 +1,4 @@
+// Written by `yarn tokens` from packages/design-system/tokens.json. Do not edit.
 import type { TextStyle } from 'react-native';
 
 export const TYPE_STYLES = {

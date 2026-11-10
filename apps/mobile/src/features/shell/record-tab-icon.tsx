@@ -3,7 +3,8 @@ import { View } from 'react-native';
 
 import { cn } from '@ui/cn';
 import { Icon } from '@ui/icon';
-import { PauseMark, type PillTone } from '@ui/status-pill';
+import { PauseMark } from '@ui/status-dot';
+import type { PillTone } from '@ui/status-pill';
 
 const centre = cva('size-2 rounded-pill', {
   variants: { selected: { true: 'bg-accent', false: 'bg-muted' }, recording: { true: '' } },

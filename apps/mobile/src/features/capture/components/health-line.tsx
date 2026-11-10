@@ -3,6 +3,7 @@ import { Pressable, View } from 'react-native';
 
 import { cn } from '@ui/cn';
 import { Icon } from '@ui/icon';
+import { StatusDot } from '@ui/status-dot';
 import { Text } from '@ui/text';
 
 import type { HealthLineView } from '../session-issues';
@@ -37,7 +38,7 @@ export function HealthLine({ view, onPress }: { view: HealthLineView; onPress: (
   if (view.tone === 'quiet') {
     return (
       <View className={row({ tone: 'quiet' })}>
-        <View className="size-2.5 rounded-pill border-[1.5px] border-muted" />
+        <StatusDot tone="idle" />
         <Text variant="footnote" className="text-subtle">
           {view.text}
         </Text>
@@ -52,7 +53,7 @@ export function HealthLine({ view, onPress }: { view: HealthLineView; onPress: (
         onPress={onPress}
         className={row({ tone: 'ok' })}
       >
-        <View className="size-2.5 rounded-pill bg-success" />
+        <StatusDot tone="live" />
         <Text variant="footnote" className="text-subtle">
           {view.text}
         </Text>

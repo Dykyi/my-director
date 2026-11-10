@@ -1,7 +1,7 @@
 import { cx } from 'class-variance-authority';
 import { extendTailwindMerge } from 'tailwind-merge';
 
-const RADII = ['bar', 'chip', 'tag', 'pill'];
+const RADII = ['tick', 'bar', 'chip', 'segment', 'tag', 'segmented', 'pill'];
 
 const twMerge = extendTailwindMerge<'border-curve'>({
   extend: {

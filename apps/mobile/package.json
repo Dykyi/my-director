@@ -61,6 +61,7 @@
   },
   "devDependencies": {
     "@jest/globals": "~29.7.0",
+    "@mydirector/design-system": "workspace:^",
     "@react-native/jest-preset": "0.86.3",
     "@storybook/addon-ondevice-actions": "^10.6",
     "@storybook/addon-ondevice-controls": "^10.6",

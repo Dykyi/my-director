@@ -1,6 +1,7 @@
 {
   "extends": ["expo/tsconfig.base", "../../tsconfig.base.json"],
   "compilerOptions": {
+    "allowImportingTsExtensions": true,
     "paths": {
       "@app/*": ["./src/app/*"],
       "@assets/*": ["./assets/*"],

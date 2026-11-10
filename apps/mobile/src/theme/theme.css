@@ -1,3 +1,4 @@
+/* Written by `yarn tokens` from packages/design-system/tokens.json. Do not edit. */
 @layer theme {
   :root {
     @variant dark {
@@ -18,6 +19,8 @@
       --color-accent: #9cc2ff;
       --color-accent-pressed: #c7dcff;
       --color-accent-soft: #10223f;
+      --color-participant: #c9b6ff;
+      --color-participant-soft: #2a2140;
       --color-record: #d13438;
       --color-on-record: #ffffff;
       --color-recording: #ff8a8e;
@@ -63,6 +66,8 @@
       --color-accent: #1d5bb8;
       --color-accent-pressed: #174a96;
       --color-accent-soft: #d3e1f6;
+      --color-participant: #5a3ea6;
+      --color-participant-soft: #e2daf5;
       --color-record: #c42d32;
       --color-on-record: #ffffff;
       --color-recording: #a8242a;
@@ -94,9 +99,12 @@
 }
 
 @theme {
+  --radius-tick: 1px;
   --radius-bar: 3px;
   --radius-chip: 6px;
+  --radius-segment: 7px;
   --radius-tag: 8px;
+  --radius-segmented: 9px;
   --radius-sm: 10px;
   --radius-md: 12px;
   --radius-lg: 14px;

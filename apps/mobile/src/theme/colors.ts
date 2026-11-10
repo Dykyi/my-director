@@ -1,3 +1,4 @@
+// Written by `yarn tokens` from packages/design-system/tokens.json. Do not edit.
 export const THEME_COLORS = {
   dark: {
     'background': '#0b0d10',
@@ -17,6 +18,8 @@ export const THEME_COLORS = {
     'accent': '#9cc2ff',
     'accent-pressed': '#c7dcff',
     'accent-soft': '#10223f',
+    'participant': '#c9b6ff',
+    'participant-soft': '#2a2140',
     'record': '#d13438',
     'on-record': '#ffffff',
     'recording': '#ff8a8e',
@@ -62,6 +65,8 @@ export const THEME_COLORS = {
     'accent': '#1d5bb8',
     'accent-pressed': '#174a96',
     'accent-soft': '#d3e1f6',
+    'participant': '#5a3ea6',
+    'participant-soft': '#e2daf5',
     'record': '#c42d32',
     'on-record': '#ffffff',
     'recording': '#a8242a',

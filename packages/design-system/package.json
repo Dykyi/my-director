@@ -1,0 +1,17 @@
+{
+  "name": "@mydirector/design-system",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tokens.json": "./tokens.json"
+  },
+  "scripts": {
+    "test": "node --test 'src/*.test.ts'",
+    "typecheck": "tsc -p ."
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "~6.0.3"
+  }
+}

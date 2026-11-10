@@ -1,7 +1,7 @@
 import { cva, type VariantProps } from 'class-variance-authority';
 import { View } from 'react-native';
 
-import { cn } from './cn';
+import { PauseMark, StatusDot } from './status-dot';
 import { Text } from './text';
 
 const pill = cva('flex-row items-center gap-1.5 rounded-pill px-2.5 py-1', {
@@ -26,21 +26,12 @@ const pillText = cva('', {
   },
 });
 
-export function PauseMark({ barClassName }: { barClassName: string }) {
-  return (
-    <View className="h-2.5 flex-row gap-0.5">
-      <View className={cn('w-0.75 rounded-[1px]', barClassName)} />
-      <View className={cn('w-0.75 rounded-[1px]', barClassName)} />
-    </View>
-  );
-}
-
 function Mark({ tone }: { tone: PillTone }) {
   switch (tone) {
     case 'neutral':
-      return <View className="size-2.5 rounded-pill border-[1.5px] border-muted" />;
+      return <StatusDot tone="idle" />;
     case 'recording':
-      return <View className="size-2.5 rounded-pill bg-recording-dot" />;
+      return <StatusDot tone="recording" />;
     case 'paused':
       return <PauseMark barClassName="bg-paused" />;
   }

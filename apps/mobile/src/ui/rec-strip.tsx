@@ -1,7 +1,7 @@
 import { cva, type VariantProps } from 'class-variance-authority';
-import { Pressable, View } from 'react-native';
+import { Pressable } from 'react-native';
 
-import { PauseMark } from './status-pill';
+import { PauseMark, StatusDot } from './status-dot';
 import { Text } from './text';
 
 const strip = cva('h-10 flex-row items-center gap-2 px-4 active:opacity-70', {
@@ -48,11 +48,7 @@ export function RecStrip({
       onPress={onPress}
       className={strip({ tone })}
     >
-      {tone === 'paused' ? (
-        <PauseMark barClassName="bg-paused" />
-      ) : (
-        <View className="size-2.5 rounded-pill bg-recording-dot" />
-      )}
+      {tone === 'paused' ? <PauseMark barClassName="bg-paused" /> : <StatusDot tone="recording" />}
       <Text variant="footnote-strong" className={stripText({ tone })}>
         {label}
       </Text>
