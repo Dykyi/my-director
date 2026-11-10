@@ -11,7 +11,7 @@
     "",
     "^@modules/(.*)$",
     "",
-    "^@(assets|config|features|shared|test|theme|ui)/(.*)$",
+    "^@(app|assets|config|features|shared|test|theme|ui)/(.*)$",
     "",
     "^[.]"
   ],

@@ -2,11 +2,12 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import type { RecordingSummary } from '@modules/capture-core';
 
-import { formatBytes } from '../format';
-import { ActionButton } from './action-button';
+import { ActionButton } from '@features/capture/components/action-button';
+import { SymbolIcon } from '@features/capture/components/symbol-icon';
+import { colors, gutter, mono } from '@features/capture/components/theme';
+import { formatBytes } from '@shared/format';
+
 import { RecordingCard, type RecordingCardProps } from './recording-card';
-import { SymbolIcon } from './symbol-icon';
-import { colors, gutter, mono } from './theme';
 
 type CardHandlers = Omit<RecordingCardProps, 'recording' | 'isActive'>;
 

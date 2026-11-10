@@ -1,21 +1,24 @@
-import { useEffect, useEffectEvent } from 'react';
+import { useEffect, useEffectEvent, useState } from 'react';
 import { Linking } from 'react-native';
 
 import { BackgroundUpload } from '@modules/background-upload';
 import { CaptureCore } from '@modules/capture-core';
 
-import { formatLogLine } from '../capture/format';
-import { describeUpload } from '../upload/upload-format';
-import { formatHealthLine, formatRoomLine } from './remote-format';
+import { describeUpload } from '@features/upload/upload-format';
+import { formatLogLine } from '@shared/format';
 
-const STAND_LINK = /:\/\/stand\/([\w-]+)$/;
+import { formatHealthLine, formatRoomLine } from './remote-format';
+import { standAction } from './stand-routes';
+
 const HEALTH_LOG_INTERVAL_MS = 10_000;
 
 export type RemoteCommands = Readonly<Record<string, () => unknown>>;
 
 export function useRemoteControl(commands: RemoteCommands) {
+  const [lastCommand, setLastCommand] = useState<{ name: string; at: string }>();
+
   const perform = useEffectEvent(async (url: string) => {
-    const name = STAND_LINK.exec(url)?.[1];
+    const name = standAction(url);
     if (name === undefined) return;
     const command = commands[name];
     if (!command) {
@@ -23,6 +26,7 @@ export function useRemoteControl(commands: RemoteCommands) {
       return;
     }
     console.log(`stand: ${name}`);
+    setLastCommand({ name, at: new Date().toISOString() });
     try {
       await command();
     } catch (error) {
@@ -55,4 +59,6 @@ export function useRemoteControl(commands: RemoteCommands) {
     ];
     return () => subscriptions.forEach((subscription) => subscription.remove());
   }, []);
+
+  return { lastCommand };
 }

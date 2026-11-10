@@ -2,6 +2,7 @@ import type { UploadApi } from '@modules/background-upload';
 import type { CallCredentials } from '@modules/capture-core';
 
 import { readEnv } from './env-schema';
+import { tokenGrant, type CallTarget } from './token-grant';
 
 export const env = readEnv({
   EXPO_PUBLIC_LIVEKIT_URL: process.env.EXPO_PUBLIC_LIVEKIT_URL,
@@ -18,4 +19,9 @@ export const callCredentials: CallCredentials = {
 export const uploadApi: UploadApi = {
   baseUrl: env.EXPO_PUBLIC_UPLOAD_API_URL,
   token: env.EXPO_PUBLIC_UPLOAD_API_TOKEN,
+};
+
+export const callTarget: CallTarget = {
+  serverUrl: callCredentials.url,
+  ...tokenGrant(callCredentials.token),
 };

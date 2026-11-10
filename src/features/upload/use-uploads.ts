@@ -5,8 +5,8 @@ import { BackgroundUpload, type UploadSnapshot } from '@modules/background-uploa
 import type { RecordingSummary, SegmentState, SegmentSummary } from '@modules/capture-core';
 
 import { uploadApi } from '@config/env';
+import { describeError } from '@features/capture/use-capture-session';
 
-import { describeError } from '../capture/use-capture-session';
 import { ACTIVE_UPLOAD, needsUpload, segmentObjectKey } from './upload-format';
 
 const UPLOADABLE: ReadonlySet<SegmentState> = new Set(['finalized', 'recovered']);

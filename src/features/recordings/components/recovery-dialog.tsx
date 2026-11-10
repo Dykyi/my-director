@@ -2,11 +2,10 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import type { RecoveryReport, SegmentState } from '@modules/capture-core';
 
-import { formatDuration, formatLoss, formatSessionTime } from '../format';
-import { plural } from '../session-labels';
-import { ActionButton } from './action-button';
-import { SymbolIcon } from './symbol-icon';
-import { colors, gutter, mono } from './theme';
+import { ActionButton } from '@features/capture/components/action-button';
+import { SymbolIcon } from '@features/capture/components/symbol-icon';
+import { colors, gutter, mono } from '@features/capture/components/theme';
+import { formatDuration, formatLoss, formatSessionTime, plural } from '@shared/format';
 
 const PLAYABLE: ReadonlySet<SegmentState> = new Set(['finalized', 'recovered']);
 

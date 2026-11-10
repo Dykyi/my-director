@@ -2,8 +2,8 @@ import { ScrollView, Text } from 'react-native';
 
 import type { LogEntry, LogLevel } from '@modules/capture-core';
 
-import { formatLogLine } from '../format';
-import { colors, gutter, mono } from './theme';
+import { colors, gutter, mono } from '@features/capture/components/theme';
+import { formatLogLine } from '@shared/format';
 
 const LEVEL_COLOR: Record<LogLevel, string> = {
   debug: colors.muted,

@@ -5,15 +5,13 @@ import type {
   SessionSnapshot,
 } from '@modules/capture-core';
 
-import { formatBytes } from './format';
-import { participantNames, type Tone } from './session-labels';
+import { sendingText } from '@features/capture/call-labels';
+import { litBars, participantNames, type Tone } from '@features/capture/session-labels';
+import { formatBytes } from '@shared/format';
 
 export type HealthRow = { label: string; value: string; tone: Tone; meterBars?: number };
 
-export const METER_BARS = 5;
-const METER_FLOOR_DB = -60;
 const MIC_SILENT_AFTER_MS = 1_000;
-const KBPS_PER_MBPS = 1_000;
 const MS_PER_SEC = 1_000;
 const BLUETOOTH_PORT = 'Bluetooth';
 const HOT: ReadonlySet<HealthSnapshot['thermal']> = new Set(['serious', 'critical']);
@@ -22,11 +20,6 @@ const RECORDING_PHASES: ReadonlySet<SessionPhase> = new Set(['recording', 'resum
 function signed(value: number): string {
   const rounded = Math.round(value);
   return rounded > 0 ? `+${rounded}` : `${rounded}`;
-}
-
-function meterBars(levelDb: number): number {
-  const ratio = Math.min(1, Math.max(0, (levelDb - METER_FLOOR_DB) / -METER_FLOOR_DB));
-  return Math.ceil(ratio * METER_BARS);
 }
 
 function audioRow({ audio }: HealthSnapshot, phase: SessionPhase): HealthRow {
@@ -43,7 +36,7 @@ function audioRow({ audio }: HealthSnapshot, phase: SessionPhase): HealthRow {
     label: 'Audio',
     value: `${audio.levelDb.toFixed(0)} dB  drift ${signed(audio.driftMs)} ms${audio.resyncCount > 0 ? `  resync ${audio.resyncCount}` : ''}`,
     tone: 'normal',
-    meterBars: meterBars(audio.levelDb),
+    meterBars: litBars(audio.levelDb),
   };
 }
 
@@ -66,8 +59,8 @@ function fileRow({ file }: HealthSnapshot): HealthRow {
 }
 
 function callRow({ call }: HealthSnapshot): HealthRow {
-  if (call.sentWidth === 0) return { label: 'Call', value: 'not sending', tone: 'muted' };
-  const sent = `${call.sentWidth}×${call.sentHeight} ${call.sentFps.toFixed(0)} fps ${(call.bitrateKbps / KBPS_PER_MBPS).toFixed(1)} Mbps`;
+  const sent = sendingText(call);
+  if (sent === undefined) return { label: 'Call', value: 'not sending', tone: 'muted' };
   return call.qualityLimitation === 'none'
     ? { label: 'Call', value: sent, tone: 'normal' }
     : { label: 'Call', value: `${sent} · limited by ${call.qualityLimitation}`, tone: 'warning' };

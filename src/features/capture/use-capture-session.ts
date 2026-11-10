@@ -4,6 +4,7 @@ import { AppState } from 'react-native';
 import {
   CaptureCore,
   isCaptureError,
+  type CaptureConfig,
   type CaptureConfigInput,
   type HealthSnapshot,
   type LogEntry,
@@ -23,8 +24,9 @@ function allGranted(permissions: PermissionsState): boolean {
   return permissions.camera === 'granted' && permissions.microphone === 'granted';
 }
 
-export function useCaptureSession(config: CaptureConfigInput) {
+export function useCaptureSession(overrides: CaptureConfigInput) {
   const [snapshot, setSnapshot] = useState<SessionSnapshot>(() => CaptureCore.getSnapshot());
+  const [config, setConfig] = useState<CaptureConfig>(() => CaptureCore.getConfig());
   const [health, setHealth] = useState<HealthSnapshot | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [permissions, setPermissions] = useState<PermissionsState>(() =>
@@ -54,8 +56,10 @@ export function useCaptureSession(config: CaptureConfigInput) {
     setCommandError(null);
     try {
       await command();
+      return true;
     } catch (error) {
       setCommandError(describeError(error));
+      return false;
     }
   }, []);
 
@@ -65,14 +69,17 @@ export function useCaptureSession(config: CaptureConfigInput) {
   useEffect(() => {
     if (!granted || !cameraIdle || preparedRef.current) return;
     preparedRef.current = true;
-    CaptureCore.prepare(config).catch((error: unknown) => setCommandError(describeError(error)));
-  }, [granted, cameraIdle, config]);
+    CaptureCore.prepare(overrides)
+      .then(setConfig)
+      .catch((error: unknown) => setCommandError(describeError(error)));
+  }, [granted, cameraIdle, overrides]);
 
   const actions = useMemo(
     () => ({
       requestPermissions: () =>
         run(async () => setPermissions(await CaptureCore.requestPermissions())),
-      prepare: () => run(() => CaptureCore.prepare(config)),
+      prepare: (next: CaptureConfigInput = overrides) =>
+        run(async () => setConfig(await CaptureCore.prepare(next))),
       start: () => run(() => CaptureCore.start(callCredentials)),
       pause: () => run(CaptureCore.pause),
       resume: () => run(CaptureCore.resume),
@@ -84,10 +91,11 @@ export function useCaptureSession(config: CaptureConfigInput) {
       },
       simulateCrash: CaptureCore.simulateCrash,
     }),
-    [config, run],
+    [overrides, run],
   );
 
-  return { snapshot, health, logs, permissions, commandError, actions };
+  return { snapshot, config, health, logs, permissions, commandError, actions };
 }
 
+export type CaptureSession = ReturnType<typeof useCaptureSession>;
 export type CaptureSessionActions = ReturnType<typeof useCaptureSession>['actions'];

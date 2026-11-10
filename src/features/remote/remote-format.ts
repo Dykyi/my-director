@@ -1,6 +1,6 @@
 import type { CallStatus, HealthSnapshot } from '@modules/capture-core';
 
-import { formatBytes } from '../capture/format';
+import { formatBytes } from '@shared/format';
 
 export function formatHealthLine({
   camera,

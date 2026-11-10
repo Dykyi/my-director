@@ -2,7 +2,8 @@ import { Text, View } from 'react-native';
 
 import type { SessionSnapshot } from '@modules/capture-core';
 
-import { formatDuration } from '../format';
+import { formatDuration } from '@shared/format';
+
 import { describeCall, PAUSE_REASON, PHASE_PILL, type PillTone } from '../session-labels';
 import { SymbolIcon } from './symbol-icon';
 import { colors, gutter, mono, toneColor } from './theme';

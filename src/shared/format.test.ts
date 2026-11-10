@@ -4,10 +4,12 @@ import type { RecoveryReport } from '@modules/capture-core';
 
 import {
   formatBytes,
+  formatClock,
   formatDuration,
   formatLogLine,
   formatLoss,
   formatSessionTime,
+  formatTimer,
 } from './format';
 
 describe('formatDuration', () => {
@@ -66,4 +68,15 @@ describe('formatLogLine', () => {
         message: 'Connected',
       }),
     ).toBe('09:12:33.456 info call Connected'));
+});
+
+describe('formatClock', () => {
+  it('shows local wall-clock time', () =>
+    expect(formatClock(new Date(2026, 10, 10, 9, 7, 5).toISOString())).toBe('09:07:05'));
+});
+
+describe('formatTimer', () => {
+  it('pads minutes like the header timer', () => expect(formatTimer(312)).toBe('05:12'));
+  it('shows hours when needed', () => expect(formatTimer(3_725)).toBe('1:02:05'));
+  it('starts at zero', () => expect(formatTimer(0)).toBe('00:00'));
 });

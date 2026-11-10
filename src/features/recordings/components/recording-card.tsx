@@ -8,10 +8,10 @@ import type {
   SegmentSummary,
 } from '@modules/capture-core';
 
-import { formatBytes, formatDuration, formatSessionTime } from '../format';
-import { PAUSE_REASON, plural } from '../session-labels';
-import { ActionButton, IconButton } from './action-button';
-import { colors, mono } from './theme';
+import { ActionButton, IconButton } from '@features/capture/components/action-button';
+import { colors, mono } from '@features/capture/components/theme';
+import { PAUSE_REASON } from '@features/capture/session-labels';
+import { formatBytes, formatDuration, formatSessionTime, plural } from '@shared/format';
 
 const STATE_PILL: Record<RecordingState, { background: string; text: string }> = {
   recording: { background: colors.recordingSurface, text: colors.recordingText },

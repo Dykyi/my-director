@@ -21,14 +21,25 @@ const MONTHS = [
 const LOG_TIME_START = 11;
 const LOG_TIME_END = 23;
 
+const TIMER_WIDTH = 5;
+
+const twoDigits = (value: number) => String(value).padStart(2, '0');
+
 export function formatDuration(totalSec: number): string {
   const total = Math.max(0, Math.floor(totalSec));
   const hours = Math.floor(total / SECONDS_PER_HOUR);
   const minutes = Math.floor((total % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE);
-  const seconds = String(total % SECONDS_PER_MINUTE).padStart(2, '0');
-  return hours > 0
-    ? `${hours}:${String(minutes).padStart(2, '0')}:${seconds}`
-    : `${minutes}:${seconds}`;
+  const seconds = twoDigits(total % SECONDS_PER_MINUTE);
+  return hours > 0 ? `${hours}:${twoDigits(minutes)}:${seconds}` : `${minutes}:${seconds}`;
+}
+
+export function formatTimer(totalSec: number): string {
+  return formatDuration(totalSec).padStart(TIMER_WIDTH, '0');
+}
+
+export function formatClock(iso: string): string {
+  const date = new Date(iso);
+  return `${twoDigits(date.getHours())}:${twoDigits(date.getMinutes())}:${twoDigits(date.getSeconds())}`;
 }
 
 export function formatBytes(bytes: number): string {
@@ -57,7 +68,7 @@ function sameDay(a: Date, b: Date): boolean {
 
 export function formatSessionTime(createdAt: string, now = new Date()): string {
   const date = new Date(createdAt);
-  const time = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  const time = `${twoDigits(date.getHours())}:${twoDigits(date.getMinutes())}`;
   const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
   if (sameDay(date, now)) return `Today ${time}`;
   if (sameDay(date, yesterday)) return `Yesterday ${time}`;
@@ -71,4 +82,8 @@ export function formatLogLine({ at, level, category, message, data }: LogEntry):
         .join('')
     : '';
   return `${at.slice(LOG_TIME_START, LOG_TIME_END)} ${level} ${category} ${message}${details}`;
+}
+
+export function plural(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? '' : 's'}`;
 }

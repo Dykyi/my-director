@@ -4,6 +4,7 @@
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "paths": {
+      "@app/*": ["./src/app/*"],
       "@assets/*": ["./assets/*"],
       "@config/*": ["./src/config/*"],
       "@features/*": ["./src/features/*"],

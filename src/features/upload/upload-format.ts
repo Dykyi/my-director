@@ -1,7 +1,6 @@
 import type { UploadPhase, UploadSnapshot } from '@modules/background-upload';
 
-import { formatBytes } from '../capture/format';
-import { plural } from '../capture/session-labels';
+import { formatBytes, plural } from '@shared/format';
 
 const RESTARTABLE: ReadonlySet<UploadPhase> = new Set(['failed', 'cancelled']);
 export const ACTIVE_UPLOAD: ReadonlySet<UploadPhase> = new Set([

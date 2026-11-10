@@ -2,7 +2,9 @@ import { View } from 'react-native';
 
 import type { SessionSnapshot } from '@modules/capture-core';
 
-import { PHASE_PROGRESS, plural } from '../session-labels';
+import { plural } from '@shared/format';
+
+import { PHASE_PROGRESS } from '../session-labels';
 import type { CaptureSessionActions } from '../use-capture-session';
 import { ActionButton } from './action-button';
 import { colors, gutter } from './theme';
@@ -19,7 +21,7 @@ function PhaseButtons({
   const { phase } = snapshot;
   switch (phase) {
     case 'idle':
-      return <ActionButton title="Retry camera" icon="camera" onPress={actions.prepare} />;
+      return <ActionButton title="Retry camera" icon="camera" onPress={() => actions.prepare()} />;
     case 'ready':
       return (
         <ActionButton

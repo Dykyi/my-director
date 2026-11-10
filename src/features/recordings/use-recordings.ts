@@ -8,7 +8,7 @@ import {
   type VerificationReport,
 } from '@modules/capture-core';
 
-import { describeError } from './use-capture-session';
+import { describeError } from '@features/capture/use-capture-session';
 
 const QUICKTIME = { mimeType: 'video/quicktime', UTI: 'com.apple.quicktime-movie' } as const;
 

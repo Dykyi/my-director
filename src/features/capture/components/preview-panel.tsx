@@ -16,13 +16,6 @@ import { colors, gutter, mono } from './theme';
 const PREVIEW_HEIGHT = 300;
 const PREVIEW_MIN_HEIGHT = 160;
 
-const PAUSE_ICON: Partial<Record<PauseReason, string>> = {
-  user: 'pause.circle',
-  phoneCall: 'phone.fill',
-  appBackground: 'house.fill',
-  screenLocked: 'lock.fill',
-};
-
 function PermissionGate({
   permissions,
   onRequest,
@@ -72,11 +65,7 @@ function PauseOverlay({ reason, savedSegments }: { reason: PauseReason; savedSeg
         },
       ]}
     >
-      <SymbolIcon
-        name={PAUSE_ICON[reason] ?? 'exclamationmark.triangle'}
-        size={44}
-        color={colors.muted}
-      />
+      <SymbolIcon name={PAUSE_REASON[reason].symbol} size={44} color={colors.muted} />
       <Text style={{ color: colors.secondary, fontSize: 14, lineHeight: 20, textAlign: 'center' }}>
         {PAUSE_REASON[reason].detail} Segment {savedSegments} is closed and safe on disk.
       </Text>

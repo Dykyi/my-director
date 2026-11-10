@@ -2,8 +2,10 @@ import { Text, View } from 'react-native';
 
 import type { HealthSnapshot, SessionSnapshot } from '@modules/capture-core';
 
-import { healthRows, METER_BARS } from '../health-rows';
-import { colors, gutter, mono, toneColor } from './theme';
+import { colors, gutter, mono, toneColor } from '@features/capture/components/theme';
+import { METER_BARS } from '@features/capture/session-labels';
+
+import { healthRows } from '../health-rows';
 
 const LABEL_WIDTH = 64;
 
