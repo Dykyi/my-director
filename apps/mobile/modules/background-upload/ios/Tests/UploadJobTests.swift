@@ -28,6 +28,48 @@ struct UploadJobTests {
     job.handle(.partFinished(number: part, status: status, etag: etag, error: status == nil ? "offline" : nil), at: Self.now)
   }
 
+  private func preparingJob() -> UploadJob {
+    UploadJob(
+      id: "job-1",
+      fileUri: "file:///segment-001.mov",
+      objectKey: "s/segment-001.mov",
+      api: UploadApi(baseUrl: "https://api", token: "t"),
+      maxAttemptsPerPart: 5,
+      bytesTotal: Self.partSize,
+      updatedAt: Self.now
+    )
+  }
+
+  @Test func aFailedPreparationDiscardsItsParts() {
+    var job = preparingJob()
+    #expect(job.handle(.preparationFailed("offline"), at: Self.now) == [.cancelTasks, .finishFailed, .discardParts])
+    #expect(job.phase == .failed)
+  }
+
+  @Test func anUploadCreatedAfterCancelIsAborted() {
+    var job = preparingJob()
+    _ = job.handle(.cancelRequested, at: Self.now)
+    let cancelled = job
+    let part = UploadJob.Part(number: 1, size: Self.partSize, md5: "m", url: "https://part/1", headers: [:])
+    #expect(job.handle(.planned(uploadId: "late", parts: [part]), at: Self.now) == [.abortUpload(uploadId: "late")])
+    #expect(job == cancelled)
+  }
+
+  @Test func anIgnoredEventKeepsTheJobTime() {
+    var job = uploadingJob()
+    _ = finish(&job, part: 3, status: 403)
+    let failedAt = job.updatedAt
+    _ = job.handle(.partFinished(number: 4, status: 200, etag: "e", error: nil), at: Self.now.addingTimeInterval(60))
+    #expect(job.updatedAt == failedAt)
+  }
+
+  @Test func aChangeMovesTheJobTime() {
+    var job = uploadingJob()
+    let later = Self.now.addingTimeInterval(60)
+    _ = job.handle(.partFinished(number: 4, status: 200, etag: "e", error: nil), at: later)
+    #expect(job.updatedAt == later)
+  }
+
   @Test func planningStartsEveryPartAtOnce() {
     let job = uploadingJob()
     #expect(job.phase == .uploading)
@@ -145,7 +187,7 @@ struct UploadJobTests {
       updatedAt: Self.now
     )
     #expect(job.handle(.cancelRequested, at: Self.now) == [.cancelTasks])
-    #expect(job.handle(.planned(uploadId: "late", parts: []), at: Self.now).isEmpty)
+    #expect(job.handle(.planned(uploadId: "late", parts: []), at: Self.now) == [.abortUpload(uploadId: "late")])
     #expect(job.handle(.preparationFailed("slicing stopped"), at: Self.now).isEmpty)
     #expect(job.phase == .cancelled)
     #expect(job.uploadId == nil)

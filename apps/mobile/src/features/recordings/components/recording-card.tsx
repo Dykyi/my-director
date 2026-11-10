@@ -3,7 +3,7 @@ import { View } from 'react-native';
 
 import type { RecordingSummary, SegmentSummary } from '@modules/capture-core';
 
-import type { UploadStatus } from '@features/upload/use-uploads';
+import type { UploadStatus } from '@features/upload/upload-plan';
 import { formatSessionTime } from '@shared/format';
 import { Button } from '@ui/button';
 import { Chip } from '@ui/chip';

@@ -10,14 +10,16 @@ struct SlicedPart: Equatable, Sendable {
 
 /// Background upload tasks send whole files only, so the recording is cut into part files, hashing as it goes.
 enum PartSlicer {
-  static let readChunkSize = 1_048_576
+  static let readChunkSize = Int(bytesPerMebibyte)
+
+  static func fileName(forPart number: Int) -> String { String(format: "part-%05d.bin", number) }
 
   static func slice(file: URL, plan: UploadPlan, into directory: URL) throws -> [SlicedPart] {
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: UploadFiles.attributes)
     let input = try FileHandle(forReadingFrom: file)
     defer { try? input.close() }
     return try (1...plan.partCount).map { number in
-      let url = directory.appending(path: String(format: "part-%05d.bin", number))
+      let url = directory.appending(path: fileName(forPart: number))
       guard FileManager.default.createFile(atPath: url.path(percentEncoded: false), contents: nil, attributes: UploadFiles.attributes) else {
         throw CocoaError(.fileWriteUnknown, userInfo: [NSFilePathErrorKey: url.path(percentEncoded: false)])
       }
@@ -49,6 +51,7 @@ enum PartSlicer {
   }
 }
 
+/// Upload files must stay readable while the phone is locked: nsurlsessiond reads them then.
 enum UploadFiles {
   static var attributes: [FileAttributeKey: Any]? {
     #if os(iOS)

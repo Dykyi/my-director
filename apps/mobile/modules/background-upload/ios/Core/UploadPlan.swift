@@ -6,8 +6,10 @@ enum UploadPlanError: Error, Equatable, Sendable {
   case tooManyParts(count: Int, maximum: Int)
 }
 
+/// Equal parts except the last; S3 multipart wants at least 5 MB for every part but the last.
 struct UploadPlan: Equatable, Sendable {
-  static let minimumPartSize: Int64 = 5 * 1_048_576
+  static let minimumPartSize: Int64 = 5 * bytesPerMebibyte
+  static let partSize: Int64 = 16 * bytesPerMebibyte
   static let maximumPartCount = 10_000
 
   let fileSize: Int64

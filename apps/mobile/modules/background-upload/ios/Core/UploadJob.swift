@@ -24,6 +24,7 @@ struct UploadJob: Codable, Equatable, Sendable {
 
   static let completePartNumber = 0
   static let maxBackoffSec = 60.0
+  static let maxAttempts = 5
 
   var id: String
   var fileUri: String
@@ -73,6 +74,8 @@ enum UploadCommand: Equatable, Sendable {
   case cancelTasks
   case finishVerified
   case finishFailed
+  case discardParts
+  case abortUpload(uploadId: String)
 }
 
 extension UploadJob {
@@ -85,9 +88,12 @@ extension UploadJob {
   }
 
   mutating func handle(_ event: UploadEvent, at now: Date) -> [UploadCommand] {
-    updatedAt = now
+    let before = self
+    defer { if self != before { updatedAt = now } }
     switch event {
     case .planned(let uploadId, let planned):
+      // The server created the upload after the user cancelled: nothing will use it.
+      if phase == .cancelled { return [.abortUpload(uploadId: uploadId)] }
       guard phase == .preparing else { return [] }
       self.uploadId = uploadId
       parts = planned.map { part in
@@ -100,7 +106,7 @@ extension UploadJob {
 
     case .preparationFailed(let message):
       guard phase == .preparing else { return [] }
-      return fail(message)
+      return fail(message) + [.discardParts]
 
     case .partFinished(let number, let status, let etag, let error):
       guard phase == .uploading, let index = parts.firstIndex(where: { $0.number == number }), parts[index].state == .inFlight else {
@@ -221,5 +227,29 @@ extension UploadJob {
   private static func isRetryable(_ status: Int?) -> Bool {
     guard let status else { return true }
     return status == 408 || status == 429 || (500...599).contains(status)
+  }
+}
+
+extension UploadJob {
+  /// A finished task from an older attempt is stale: a retry already replaced it.
+  func isCurrent(_ tag: TaskTag) -> Bool {
+    switch tag.kind {
+    case .part(let number, let attempt): parts.first { $0.number == number }?.attempt == attempt
+    case .complete(let attempt): completeAttempt == attempt
+    }
+  }
+
+  var verifiedSummary: String {
+    let megabytes = String(format: "%.1f MB", Double(bytesTotal) / Double(bytesPerMebibyte))
+    return "\(megabytes) · \(parts.count) parts · \(objectKey)"
+  }
+}
+
+extension UploadJob.Part {
+  static func planned(sliced: [SlicedPart], signed: [CreateUploadResponse.Part]) throws -> [UploadJob.Part] {
+    guard signed.map(\.partNumber) == sliced.map(\.number) else { throw UploadEngineError.planMismatch }
+    return zip(sliced, signed).map { slice, signed in
+      UploadJob.Part(number: slice.number, size: slice.size, md5: slice.md5Base64, url: signed.url, headers: signed.headers)
+    }
   }
 }

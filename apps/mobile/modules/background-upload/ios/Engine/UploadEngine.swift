@@ -1,34 +1,5 @@
 import Foundation
 
-private let bytesPerMebibyte: Int64 = 1_048_576
-
-enum UploadEngineError: LocalizedError {
-  case invalidFileUri(String)
-  case notEnoughSpace(neededBytes: Int64, freeBytes: Int64)
-  case planMismatch
-  case unknownUpload(String)
-
-  var errorDescription: String? {
-    switch self {
-    case .invalidFileUri(let uri): "Not a local file: \(uri)"
-    case .notEnoughSpace(let needed, let free):
-      "Not enough free space: need \(needed / bytesPerMebibyte) MB, have \(free / bytesPerMebibyte) MB"
-    case .planMismatch: "The upload API returned a different part list than requested"
-    case .unknownUpload(let id): "No upload with id \(id)"
-    }
-  }
-}
-
-extension UploadPlanError: LocalizedError {
-  var errorDescription: String? {
-    switch self {
-    case .emptyFile: "The file is empty"
-    case .partTooSmall(let minimum): "Parts must be at least \(minimum / bytesPerMebibyte) MiB"
-    case .tooManyParts(let count, let maximum): "\(count) parts is more than the \(maximum) allowed"
-    }
-  }
-}
-
 @MainActor
 final class UploadEngine: BackgroundTransferDelegate {
   static let shared = UploadEngine()
@@ -79,8 +50,7 @@ final class UploadEngine: BackgroundTransferDelegate {
     await activate()
     guard let file = URL(string: input.fileUri), file.isFileURL else { throw UploadEngineError.invalidFileUri(input.fileUri) }
     let fileSize = Int64(try file.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0)
-    let partSizeMB = input.partSizeMB ?? StartUploadInput.defaultPartSizeMB
-    let plan = try UploadPlan(fileSize: fileSize, partSize: Int64(partSizeMB) * bytesPerMebibyte)
+    let plan = try UploadPlan(fileSize: fileSize, partSize: UploadPlan.partSize)
     let freeBytes = try URL.documentsDirectory
       .resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
       .volumeAvailableCapacityForImportantUsage ?? 0
@@ -93,7 +63,7 @@ final class UploadEngine: BackgroundTransferDelegate {
       fileUri: input.fileUri,
       objectKey: input.objectKey,
       api: input.api,
-      maxAttemptsPerPart: input.maxAttemptsPerPart ?? StartUploadInput.defaultMaxAttemptsPerPart,
+      maxAttemptsPerPart: UploadJob.maxAttempts,
       bytesTotal: fileSize,
       updatedAt: .now
     )
@@ -109,16 +79,12 @@ final class UploadEngine: BackgroundTransferDelegate {
       let created = try await UploadApiClient(api: input.api).createUpload(
         CreateUploadRequest(key: input.objectKey, size: fileSize, partSize: plan.partSize, partMd5s: sliced.map(\.md5Base64))
       )
-      guard created.parts.map(\.partNumber) == sliced.map(\.number) else { throw UploadEngineError.planMismatch }
-      let parts = zip(sliced, created.parts).map { slice, signed in
-        UploadJob.Part(number: slice.number, size: slice.size, md5: slice.md5Base64, url: signed.url, headers: signed.headers)
-      }
+      let parts = try UploadJob.Part.planned(sliced: sliced, signed: created.parts)
       log.append(job.id, "job.planned", ["uploadId": created.uploadId, "expiresAt": created.expiresAt])
       apply(.planned(uploadId: created.uploadId, parts: parts), to: job.id)
     } catch {
       log.append(job.id, "job.preparationFailed", ["error": error.localizedDescription])
       apply(.preparationFailed(error.localizedDescription), to: job.id)
-      removeParts(of: job.id)
     }
     return UploadSnapshot(jobs[job.id] ?? job)
   }
@@ -139,35 +105,35 @@ final class UploadEngine: BackgroundTransferDelegate {
     removeParts(of: id)
     log.append(id, "job.cancelled")
     guard let uploadId = job.uploadId else { return }
+    await abort(uploadId: uploadId, of: job)
+  }
+
+  private func abort(uploadId: String, of job: UploadJob) async {
     do {
       try await UploadApiClient(api: job.api).abortUpload(uploadId: uploadId, key: job.objectKey)
     } catch {
-      log.append(id, "job.abortFailed", ["error": error.localizedDescription])
+      log.append(job.id, "job.abortFailed", ["error": error.localizedDescription])
     }
   }
 
   func transfer(_ tag: TaskTag, finishedWith status: Int?, etag: String?, body: Data, error: Error?) {
     // Our own cancellations and iOS cancelling on force quit: reconcile restarts whatever is still needed.
-    if (error as? URLError)?.code == .cancelled {
+    if error?.isCancelledTask == true {
       log.append(tag.jobId, "task.cancelled", ["task": tag.taskDescription])
       return
     }
     guard let job = jobs[tag.jobId] else { return }
     let reason = error?.localizedDescription
     let statusText = status.map(String.init) ?? "none"
+    guard job.isCurrent(tag) else {
+      log.append(job.id, "task.stale", ["task": tag.taskDescription])
+      return
+    }
     switch tag.kind {
     case .part(let number, let attempt):
-      guard job.parts.first(where: { $0.number == number })?.attempt == attempt else {
-        log.append(job.id, "task.stale", ["task": tag.taskDescription])
-        return
-      }
       log.append(job.id, "part.finished", ["part": "\(number)", "attempt": "\(attempt)", "status": statusText, "error": reason ?? "none"])
       apply(.partFinished(number: number, status: status, etag: etag, error: reason), to: job.id)
-    case .complete(let attempt):
-      guard job.completeAttempt == attempt else {
-        log.append(job.id, "task.stale", ["task": tag.taskDescription])
-        return
-      }
+    case .complete:
       let text = String(decoding: body.prefix(Self.loggedBodyLimit), as: UTF8.self)
       log.append(job.id, "complete.finished", ["status": statusText, "body": text, "error": reason ?? "none"])
       let response = try? JSONDecoder().decode(CompleteUploadResponse.self, from: body)
@@ -256,12 +222,17 @@ final class UploadEngine: BackgroundTransferDelegate {
     case .finishVerified:
       removeParts(of: job.id)
       log.append(job.id, "job.verified", ["serverSize": "\(job.serverSize ?? 0)"])
-      let megabytes = String(format: "%.1f MB", Double(job.bytesTotal) / Double(bytesPerMebibyte))
-      UploadNotifier.post(id: job.id, title: "Upload verified", body: "\(megabytes) · \(job.parts.count) parts · \(job.objectKey)")
+      UploadNotifier.post(id: job.id, title: "Upload verified", body: job.verifiedSummary)
 
     case .finishFailed:
       log.append(job.id, "job.failed", ["error": job.error ?? ""])
       UploadNotifier.post(id: job.id, title: "Upload failed", body: job.error ?? job.objectKey)
+
+    case .discardParts:
+      removeParts(of: job.id)
+
+    case .abortUpload(let uploadId):
+      Task { await abort(uploadId: uploadId, of: job) }
     }
   }
 

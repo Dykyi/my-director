@@ -6,7 +6,7 @@ import type {
   SegmentSummary,
 } from '@modules/capture-core';
 
-import type { UploadStatus } from '@features/upload/use-uploads';
+import type { UploadStatus } from '@features/upload/upload-plan';
 import { formatBytes, formatDuration, plural } from '@shared/format';
 import type { ChipTone } from '@ui/tone';
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 
 import type { RecordingSummary, SegmentSummary } from '@modules/capture-core';
 
-import type { UploadStatus } from '@features/upload/use-uploads';
+import type { UploadStatus } from '@features/upload/upload-plan';
 
 import {
   cardActions,

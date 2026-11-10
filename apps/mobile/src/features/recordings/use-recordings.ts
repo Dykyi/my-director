@@ -8,7 +8,7 @@ import {
   type VerificationReport,
 } from '@modules/capture-core';
 
-import { describeError } from '@shared/describe-error';
+import { useReportedErrors } from '@shared/use-reported-errors';
 
 const QUICKTIME = { mimeType: 'video/quicktime', UTI: 'com.apple.quicktime-movie' } as const;
 
@@ -16,21 +16,7 @@ export function useRecordings() {
   const [recordings, setRecordings] = useState<RecordingSummary[]>([]);
   const [recoveryReports, setRecoveryReports] = useState<RecoveryReport[]>([]);
   const [verification, setVerification] = useState<VerificationReport | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const reportError = useCallback((caught: unknown) => setError(describeError(caught)), []);
-
-  const guard = useCallback(
-    async (action: () => Promise<void>) => {
-      setError(null);
-      try {
-        await action();
-      } catch (caught) {
-        reportError(caught);
-      }
-    },
-    [reportError],
-  );
+  const { error, reportError, guard } = useReportedErrors();
 
   const refresh = useCallback(
     () => CaptureCore.listRecordings().then(setRecordings, reportError),

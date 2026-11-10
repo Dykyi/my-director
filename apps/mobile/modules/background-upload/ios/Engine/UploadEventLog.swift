@@ -11,11 +11,12 @@ struct UploadEventLog {
   private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "background-upload", category: "upload")
 
   let store: UploadJobStore
+  let encoder = UploadCoding.encoder()
 
   func append(_ jobId: String, _ message: String, _ data: [String: String]? = nil) {
     Self.logger.info("\(jobId, privacy: .public) \(message, privacy: .public)")
     do {
-      var line = try UploadCoding.encoder().encode(Line(at: .now, message: message, data: data))
+      var line = try encoder.encode(Line(at: .now, message: message, data: data))
       line.append(0x0A)
       let url = store.eventsURL(for: jobId)
       if !FileManager.default.fileExists(atPath: url.path(percentEncoded: false)) {

@@ -1,42 +1,28 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 
 import { BackgroundUpload, type UploadSnapshot } from '@modules/background-upload';
-import type { RecordingSummary, SegmentState, SegmentSummary } from '@modules/capture-core';
+import type { RecordingSummary } from '@modules/capture-core';
 
 import { uploadApi } from '@config/env';
-import { describeError } from '@shared/describe-error';
+import { useReportedErrors } from '@shared/use-reported-errors';
 
 import { deleteFromBucket } from './bucket';
-import { ACTIVE_UPLOAD, needsUpload, segmentObjectKey } from './upload-format';
-
-const UPLOADABLE: ReadonlySet<SegmentState> = new Set(['finalized', 'recovered']);
-
-export type UploadStatus = { pending: SegmentSummary[]; uploading: boolean; verified: boolean };
-
-function withSnapshot(current: UploadSnapshot[], snapshot: UploadSnapshot): UploadSnapshot[] {
-  return [snapshot, ...current.filter((upload) => upload.id !== snapshot.id)];
-}
+import { segmentObjectKey } from './upload-format';
+import {
+  findUpload,
+  recordingStatus,
+  runningJobs,
+  runUploadPlan,
+  uploadPlan,
+  upsertUpload,
+  verifiedKeys,
+} from './upload-plan';
 
 export function useUploads() {
   const [uploads, setUploads] = useState<UploadSnapshot[]>([]);
-  const [error, setError] = useState<string | null>(null);
-
-  const reportError = useCallback((caught: unknown) => setError(describeError(caught)), []);
-
-  const guard = useCallback(
-    async (action: () => Promise<void>) => {
-      setError(null);
-      try {
-        await action();
-        return true;
-      } catch (caught) {
-        reportError(caught);
-        return false;
-      }
-    },
-    [reportError],
-  );
+  const { error, reportError, guard } = useReportedErrors();
+  const cancelledSessions = useRef(new Set<string>());
 
   const reload = useCallback(
     () => BackgroundUpload.getUploads().then(setUploads, reportError),
@@ -46,7 +32,7 @@ export function useUploads() {
   useEffect(() => {
     const subscriptions = [
       BackgroundUpload.addListener('onUploadChange', (snapshot) =>
-        setUploads((current) => withSnapshot(current, snapshot)),
+        setUploads((current) => upsertUpload(current, snapshot)),
       ),
       AppState.addEventListener('change', (state) => {
         if (state === 'active') void reload();
@@ -56,44 +42,30 @@ export function useUploads() {
     return () => subscriptions.forEach((subscription) => subscription.remove());
   }, [reload]);
 
-  const uploadFor = useCallback(
-    (objectKey: string) => uploads.find((upload) => upload.objectKey === objectKey),
+  const uploadFor = useCallback((objectKey: string) => findUpload(uploads, objectKey), [uploads]);
+  const uploadStatus = useCallback(
+    (recording: RecordingSummary) => recordingStatus(recording, uploads),
     [uploads],
   );
-
-  const uploadStatus = useCallback(
-    (recording: RecordingSummary): UploadStatus => {
-      const segments = recording.segments.filter((segment) => UPLOADABLE.has(segment.state));
-      const jobs = segments.map((segment) =>
-        uploadFor(segmentObjectKey(recording.sessionId, segment.index)),
-      );
-      return {
-        pending: segments.filter((_, index) => needsUpload(jobs[index])),
-        uploading: jobs.some((job) => job !== undefined && ACTIVE_UPLOAD.has(job.phase)),
-        verified: jobs.some((job) => job?.phase === 'verified'),
-      };
-    },
-    [uploadFor],
-  );
-
   const keysInBucket = useCallback(
-    (recording: RecordingSummary) =>
-      recording.segments
-        .map((segment) => segmentObjectKey(recording.sessionId, segment.index))
-        .filter((key) => uploadFor(key)?.phase === 'verified'),
-    [uploadFor],
+    (recording: RecordingSummary) => verifiedKeys(recording, uploads),
+    [uploads],
   );
 
   const startRecording = (recording: RecordingSummary) =>
     guard(async () => {
-      for (const segment of uploadStatus(recording).pending) {
-        const snapshot = await BackgroundUpload.startUpload({
-          fileUri: segment.uri,
-          objectKey: segmentObjectKey(recording.sessionId, segment.index),
-          api: uploadApi,
-        });
-        setUploads((current) => withSnapshot(current, snapshot));
-      }
+      cancelledSessions.current.delete(recording.sessionId);
+      await runUploadPlan(uploadPlan(recording, uploads), {
+        cancelUpload: (id) => BackgroundUpload.cancelUpload(id),
+        startUpload: ({ segment }) =>
+          BackgroundUpload.startUpload({
+            fileUri: segment.uri,
+            objectKey: segmentObjectKey(recording.sessionId, segment.index),
+            api: uploadApi,
+          }),
+        stopped: () => cancelledSessions.current.has(recording.sessionId),
+        onSnapshot: (snapshot) => setUploads((current) => upsertUpload(current, snapshot)),
+      });
     });
 
   const retry = (id: string) => guard(() => BackgroundUpload.retryFailedParts(id));
@@ -101,12 +73,9 @@ export function useUploads() {
 
   const cancelRecording = (recording: RecordingSummary) =>
     guard(async () => {
-      const jobs = recording.segments.map((segment) =>
-        uploadFor(segmentObjectKey(recording.sessionId, segment.index)),
-      );
-      for (const job of jobs) {
-        if (job && ACTIVE_UPLOAD.has(job.phase)) await BackgroundUpload.cancelUpload(job.id);
-      }
+      cancelledSessions.current.add(recording.sessionId);
+      for (const job of runningJobs(recording, uploads))
+        await BackgroundUpload.cancelUpload(job.id);
     });
 
   const removeFromBucket = (recording: RecordingSummary) =>

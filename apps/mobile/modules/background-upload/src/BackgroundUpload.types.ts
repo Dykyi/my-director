@@ -4,8 +4,6 @@ export type StartUploadInput = {
   fileUri: string;
   objectKey: string;
   api: UploadApi;
-  partSizeMB?: number;
-  maxAttemptsPerPart?: number;
 };
 
 export type UploadPhase =

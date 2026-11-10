@@ -7,6 +7,7 @@ protocol BackgroundTransferDelegate: AnyObject {
   func transfersDrained()
 }
 
+/// Delegate calls arrive on the main queue, so all state here is main-actor state.
 @MainActor
 final class BackgroundTransferSession: NSObject, URLSessionDataDelegate {
   nonisolated static let identifier = "\(Bundle.main.bundleIdentifier ?? "mydirector").background-upload"
@@ -77,7 +78,7 @@ final class BackgroundTransferSession: NSObject, URLSessionDataDelegate {
   /// Tasks whose outcome is still to come. Cancelled ones (by us, or by iOS on force quit) will never upload.
   func liveTags() async -> [TaskTag] {
     await session.allTasks
-      .filter { $0.state != .canceling && ($0.error as? URLError)?.code != .cancelled }
+      .filter { $0.state != .canceling && $0.error?.isCancelledTask != true }
       .compactMap { TaskTag($0.taskDescription) }
   }
 
@@ -149,4 +150,8 @@ final class BackgroundTransferSession: NSObject, URLSessionDataDelegate {
       delegate?.transfersDrained()
     }
   }
+}
+
+extension Error {
+  var isCancelledTask: Bool { (self as? URLError)?.code == .cancelled }
 }

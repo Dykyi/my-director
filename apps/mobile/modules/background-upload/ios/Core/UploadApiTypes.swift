@@ -45,12 +45,7 @@ struct CompleteUploadResponse: Codable, Equatable, Sendable {
 }
 
 struct StartUploadInput: Codable, Equatable, Sendable {
-  static let defaultPartSizeMB = 16
-  static let defaultMaxAttemptsPerPart = 5
-
   var fileUri: String
   var objectKey: String
   var api: UploadApi
-  var partSizeMB: Int?
-  var maxAttemptsPerPart: Int?
 }

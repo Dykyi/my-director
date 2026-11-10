@@ -9,7 +9,7 @@ struct UploadJobStore: Sendable {
 
   func directory(for jobId: String) -> URL { root.appending(path: jobId, directoryHint: .isDirectory) }
   func partsDirectory(for jobId: String) -> URL { directory(for: jobId).appending(path: "parts", directoryHint: .isDirectory) }
-  func partURL(jobId: String, number: Int) -> URL { partsDirectory(for: jobId).appending(path: String(format: "part-%05d.bin", number)) }
+  func partURL(jobId: String, number: Int) -> URL { partsDirectory(for: jobId).appending(path: PartSlicer.fileName(forPart: number)) }
   func completeURL(for jobId: String) -> URL { directory(for: jobId).appending(path: Self.completeFileName) }
   func eventsURL(for jobId: String) -> URL { directory(for: jobId).appending(path: Self.eventsFileName) }
 
