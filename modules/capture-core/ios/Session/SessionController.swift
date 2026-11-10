@@ -155,7 +155,7 @@ final class SessionController {
   func reconnectCall() async throws {
     guard machine.state.hasSession else { throw invalidState("reconnect the call") }
     try await call.ensureJoined(rotationAngle: camera.captureRotationAngle)
-    if machine.state.phase != .recording { await call.setMuted(true) }
+    if machine.state.phase != .recording { await call.setMuted(true, reason: machine.state.pauseReason) }
   }
 
   func dismissError() {
@@ -268,7 +268,8 @@ final class SessionController {
       watched = [:]
       enqueueSegmentWork { await self.finishSegment(index: index) }
     case .muteCall(let muted):
-      Task { await call.setMuted(muted) }
+      let reason = machine.state.pauseReason
+      Task { await call.setMuted(muted, reason: reason) }
     case .stopMic:
       enqueueSegmentWork {
         guard !Self.micPhases.contains(self.machine.state.phase) else { return }
@@ -290,7 +291,8 @@ final class SessionController {
       sequence?.cancel()
       sequence = nil
       microphone.stop()
-      Task { await call.setMuted(true) }
+      let reason = machine.state.pauseReason
+      Task { await call.setMuted(true, reason: reason) }
     case .runStopSequence:
       sequence = Task { await runStop() }
     case .finishSession:
@@ -388,7 +390,7 @@ final class SessionController {
     try Task.checkCancellation()
     try await call.ensureJoined(rotationAngle: camera.captureRotationAngle)
     try Task.checkCancellation()
-    await call.setMuted(false)
+    await call.setMuted(false, reason: nil)
   }
 
   private func ensureCamera() async throws {

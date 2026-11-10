@@ -12,6 +12,7 @@ struct CallCredentials: Equatable, Sendable {
 
 @MainActor
 final class CallPublisher: NSObject, RoomDelegate {
+  private static let pauseReasonAttribute = "pauseReason"
   private static let connectPollInterval = Duration.milliseconds(100)
   private static let statusRefreshDelay = Duration.milliseconds(250)
 
@@ -76,8 +77,9 @@ final class CallPublisher: NSObject, RoomDelegate {
     refreshStatus()
   }
 
-  func setMuted(_ muted: Bool) async {
+  func setMuted(_ muted: Bool, reason: PauseReason?) async {
     guard let room, let videoTrack else { return }
+    await sharePauseReason(muted ? reason : nil, in: room)
     do {
       if muted { try await videoTrack.mute() } else { try await videoTrack.unmute() }
       _ = try await room.localParticipant.setMicrophone(enabled: !muted)
@@ -86,6 +88,14 @@ final class CallPublisher: NSObject, RoomDelegate {
       refreshStatus()
     } catch {
       log.warning("call", "Mute change failed", ["muted": String(muted), "error": error.localizedDescription])
+    }
+  }
+
+  private func sharePauseReason(_ reason: PauseReason?, in room: Room) async {
+    do {
+      try await room.localParticipant.set(attributes: [Self.pauseReasonAttribute: reason?.rawValue ?? ""])
+    } catch {
+      log.warning("call", "Pause reason not shared", ["error": error.localizedDescription])
     }
   }
 

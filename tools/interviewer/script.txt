@@ -1,10 +1,10 @@
-Hi, and thanks for joining. Let's start simple. Tell me who you are and what your company does. [[slnc 20000]]
-What problem were you trying to solve when you started? [[slnc 20000]]
-Who is your typical customer, and how do they find you? [[slnc 20000]]
-What was the hardest decision you made in the last year? [[slnc 20000]]
-Tell me about a mistake that taught you something important. [[slnc 20000]]
-What does a great week look like for your team? [[slnc 20000]]
-Which metric do you watch most closely, and why? [[slnc 20000]]
-What would you tell a founder who is just starting out? [[slnc 20000]]
-Where do you want the company to be in three years? [[slnc 20000]]
-Thanks. Last one: what is something people usually get wrong about your industry? [[slnc 20000]]
+Hi, and thanks for joining. Let's start simple. Tell me who you are and what your company does.
+What problem were you trying to solve when you started?
+Who is your typical customer, and how do they find you?
+What was the hardest decision you made in the last year?
+Tell me about a mistake that taught you something important.
+What does a great week look like for your team?
+Which metric do you watch most closely, and why?
+What would you tell a founder who is just starting out?
+Where do you want the company to be in three years?
+Thanks. Last one: what is something people usually get wrong about your industry?

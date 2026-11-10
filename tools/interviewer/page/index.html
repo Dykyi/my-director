@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MyDirector interviewer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <span class="brand">
+        <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2" />
+          <circle cx="12" cy="12" r="4.5" class="brand-dot" />
+        </svg>
+        MyDirector <span class="brand-sub">Interviewer</span>
+      </span>
+      <span class="divider"></span>
+      <span class="room-info">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="9" cy="8" r="3.5" />
+          <path
+            d="M2.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5M16 4.8a3.5 3.5 0 0 1 0 6.4M18.5 13.9c1.8.9 3 2.9 3 5.1"
+          />
+        </svg>
+        Room <code id="roomName"></code> · you are <code id="identityName"></code>
+      </span>
+      <span id="connChip" class="chip"><span class="dot"></span><span id="connText"></span></span>
+      <span class="topbar-actions">
+        <button id="settingsButton" class="button" type="button">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 7h9M18 7h2M4 17h2M11 17h9" />
+            <circle cx="15.5" cy="7" r="2.5" />
+            <circle cx="8.5" cy="17" r="2.5" />
+          </svg>
+          Settings
+        </button>
+        <button id="joinButton" class="button button-ghost" type="button"></button>
+      </span>
+    </header>
+
+    <div class="layout">
+      <main class="main">
+        <section id="stage" class="stage" aria-label="Phone video">
+          <div id="emptyState" class="empty">
+            <span class="empty-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="6.5" y="2.5" width="11" height="19" rx="2.5" />
+                <path d="M10.5 18.5h3" />
+              </svg>
+            </span>
+            <span id="emptyTitle" class="empty-title"></span>
+            <span id="emptyText" class="empty-text"></span>
+            <span id="emptyChips" class="empty-chips"></span>
+            <button id="stageJoinButton" class="button button-primary button-large" type="button">
+              Join the room
+            </button>
+          </div>
+          <div id="video" class="video"></div>
+          <div id="phoneBadge" class="overlay badge">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="6.5" y="2.5" width="11" height="19" rx="2.5" />
+              <path d="M10.5 18.5h3" />
+            </svg>
+            <span id="phoneName"></span>
+            <span id="qualityBars" class="bars"><i></i><i></i><i></i></span>
+            <span id="qualityText" class="quality-text"></span>
+          </div>
+          <div id="statsLine" class="overlay stats-line"></div>
+          <div id="micMeter" class="overlay mic-meter">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="9" y="3.5" width="6" height="11" rx="3" />
+              <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v2.5" />
+            </svg>
+            <span id="meterBars" class="meter"></span>
+            <span id="meterDb"></span>
+          </div>
+          <div id="recChip" class="overlay rec-chip chip chip-recording">
+            <span class="dot"></span>REC <span id="recTime">0:00</span>
+          </div>
+          <div id="pausedOverlay" class="paused">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="6.5" y="4.5" width="3.5" height="15" rx="1" />
+              <rect x="14" y="4.5" width="3.5" height="15" rx="1" />
+            </svg>
+            <span id="pausedTitle" class="paused-title"></span>
+            <span class="paused-text">
+              Its camera and microphone are muted, and its recording is safe. Questions wait until
+              the phone resumes.
+            </span>
+            <span id="pausedMeta" class="mono muted"></span>
+          </div>
+        </section>
+
+        <section class="prompter" aria-label="Question">
+          <div class="prompter-head">
+            <span id="questionLabel" class="eyebrow"></span>
+            <span id="questionState" class="muted small"></span>
+            <span id="quietLabel" class="prompter-quiet"></span>
+          </div>
+          <div id="questionText" class="question-text"></div>
+          <div class="progress"><div id="questionProgress"></div></div>
+          <div class="prompter-actions">
+            <button id="prevButton" class="button" type="button">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M15 5l-7 7 7 7" />
+              </svg>
+              Previous
+            </button>
+            <button id="askButton" class="button button-primary" type="button">
+              <svg class="icon icon-filled" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 4.5v15l12-7.5z" />
+              </svg>
+              <span id="askLabel">Ask</span>
+            </button>
+            <button id="nextButton" class="button" type="button">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M9 5l7 7-7 7" />
+              </svg>
+              Next question
+            </button>
+            <span id="voiceLabel" class="voice-label"></span>
+          </div>
+        </section>
+      </main>
+
+      <aside class="side">
+        <nav class="tabs" role="tablist">
+          <button role="tab" type="button" data-tab="questions" aria-selected="true">
+            Questions
+          </button>
+          <button role="tab" type="button" data-tab="session" aria-selected="false">Session</button>
+          <button role="tab" type="button" data-tab="log" aria-selected="false">Log</button>
+        </nav>
+
+        <section id="panel-questions" class="panel" role="tabpanel">
+          <div class="panel-head">
+            <span id="questionsSummary" class="muted small"></span>
+            <button id="editScriptButton" class="link" type="button">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 20h4L19 9l-4-4L4 16z" />
+              </svg>
+              Edit script
+            </button>
+          </div>
+          <ol id="questionList" class="question-list"></ol>
+          <div id="scriptEditor" class="script-editor" hidden>
+            <textarea id="scriptText" aria-label="Script, one question per line"></textarea>
+            <span class="hint">One question per line. Saving starts the questions over.</span>
+            <div class="row">
+              <button id="saveScriptButton" class="button button-primary" type="button">
+                Save
+              </button>
+              <button id="cancelScriptButton" class="button button-ghost" type="button">
+                Cancel
+              </button>
+              <button id="defaultScriptButton" class="link" type="button">Default script</button>
+            </div>
+          </div>
+        </section>
+
+        <section id="panel-session" class="panel" role="tabpanel" hidden>
+          <table class="stats-table">
+            <tbody id="statsTable"></tbody>
+          </table>
+          <button id="csvButton" class="button" type="button">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 4v11M7 10.5l5 5 5-5M5 20h14" />
+            </svg>
+            Download stats CSV
+          </button>
+        </section>
+
+        <section id="panel-log" class="panel" role="tabpanel" hidden>
+          <pre id="log" class="log"></pre>
+        </section>
+
+        <footer class="side-footer">
+          <div class="side-footer-head">
+            <strong>Recording here</strong
+            ><span class="muted">what you hear and what you send</span>
+          </div>
+          <button id="recordButton" class="button button-wide" type="button"></button>
+          <label class="toggle-row">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 15v-3a8 8 0 0 1 16 0v3" />
+              <rect x="3" y="14" width="4.5" height="6.5" rx="1.5" />
+              <rect x="16.5" y="14" width="4.5" height="6.5" rx="1.5" />
+            </svg>
+            <span class="toggle-label">Hear the phone on this Mac</span>
+            <input id="hearToggle" class="switch" type="checkbox" />
+          </label>
+        </footer>
+      </aside>
+    </div>
+
+    <div id="settingsBackdrop" class="backdrop" hidden></div>
+    <aside id="settingsPanel" class="settings" aria-label="Settings" hidden>
+      <div class="settings-head">
+        <span class="settings-title">Settings</span>
+        <span class="muted small">kept in this browser</span>
+        <button id="closeSettingsButton" class="icon-button" type="button" aria-label="Close">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+      </div>
+      <form id="settingsForm" class="settings-body">
+        <section class="settings-section">
+          <h3>CONNECTION</h3>
+          <label class="field">
+            <span>Room</span>
+            <input name="room" class="mono" autocomplete="off" />
+            <span class="hint"
+              >The phone joins the room set in its build. A new room or name applies on the next
+              Join.</span
+            >
+          </label>
+          <div class="pair">
+            <label class="field"
+              ><span>Your name in the room</span
+              ><input name="identity" class="mono" autocomplete="off"
+            /></label>
+            <label class="field"
+              ><span>Phone to watch</span><input name="phone" class="mono" autocomplete="off"
+            /></label>
+          </div>
+        </section>
+        <section class="settings-section">
+          <h3>QUESTIONS</h3>
+          <div class="field">
+            <span>Who asks</span>
+            <div class="segmented">
+              <label><input type="radio" name="asker" value="voice" />Scripted voice</label>
+              <label><input type="radio" name="asker" value="microphone" />My microphone</label>
+            </div>
+          </div>
+          <label class="field">
+            <span>Voice</span>
+            <select name="voice"></select>
+            <span class="hint"
+              >Any voice installed on this Mac; each question is spoken once and kept.</span
+            >
+          </label>
+          <label class="field">
+            <span>Next question after quiet, seconds</span>
+            <input name="quietSec" class="mono" type="number" />
+          </label>
+          <label class="toggle-row">
+            <span class="toggle-label">Start the questions when the phone joins</span>
+            <input name="startOnJoin" class="switch" type="checkbox" />
+          </label>
+          <label class="toggle-row">
+            <span class="toggle-label">Start over after the last question</span>
+            <input name="loop" class="switch" type="checkbox" />
+          </label>
+        </section>
+        <section class="settings-section">
+          <h3>RECORDING AND STATS</h3>
+          <label class="toggle-row">
+            <span class="toggle-label">
+              Record when the phone joins
+              <span class="hint">Saves what you hear and what you send as WebM in Downloads.</span>
+            </span>
+            <input name="recordOnJoin" class="switch" type="checkbox" />
+          </label>
+          <label class="toggle-row">
+            <span class="toggle-label">
+              Stats every second as CSV
+              <span class="hint">Frame size, fps, freezes, packet loss and audio level.</span>
+            </span>
+            <input name="statsCsv" class="switch" type="checkbox" />
+          </label>
+          <label class="toggle-row">
+            <span class="toggle-label">Show stats over the video</span>
+            <input name="statsOverlay" class="switch" type="checkbox" />
+          </label>
+        </section>
+      </form>
+      <div class="settings-foot">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 6l5 5-5 5M11 18h9" />
+        </svg>
+        <span>Started with <code>yarn interviewer</code> · LiveKit keys stay on this Mac</span>
+        <button id="resetButton" class="button button-ghost" type="button">
+          Reset to defaults
+        </button>
+      </div>
+    </aside>
+
+    <audio id="speech" preload="auto"></audio>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

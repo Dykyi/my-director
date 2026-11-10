@@ -16,5 +16,5 @@
     }
   },
   "include": ["**/*.ts", "**/*.tsx", ".rnstorybook/**/*.ts", ".rnstorybook/**/*.tsx"],
-  "exclude": ["tools/upload-api"]
+  "exclude": ["tools/upload-api", "tools/interviewer"]
 }
