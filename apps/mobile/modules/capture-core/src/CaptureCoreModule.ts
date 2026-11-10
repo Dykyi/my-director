@@ -5,7 +5,6 @@ import type {
   CaptureConfig,
   CaptureConfigInput,
   CaptureCoreEvents,
-  CaptureErrorCode,
   PermissionsState,
   RecordingSummary,
   RecoveryReport,
@@ -16,7 +15,6 @@ import type {
 declare class CaptureCoreNativeModule extends NativeModule<CaptureCoreEvents> {
   getPermissions(): PermissionsState;
   requestPermissions(): Promise<PermissionsState>;
-  getDefaultConfig(): CaptureConfig;
   getConfig(): CaptureConfig;
   getSnapshot(): SessionSnapshot;
   prepare(config?: CaptureConfigInput): Promise<CaptureConfig>;
@@ -40,7 +38,6 @@ const native = requireNativeModule<CaptureCoreNativeModule>('CaptureCore');
 export const CaptureCore = {
   getPermissions: () => native.getPermissions(),
   requestPermissions: () => native.requestPermissions(),
-  getDefaultConfig: () => native.getDefaultConfig(),
   getConfig: () => native.getConfig(),
   getSnapshot: () => native.getSnapshot(),
   prepare: (config?: CaptureConfigInput) => native.prepare(config),
@@ -61,9 +58,3 @@ export const CaptureCore = {
     listener: CaptureCoreEvents[Event],
   ) => native.addListener(event, listener),
 };
-
-export type CaptureCommandError = Error & { code: CaptureErrorCode };
-
-export function isCaptureError(error: unknown): error is CaptureCommandError {
-  return error instanceof Error && typeof (error as { code?: unknown }).code === 'string';
-}

@@ -58,13 +58,14 @@ enum SessionEffect: Equatable, Sendable {
   case beginBackgroundTask
   case endBackgroundTask
   case setIdleTimerDisabled(Bool)
-  case persistManifest
+  case saveManifest
   case applyCallProfile(CallProfileName)
 }
 
 struct SessionMachine: Sendable {
   private static let deviceWarnings: Set<CaptureErrorCode> = [.diskSpaceLow]
   private static let segmentWarnings: Set<CaptureErrorCode> = [.audioStalled, .fileFpsLow]
+  /// Phases where a call that is not connected counts as lost; connecting during `starting` does not.
   private static let callWarningPhases: Set<SessionPhase> = [.recording, .pausing, .paused]
 
   private static func interruptedStartMessage(_ source: InterruptionSource) -> String {
@@ -106,7 +107,7 @@ struct SessionMachine: Sendable {
     case (.starting, .startSucceeded):
       state.phase = .recording
       state.segmentIndex = 1
-      return [.openSegment(1), .persistManifest, .setIdleTimerDisabled(true)]
+      return [.openSegment(1), .saveManifest, .setIdleTimerDisabled(true)]
 
     case (.starting, .startFailed(let failure)):
       return abortStart(failure, at: now)
@@ -129,11 +130,11 @@ struct SessionMachine: Sendable {
     case (.pausing, .segmentClosed(_, let failure)):
       state.phase = .paused
       if let failure { warn(.fileWriterFailed, failure.message, at: now) }
-      return [.persistManifest, .endBackgroundTask] + autoResumeIfAllowed()
+      return [.saveManifest, .endBackgroundTask] + autoResumeIfAllowed()
 
     case (.stopping, .segmentClosed(_, let failure)):
       if let failure { warn(.fileWriterFailed, failure.message, at: now) }
-      return [.persistManifest]
+      return [.saveManifest]
 
     case (.resuming, .interruptionBegan(let source, let reason)):
       noteInterruption(source)
@@ -177,7 +178,7 @@ struct SessionMachine: Sendable {
       state.phase = .recording
       state.segmentIndex += 1
       state.pauseReason = nil
-      return [.openSegment(state.segmentIndex), .persistManifest]
+      return [.openSegment(state.segmentIndex), .saveManifest]
 
     case (.resuming, .resumeFailed(let failure)):
       state.phase = .paused

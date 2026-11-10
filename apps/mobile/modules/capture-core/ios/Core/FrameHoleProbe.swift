@@ -1,8 +1,6 @@
 import Foundation
 
 struct FrameHoleProbe: Sendable {
-  static let holeThreshold = 0.1
-
   struct Hole: Equatable, Sendable {
     var gap: Double
     var droppedFrames: [String: Int]
@@ -29,7 +27,7 @@ struct FrameHoleProbe: Sendable {
       droppedFrames = [:]
       longestWork = nil
     }
-    guard let lastFrameTime, time - lastFrameTime > Self.holeThreshold else { return nil }
+    guard let lastFrameTime, time - lastFrameTime > VerificationRules.maxIntervalSec else { return nil }
     return Hole(
       gap: time - lastFrameTime,
       droppedFrames: droppedFrames,
@@ -37,5 +35,20 @@ struct FrameHoleProbe: Sendable {
       longestWorkDuration: longestWork?.duration ?? 0,
       arrivalLag: arrivalLag
     )
+  }
+}
+
+extension FrameHoleProbe.Hole {
+  var logData: [String: String] {
+    [
+      "gapMs": Self.milliseconds(gap),
+      "dropped": droppedFrames.isEmpty ? "none" : droppedFrames.map { "\($0.key) \($0.value)" }.sorted().joined(separator: ", "),
+      "longestQueueWork": longestWork.map { "\($0) \(Self.milliseconds(longestWorkDuration)) ms" } ?? "none",
+      "arrivalLagMs": Self.milliseconds(arrivalLag),
+    ]
+  }
+
+  private static func milliseconds(_ seconds: Double) -> String {
+    String(format: "%.0f", seconds * 1000)
   }
 }

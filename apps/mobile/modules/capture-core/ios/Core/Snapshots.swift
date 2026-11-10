@@ -100,3 +100,23 @@ struct HealthSnapshot: Codable, Equatable, Sendable {
   var audioRoute: AudioRoute
   var diskFreeBytes: Int64
 }
+
+extension HealthSnapshot.QualityLimitation {
+  init(webRTCReason: String?) {
+    self = Self(rawValue: webRTCReason ?? "none") ?? .other
+  }
+}
+
+extension HealthSnapshot.Call {
+  static func idle(droppedFrames: Int) -> Self {
+    Self(sentWidth: 0, sentHeight: 0, sentFps: 0, bitrateKbps: 0, droppedFrames: droppedFrames, qualityLimitation: .none)
+  }
+}
+
+extension SessionSnapshot {
+  private static let phasesWithOpenSegment: Set<SessionPhase> = [.recording, .pausing, .stopping]
+
+  static func recordedSec(manifestSec: Double, phase: SessionPhase, openSegmentSec: Double) -> Double {
+    manifestSec + (phasesWithOpenSegment.contains(phase) ? openSegmentSec : 0)
+  }
+}

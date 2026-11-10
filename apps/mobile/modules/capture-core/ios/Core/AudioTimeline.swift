@@ -1,5 +1,7 @@
 import Foundation
 
+/// Capture clock presentation times for the tap's microphone chunks: the sample count keeps time,
+/// each chunk's stamp only steers slowly against drift and loss.
 struct AudioTimeline: Sendable {
   struct Configuration: Sendable {
     var sampleRate: Double
@@ -11,6 +13,7 @@ struct AudioTimeline: Sendable {
     var presentationTime: Double
     var silenceFrames: Int
     var droppedFrames: Int
+    /// Seconds; positive when the audio fell behind.
     var correction: Double?
   }
 
@@ -30,9 +33,9 @@ struct AudioTimeline: Sendable {
     self.configuration = configuration
   }
 
-  mutating func place(frameCount: Int, firstFrameStamp: Double) -> Placement {
+  mutating func place(frameCount: Int, firstFrameCaptureTime: Double) -> Placement {
     let sampleRate = configuration.sampleRate
-    let observedStart = firstFrameStamp - configuration.captureLatency
+    let observedStart = firstFrameCaptureTime - configuration.captureLatency
     guard let anchor else {
       self.anchor = observedStart
       emittedFrames = Int64(frameCount)
@@ -88,5 +91,19 @@ private extension [Double] {
     let sorted = sorted()
     let middle = sorted.count / 2
     return sorted.count.isMultiple(of: 2) ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle]
+  }
+}
+
+extension AudioTimeline.Configuration {
+  /// Voice processing delay that `inputLatency` and `ioBufferDuration` leave out, measured with the sync
+  /// beacon on the iPhone 11 built-in microphone.
+  static let voiceProcessingLatency = 0.0235
+
+  init(sampleRate: Double, inputLatency: Double, ioBufferDuration: Double, resyncThreshold: Double) {
+    self.init(
+      sampleRate: sampleRate,
+      captureLatency: inputLatency + ioBufferDuration + Self.voiceProcessingLatency,
+      resyncThreshold: resyncThreshold
+    )
   }
 }

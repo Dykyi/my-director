@@ -13,7 +13,9 @@ struct CallCredentials: Equatable, Sendable {
 @MainActor
 final class CallPublisher: NSObject, RoomDelegate {
   private static let pauseReasonAttribute = "pauseReason"
+  private nonisolated static let defaultProfile = CaptureConfig.defaults.call.profiles.standard
   private static let connectPollInterval = Duration.milliseconds(100)
+  /// Status events come in bursts; one update per this delay is enough for the screen.
   private static let statusRefreshDelay = Duration.milliseconds(250)
 
   let scaler: CallFrameScaler
@@ -21,29 +23,29 @@ final class CallPublisher: NSObject, RoomDelegate {
   private(set) var status = CallStatus()
 
   private let log: EventLog
+  private let muteChanges = SerialTaskQueue()
   private var room: Room?
   private var videoTrack: LocalVideoTrack?
   private var credentials: CallCredentials?
-  private var call = CaptureConfig.defaults.call
+  private var callConfig = CaptureConfig.defaults.call
   private var audio = CaptureConfig.defaults.audio
-  private var profile = CaptureConfig.defaults.call.profiles.standard
+  private var profile = defaultProfile
   private var rotationAngle = CameraSource.portraitRotationAngle
   private var quality = CallQuality.unknown
   private var connectedAt: Date?
   private var reconnectCount = 0
   private var isMuted = false
   private var refreshScheduled = false
-  private var lastBytesSent: (bytes: UInt64, timestampUs: Double)?
-  private var lastBitrateKbps = 0.0
+  private var bitrate = BitrateMeter()
 
   nonisolated init(log: EventLog) {
     self.log = log
-    scaler = CallFrameScaler(profile: CaptureConfig.defaults.call.profiles.standard, log: log)
+    scaler = CallFrameScaler(profile: Self.defaultProfile, log: log)
     super.init()
   }
 
   func configure(call: CaptureConfig.Call, audio: CaptureConfig.Audio) {
-    self.call = call
+    callConfig = call
     self.audio = audio
   }
 
@@ -60,11 +62,15 @@ final class CallPublisher: NSObject, RoomDelegate {
       ),
       adaptiveStream: false,
       dynacast: false,
+      // Backgrounding pauses the session; LiveKit's own suspension would fight that.
       suspendLocalVideoTracksInBackground: false
     ))
     self.room = room
     do {
-      try await withTimeout(seconds: call.connectTimeoutSec) {
+      let timeout = callConfig.connectTimeoutSec
+      let timedOut = Failure(code: .callConnectFailed, message: "No connection after \(Int(timeout)) s")
+      // Room.connect has no timeout of its own.
+      try await withTimeout(seconds: timeout, throwing: timedOut) {
         try await room.connect(url: credentials.url, token: credentials.token)
       }
       connectedAt = Date()
@@ -78,6 +84,11 @@ final class CallPublisher: NSObject, RoomDelegate {
   }
 
   func setMuted(_ muted: Bool, reason: PauseReason?) async {
+    await muteChanges.enqueue { await self.changeMute(muted, reason: reason) }.value
+  }
+
+  /// The reason goes first, so the interviewer page can say why before the picture goes dark.
+  private func changeMute(_ muted: Bool, reason: PauseReason?) async {
     guard let room, let videoTrack else { return }
     await sharePauseReason(muted ? reason : nil, in: room)
     do {
@@ -104,7 +115,7 @@ final class CallPublisher: NSObject, RoomDelegate {
     scaler.attach(videoTrack?.capturer as? BufferCapturer, rotationAngle: rotationAngle)
     let state = room?.connectionState
     if state == .connected { return }
-    if state == .connecting || state == .reconnecting, await waitUntilConnected(timeout: call.connectTimeoutSec) { return }
+    if state == .connecting || state == .reconnecting, try await waitUntilConnected(timeout: callConfig.connectTimeoutSec) { return }
     guard let credentials else {
       throw Failure(code: .callConnectFailed, message: "No credentials to rejoin the room")
     }
@@ -124,8 +135,7 @@ final class CallPublisher: NSObject, RoomDelegate {
     guard let room else { return }
     self.room = nil
     videoTrack = nil
-    lastBytesSent = nil
-    lastBitrateKbps = 0
+    bitrate = BitrateMeter()
     quality = .unknown
     connectedAt = nil
     reconnectCount = 0
@@ -135,24 +145,17 @@ final class CallPublisher: NSObject, RoomDelegate {
     log.info("call", "Left the room")
   }
 
-  func sendStats() -> HealthSnapshot.Call {
+  func outboundVideoStats() -> HealthSnapshot.Call {
     let dropped = scaler.droppedFrameCount
-    guard let stream = videoTrack?.statistics?.outboundRtpStream.first else {
-      return HealthSnapshot.Call(sentWidth: 0, sentHeight: 0, sentFps: 0, bitrateKbps: 0, droppedFrames: dropped, qualityLimitation: .none)
-    }
-    if let bytes = stream.bytesSent, stream.timestamp != lastBytesSent?.timestampUs {
-      if let last = lastBytesSent, stream.timestamp > last.timestampUs, bytes >= last.bytes {
-        lastBitrateKbps = Double(bytes - last.bytes) * 8 * 1000 / (stream.timestamp - last.timestampUs)
-      }
-      lastBytesSent = (bytes, stream.timestamp)
-    }
+    guard let stream = videoTrack?.statistics?.outboundRtpStream.first else { return .idle(droppedFrames: dropped) }
+    let kbps = stream.bytesSent.map { bitrate.update(bytesSent: $0, timestampUs: stream.timestamp) } ?? bitrate.kbps
     return HealthSnapshot.Call(
       sentWidth: Int(stream.frameWidth ?? 0),
       sentHeight: Int(stream.frameHeight ?? 0),
       sentFps: stream.framesPerSecond ?? 0,
-      bitrateKbps: lastBitrateKbps,
+      bitrateKbps: kbps,
       droppedFrames: dropped,
-      qualityLimitation: HealthSnapshot.QualityLimitation(rawValue: stream.qualityLimitationReason?.rawValue ?? "none") ?? .other
+      qualityLimitation: HealthSnapshot.QualityLimitation(webRTCReason: stream.qualityLimitationReason?.rawValue)
     )
   }
 
@@ -168,9 +171,9 @@ final class CallPublisher: NSObject, RoomDelegate {
     do {
       _ = try await room.localParticipant.publish(videoTrack: track, options: VideoPublishOptions(
         name: Track.cameraName,
-        simulcast: call.simulcast,
-        preferredCodec: call.codec == .h264 ? .h264 : .vp8,
-        degradationPreference: call.degradation.liveKitPreference
+        simulcast: callConfig.simulcast,
+        preferredCodec: callConfig.codec == .h264 ? .h264 : .vp8,
+        degradationPreference: callConfig.degradation.liveKitPreference
       ))
       _ = try await room.localParticipant.setMicrophone(enabled: true)
     } catch {
@@ -180,18 +183,13 @@ final class CallPublisher: NSObject, RoomDelegate {
     videoTrack = track
     log.info("call", "Tracks published", [
       "video": "\(profile.width)x\(profile.height)@\(profile.fps)",
-      "codec": call.codec.rawValue,
-      "simulcast": String(call.simulcast),
+      "codec": callConfig.codec.rawValue,
+      "simulcast": String(callConfig.simulcast),
     ])
   }
 
-  private func waitUntilConnected(timeout: Double) async -> Bool {
-    let deadline = HostClock.now() + timeout
-    while HostClock.now() < deadline {
-      if room?.connectionState == .connected { return true }
-      try? await Task.sleep(for: Self.connectPollInterval)
-    }
-    return false
+  private func waitUntilConnected(timeout: Double) async throws -> Bool {
+    try await poll(every: Self.connectPollInterval, timeout: timeout) { room?.connectionState == .connected }
   }
 
   private func refreshStatus() {
@@ -249,7 +247,7 @@ final class CallPublisher: NSObject, RoomDelegate {
   }
 
   nonisolated func room(_ room: Room, participantDidConnect participant: RemoteParticipant) {
-    let identity = participant.identity?.stringValue ?? "?"
+    let identity = participant.displayIdentity
     onMain(of: room) { publisher in
       publisher.log.info("call", "Participant joined", ["identity": identity])
       publisher.refreshStatus()
@@ -257,7 +255,7 @@ final class CallPublisher: NSObject, RoomDelegate {
   }
 
   nonisolated func room(_ room: Room, participantDidDisconnect participant: RemoteParticipant) {
-    let identity = participant.identity?.stringValue ?? "?"
+    let identity = participant.displayIdentity
     onMain(of: room) { publisher in
       publisher.log.info("call", "Participant left", ["identity": identity])
       publisher.refreshStatus()
@@ -298,64 +296,5 @@ final class CallPublisher: NSObject, RoomDelegate {
       publisher.log.warning("call", "Room disconnected", ["error": message])
       publisher.refreshStatus()
     }
-  }
-}
-
-private extension CallConnectionState {
-  init(_ state: ConnectionState) {
-    switch state {
-    case .connected: self = .connected
-    case .connecting: self = .connecting
-    case .reconnecting: self = .reconnecting
-    default: self = .disconnected
-    }
-  }
-}
-
-private extension CallQuality {
-  init(_ quality: ConnectionQuality) {
-    switch quality {
-    case .excellent: self = .excellent
-    case .good: self = .good
-    case .poor: self = .poor
-    case .lost: self = .lost
-    default: self = .unknown
-    }
-  }
-}
-
-private extension CallDegradation {
-  var liveKitPreference: DegradationPreference {
-    switch self {
-    case .maintainFramerate: .maintainFramerate
-    case .maintainResolution: .maintainResolution
-    case .balanced: .balanced
-    }
-  }
-}
-
-private func withTimeout(seconds: Double, _ operation: @escaping @Sendable () async throws -> Void) async throws {
-  try await withThrowingTaskGroup(of: Void.self) { group in
-    group.addTask { try await operation() }
-    group.addTask {
-      try await Task.sleep(for: .seconds(seconds))
-      throw Failure(code: .callConnectFailed, message: "No connection after \(Int(seconds)) s")
-    }
-    defer { group.cancelAll() }
-    _ = try await group.next()
-  }
-}
-
-private extension ParticipantStatus {
-  init(_ participant: RemoteParticipant) {
-    let publications = participant.trackPublications.values
-    self.init(
-      identity: participant.identity?.stringValue ?? "?",
-      joinedAt: participant.joinedAt,
-      quality: CallQuality(participant.connectionQuality),
-      isSpeaking: participant.isSpeaking,
-      microphone: TrackStatus(isMuted: publications.first { $0.source == .microphone }?.isMuted),
-      camera: TrackStatus(isMuted: publications.first { $0.source == .camera }?.isMuted)
-    )
   }
 }

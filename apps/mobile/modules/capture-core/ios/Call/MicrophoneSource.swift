@@ -5,6 +5,8 @@ import LiveKit
 import LiveKitClient
 #endif
 
+/// Keeps LiveKit's audio engine recording with or without a room, so the microphone has one owner
+/// and survives call drops.
 @MainActor
 final class MicrophoneSource {
   private let tap: EngineInputTap
@@ -67,7 +69,7 @@ final class MicrophoneSource {
     log.info("audio", "Microphone stopped")
   }
 
-  func processingReport() -> [String: String] {
+  private func processingReport() -> [String: String] {
     [
       "processing": String(describing: AudioManager.shared.audioProcessingState),
       "platform": String(describing: AudioManager.shared.platformVoiceProcessingState),
@@ -86,6 +88,8 @@ final class MicrophoneSource {
     }
   }
 
+  /// After a call ends or the route moves nobody else restarts the engine, so it starts again here;
+  /// `AudioTimeline` absorbs the gap.
   private func engineStopped() {
     guard isRunning else { return }
     lastEngineStopAt = HostClock.now()

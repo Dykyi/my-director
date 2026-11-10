@@ -123,3 +123,15 @@ struct ConfigValidatorTests {
     #expect(problems { $0.call.connectTimeoutSec = 2 }.contains { $0.hasPrefix("call.connectTimeoutSec") })
   }
 }
+
+struct ConfigSecondsTests {
+  @Test func millisecondFieldsReadAsSeconds() {
+    let config = CaptureConfig.defaults
+    #expect(config.audio.resyncThresholdSec == 0.04)
+    #expect(config.session.resumeTimeoutSec == 3)
+    #expect(config.health.videoStallSec == 1)
+    #expect(config.health.audioStallSec == 1)
+    #expect(config.health.fileStallSec == 5)
+    #expect(config.health.micRestartGraceSec == 3)
+  }
+}

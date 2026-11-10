@@ -107,6 +107,7 @@ final class SystemEventMonitor: NSObject, CXCallObserverDelegate {
     var data = ["reason": interruption.map(Self.name) ?? "unknown", "rawReason": rawReason.map(String.init) ?? "?"]
     if let backgroundedAt { data["msAfterBackground"] = Self.milliseconds(since: backgroundedAt) }
     log.warning("system", "Camera interrupted", data)
+    // iOS takes the camera on the way to the background, before `didEnterBackground` arrives.
     let reason: PauseReason = interruption == .videoDeviceNotAvailableInBackground ? .appBackground : .cameraInterrupted
     onEvent(.session(.interruptionBegan(.camera, reason)))
   }
@@ -145,18 +146,6 @@ final class SystemEventMonitor: NSObject, CXCallObserverDelegate {
     observers.append(NotificationCenter.default.addObserver(forName: name, object: object, queue: .main) { notification in
       MainActor.assumeIsolated { handler(notification) }
     })
-  }
-}
-
-extension ThermalLevel {
-  init(_ state: ProcessInfo.ThermalState) {
-    switch state {
-    case .nominal: self = .nominal
-    case .fair: self = .fair
-    case .serious: self = .serious
-    case .critical: self = .critical
-    @unknown default: self = .critical
-    }
   }
 }
 

@@ -2,8 +2,6 @@ import AVFoundation
 import ExpoModulesCore
 
 final class CapturePreviewView: ExpoView {
-  private static let portraitRotationAngle: CGFloat = 90
-
   private let previewLayer = AVCaptureVideoPreviewLayer()
   private var startObserver: NSObjectProtocol?
 
@@ -41,9 +39,9 @@ final class CapturePreviewView: ExpoView {
 
   private func applyPortraitRotation() {
     guard let connection = previewLayer.connection,
-          connection.isVideoRotationAngleSupported(Self.portraitRotationAngle)
+          connection.isVideoRotationAngleSupported(CameraSource.portraitRotationAngle)
     else { return }
-    connection.videoRotationAngle = Self.portraitRotationAngle
+    connection.videoRotationAngle = CameraSource.portraitRotationAngle
   }
 }
 

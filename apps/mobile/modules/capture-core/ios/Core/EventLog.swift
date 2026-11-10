@@ -30,14 +30,15 @@ final class EventLog: @unchecked Sendable {
     }
   }
 
-  func log(_ level: LogLevel, _ category: String, _ message: String, _ data: [String: String]? = nil) {
+  /// `file` takes the line instead of the attached events.jsonl: the session it belongs to has finished.
+  func log(_ level: LogLevel, _ category: String, _ message: String, _ data: [String: String]? = nil, file: URL? = nil) {
     let entry = LogEntry(at: Date(), mono: HostClock.now(), level: level, category: category, message: message, data: data)
     let details = data?.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: " ") ?? ""
     osLogger(category).log(level: level.osLogType, "\(message, privacy: .public) \(details, privacy: .public)")
     listener.withLock { $0 }?(entry)
     ioQueue.async {
       do {
-        try self.file?.append(entry)
+        if let file { try EventLogFile(url: file).append(entry) } else { try self.file?.append(entry) }
       } catch {
         self.osLogger("log").error("events.jsonl append failed: \(error.localizedDescription, privacy: .public)")
       }

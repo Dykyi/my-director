@@ -56,15 +56,6 @@ final class CameraSource: @unchecked Sendable {
     }
   }
 
-  func stop() async {
-    await withCheckedContinuation { continuation in
-      queue.async {
-        if self.session.isRunning { self.session.stopRunning() }
-        continuation.resume()
-      }
-    }
-  }
-
   private func configureSession(
     _ camera: CaptureConfig.Camera,
     delegate: AVCaptureVideoDataOutputSampleBufferDelegate,
@@ -144,29 +135,13 @@ final class CameraSource: @unchecked Sendable {
     )
   }
 
-  static func bestFormat(of device: AVCaptureDevice, for camera: CaptureConfig.Camera) -> AVCaptureDevice.Format? {
-    let fps = Double(camera.fps)
-    return device.formats
-      .filter { format in
-        let dimensions = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
-        return Int(dimensions.width) == camera.width
-          && Int(dimensions.height) == camera.height
-          && CMFormatDescriptionGetMediaSubType(format.formatDescription) == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange
-          && format.videoSupportedFrameRateRanges.contains { $0.minFrameRate <= fps && fps <= $0.maxFrameRate }
-      }
-      .min { lhs, rhs in
-        if lhs.isVideoBinned != rhs.isVideoBinned { return !lhs.isVideoBinned }
-        return maxFrameRate(of: lhs) < maxFrameRate(of: rhs)
-      }
-  }
-
-  private static func maxFrameRate(of format: AVCaptureDevice.Format) -> Double {
-    format.videoSupportedFrameRateRanges.map(\.maxFrameRate).max() ?? 0
+  private static func bestFormat(of device: AVCaptureDevice, for camera: CaptureConfig.Camera) -> AVCaptureDevice.Format? {
+    CameraFormatCandidate.bestIndex(in: device.formats.map(CameraFormatCandidate.init), for: camera).map { device.formats[$0] }
   }
 
   private static func describe(_ format: AVCaptureDevice.Format) -> String {
-    let dimensions = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
-    return "\(dimensions.width)x\(dimensions.height) 420f up to \(Int(maxFrameRate(of: format))) fps"
+    let candidate = CameraFormatCandidate(format)
+    return "\(candidate.width)x\(candidate.height) 420f up to \(Int(candidate.maxFrameRate)) fps"
   }
 
   private static func availableSizes(of device: AVCaptureDevice) -> String {
@@ -174,5 +149,18 @@ final class CameraSource: @unchecked Sendable {
       let dimensions = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
       return "\(dimensions.width)x\(dimensions.height)"
     }).sorted().joined(separator: ", ")
+  }
+}
+
+private extension CameraFormatCandidate {
+  init(_ format: AVCaptureDevice.Format) {
+    let dimensions = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
+    self.init(
+      width: Int(dimensions.width),
+      height: Int(dimensions.height),
+      isFullRange420: CMFormatDescriptionGetMediaSubType(format.formatDescription) == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+      frameRateRanges: format.videoSupportedFrameRateRanges.map { $0.minFrameRate...$0.maxFrameRate },
+      isBinned: format.isVideoBinned
+    )
   }
 }

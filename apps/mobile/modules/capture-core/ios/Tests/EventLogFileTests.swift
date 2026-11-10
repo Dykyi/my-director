@@ -40,3 +40,19 @@ final class EventLogFileTests {
     #expect(try EventLogFile.read(url).map(\.message) == ["complete"])
   }
 }
+
+struct EventLogTests {
+  @Test func aFinishedSessionGetsItsLineInItsOwnFile() throws {
+    let queue = DispatchQueue(label: "test.log")
+    let directory = Fixtures.temporaryDirectory()
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    let newSession = directory.appending(path: "new.jsonl")
+    let finishedSession = directory.appending(path: "finished.jsonl")
+    let log = EventLog(subsystem: "test", ioQueue: queue)
+    log.attachFile(at: newSession)
+    log.log(.info, "verify", "Recording passed verification", file: finishedSession)
+    queue.sync {}
+    #expect(try EventLogFile.read(finishedSession).map(\.message) == ["Recording passed verification"])
+    #expect(try EventLogFile.read(newSession).isEmpty)
+  }
+}

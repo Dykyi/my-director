@@ -2,7 +2,7 @@ import AVFoundation
 
 enum RecoveryInspector {
   static func inspect(_ url: URL) async -> SegmentInspection {
-    let bytes = Int64((try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize).flatMap { $0 } ?? 0)
+    let bytes = url.fileSize
     let asset = AVURLAsset(url: url)
     do {
       guard try await asset.load(.isPlayable) else {

@@ -23,8 +23,8 @@ final class SegmentWriter: @unchecked Sendable {
 
   private static let timescale: CMTimeScale = 600
 
-  let url: URL
-  let audioSampleRate: Double
+  private let url: URL
+  private let audioSampleRate: Double
   private let writer: AVAssetWriter
   private let videoInput: AVAssetWriterInput
   private let audioInput: AVAssetWriterInput
@@ -38,7 +38,6 @@ final class SegmentWriter: @unchecked Sendable {
   private var videoStopped = false
   private var audioEnd = 0.0
   private(set) var droppedVideoFrames = 0
-  private(set) var droppedAudioBuffers = 0
 
   var writtenSec: Double {
     guard case .writing = state else { return 0 }
@@ -115,9 +114,9 @@ final class SegmentWriter: @unchecked Sendable {
     return .appended
   }
 
-  func appendAudio(_ samples: UnsafeBufferPointer<Int16>, firstFrameStamp: Double) -> AppendResult {
+  func appendAudio(_ samples: UnsafeBufferPointer<Int16>, firstFrameCaptureTime: Double) -> AppendResult {
     guard case .writing = state else { return .skipped }
-    let placement = timeline.place(frameCount: samples.count, firstFrameStamp: firstFrameStamp)
+    let placement = timeline.place(frameCount: samples.count, firstFrameCaptureTime: firstFrameCaptureTime)
     if let correction = placement.correction { pendingCorrection = correction }
     do {
       if placement.silenceFrames > 0 {
@@ -165,8 +164,7 @@ final class SegmentWriter: @unchecked Sendable {
     guard writer.status == .completed else {
       return .failed(message: writer.error?.localizedDescription ?? "finishWriting ended with status \(writer.status.rawValue)")
     }
-    let bytes = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize).flatMap { $0 } ?? 0
-    return .finalized(durationSec: (end - firstVideoTime).seconds, bytes: Int64(bytes))
+    return .finalized(durationSec: (end - firstVideoTime).seconds, bytes: url.fileSize)
   }
 
   private func padAudioTail(to videoEnd: Double) {
@@ -177,10 +175,7 @@ final class SegmentWriter: @unchecked Sendable {
   }
 
   private func append(audio buffer: CMSampleBuffer) -> AppendResult {
-    guard audioInput.isReadyForMoreMediaData else {
-      droppedAudioBuffers += 1
-      return .skipped
-    }
+    guard audioInput.isReadyForMoreMediaData else { return .skipped }
     guard audioInput.append(buffer) else { return .failed(markFailed()) }
     return .appended
   }

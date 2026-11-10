@@ -1,35 +1,13 @@
 import AVFoundation
 import os
 
-protocol CallFrameSink: AnyObject, Sendable {
-  func offer(_ sampleBuffer: CMSampleBuffer)
-}
-
-struct MediaStats: Sendable {
-  var cameraRate = RateMeter()
-  var cameraWidth = 0
-  var cameraHeight = 0
-  var cameraDroppedFrames = 0
-  var fileRate = RateMeter()
-  var fileDroppedFrames = 0
-  var writerState = HealthSnapshot.WriterState.idle
-  var segmentSec = 0.0
-  var audioLevelDb = AudioLevel.floorDb
-  var lastAudioArrival = 0.0
-  var audioSampleRate = 0.0
-  var audioBufferCount = 0
-  var audioMaxGapMs = 0.0
-  var audioDriftMs = 0.0
-  var audioResyncCount = 0
-}
-
+/// Feeds every camera frame to the file first, then to the call. Writer state lives on `queue`;
+/// stats and heartbeats are readable from any thread.
 final class MediaPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, @unchecked Sendable {
-  static let defaultSampleRate = 48_000.0
-  private static let nanosecondTimescale: CMTimeScale = 1_000_000_000
-  private static let dropLogInterval = 30
+  private static let dropLog = LogThrottle(every: 30)
+  /// Audio comes in 100 ms tap chunks after it is captured, so the last one lands after the last frame.
   private static let audioDrainTimeoutSec = 0.3
   private static let audioDrainPoll = Duration.milliseconds(20)
-  private static let measuredVoiceProcessingLatency = 0.0235
 
   let queue = DispatchQueue(label: "capture-core.media", qos: .userInteractive)
   let heartbeats = HeartbeatBoard()
@@ -38,9 +16,8 @@ final class MediaPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
   private let onWriterFailure: @Sendable (Failure) -> Void
 
   private var writer: SegmentWriter?
-  private var callSink: CallFrameSink?
+  private var callSink: CallFrameScaler?
   private var captureClock: CMClock?
-  private var reportedSampleRateMismatch = false
   private var holeProbe = FrameHoleProbe()
 
   init(log: EventLog, onWriterFailure: @escaping @Sendable (Failure) -> Void) {
@@ -54,22 +31,22 @@ final class MediaPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
     queue.async { self.captureClock = clock }
   }
 
-  func setCallSink(_ sink: CallFrameSink?) {
+  func setCallSink(_ sink: CallFrameScaler?) {
     queue.async { self.callSink = sink }
   }
 
   func segmentSettings(url: URL, config: CaptureConfig, rotationAngle: Double) -> SegmentWriter.Settings {
     let audioSession = AVAudioSession.sharedInstance()
-    let sampleRate = statsSnapshot.audioSampleRate
     return SegmentWriter.Settings(
       url: url,
       camera: config.camera,
       recording: config.recording,
       rotationAngle: rotationAngle,
       audio: AudioTimeline.Configuration(
-        sampleRate: sampleRate > 0 ? sampleRate : Self.defaultSampleRate,
-        captureLatency: audioSession.inputLatency + audioSession.ioBufferDuration + Self.measuredVoiceProcessingLatency,
-        resyncThreshold: config.audio.resyncThresholdMs / 1000
+        sampleRate: PCMResampler.fileFormat.sampleRate,
+        inputLatency: audioSession.inputLatency,
+        ioBufferDuration: audioSession.ioBufferDuration,
+        resyncThreshold: config.audio.resyncThresholdSec
       )
     )
   }
@@ -79,13 +56,11 @@ final class MediaPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
       queue.async {
         do {
           self.writer = try SegmentWriter(settings: settings)
-          self.reportedSampleRateMismatch = false
           self.stats.withLock { stats in
             stats.fileRate.reset()
             stats.fileDroppedFrames = 0
             stats.cameraDroppedFrames = 0
             stats.segmentSec = 0
-            stats.audioMaxGapMs = 0
             stats.writerState = .writing
           }
           continuation.resume()
@@ -103,9 +78,8 @@ final class MediaPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
     }
     guard let writer else { return nil }
     stats.withLock { $0.writerState = .finishing }
-    let deadline = HostClock.now() + Self.audioDrainTimeoutSec
-    while HostClock.now() < deadline, await !onQueue({ writer.audioCoversVideo }) {
-      try? await Task.sleep(for: Self.audioDrainPoll)
+    _ = try? await poll(every: Self.audioDrainPoll, timeout: Self.audioDrainTimeoutSec) {
+      await self.onQueue { writer.audioCoversVideo }
     }
     await onQueue { self.writer = nil }
     let outcome = await writer.finish()
@@ -149,23 +123,14 @@ final class MediaPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
       stats.cameraDroppedFrames += 1
       return stats.cameraDroppedFrames
     }
-    guard count == 1 || count.isMultiple(of: Self.dropLogInterval) else { return }
+    guard Self.dropLog.allows(count) else { return }
     log.warning("camera", "Camera dropped frames", ["count": String(count), "reason": reason])
   }
 
   private func reportHole(before sampleBuffer: CMSampleBuffer, arrivedAt now: Double) {
     let time = hostTime(CMSampleBufferGetPresentationTimeStamp(sampleBuffer))
     guard let hole = holeProbe.frame(at: time, arrivalLag: now - time), writer != nil else { return }
-    log.warning("camera", "Camera frames missing", [
-      "gapMs": Self.milliseconds(hole.gap),
-      "dropped": hole.droppedFrames.isEmpty ? "none" : hole.droppedFrames.map { "\($0.key) \($0.value)" }.sorted().joined(separator: ", "),
-      "longestQueueWork": hole.longestWork.map { "\($0) \(Self.milliseconds(hole.longestWorkDuration)) ms" } ?? "none",
-      "arrivalLagMs": Self.milliseconds(hole.arrivalLag),
-    ])
-  }
-
-  private static func milliseconds(_ seconds: Double) -> String {
-    String(format: "%.0f", seconds * 1000)
+    log.warning("camera", "Camera frames missing", hole.logData)
   }
 
   private func appendVideo(_ sampleBuffer: CMSampleBuffer, to writer: SegmentWriter, at now: Double) {
@@ -183,12 +148,12 @@ final class MediaPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
     }
   }
 
-  func handleAudio(_ buffer: AVAudioPCMBuffer, firstFrameStamp: Double) {
-    heartbeats.beat(.microphone, at: firstFrameStamp)
-    queue.async { self.processAudio(buffer, firstFrameStamp: firstFrameStamp) }
+  func handleAudio(_ buffer: AVAudioPCMBuffer, firstFrameHostTime: Double) {
+    heartbeats.beat(.microphone, at: firstFrameHostTime)
+    queue.async { self.processAudio(buffer, firstFrameHostTime: firstFrameHostTime) }
   }
 
-  private func processAudio(_ buffer: AVAudioPCMBuffer, firstFrameStamp: Double) {
+  private func processAudio(_ buffer: AVAudioPCMBuffer, firstFrameHostTime: Double) {
     let started = HostClock.now()
     defer { holeProbe.worked("audio", for: HostClock.now() - started) }
     guard let channel = buffer.int16ChannelData?[0] else {
@@ -199,24 +164,12 @@ final class MediaPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
     let sampleRate = buffer.format.sampleRate
     let level = AudioLevel.rmsDb(samples)
     stats.withLock { stats in
-      if stats.lastAudioArrival > 0 {
-        stats.audioMaxGapMs = max(stats.audioMaxGapMs, (firstFrameStamp - stats.lastAudioArrival) * 1000)
-      }
       stats.audioLevelDb = level
-      stats.lastAudioArrival = firstFrameStamp
+      stats.lastAudioHostTime = firstFrameHostTime
       stats.audioSampleRate = sampleRate
-      stats.audioBufferCount += 1
     }
     guard let writer else { return }
-    guard sampleRate == writer.audioSampleRate else {
-      if !reportedSampleRateMismatch {
-        reportedSampleRateMismatch = true
-        log.error("audio", "Microphone sample rate changed inside a segment; audio is skipped until the next segment",
-                  ["segmentRate": String(writer.audioSampleRate), "bufferRate": String(sampleRate)])
-      }
-      return
-    }
-    switch writer.appendAudio(samples, firstFrameStamp: captureClockTime(firstFrameStamp)) {
+    switch writer.appendAudio(samples, firstFrameCaptureTime: captureClockTime(firstFrameHostTime)) {
     case .appended:
       heartbeats.beat(.fileAudio, at: HostClock.now())
     case .skipped:
@@ -236,7 +189,7 @@ final class MediaPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
   /// Audio arrives stamped with the host clock; video timestamps use the capture session's clock.
   private func captureClockTime(_ hostSeconds: Double) -> Double {
     guard let captureClock else { return hostSeconds }
-    let hostTime = CMTime(seconds: hostSeconds, preferredTimescale: Self.nanosecondTimescale)
+    let hostTime = CMTime(seconds: hostSeconds, preferredTimescale: nanosecondTimescale)
     return CMSyncConvertTime(hostTime, from: CMClockGetHostTimeClock(), to: captureClock).seconds
   }
 
@@ -249,18 +202,5 @@ final class MediaPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
     stats.withLock { $0.writerState = .failed }
     log.error("writer", "Segment writer failed", ["message": failure.message])
     onWriterFailure(failure)
-  }
-}
-
-extension HeartbeatBoard {
-  private static let pollInterval = Duration.milliseconds(50)
-
-  func waitForBeat(_ pipeline: Pipeline, after: Double, timeout: Double) async -> Bool {
-    let deadline = HostClock.now() + timeout
-    while HostClock.now() < deadline {
-      if let beat = snapshot()[pipeline], beat > after { return true }
-      try? await Task.sleep(for: Self.pollInterval)
-    }
-    return false
   }
 }

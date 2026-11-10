@@ -7,9 +7,10 @@ import LiveKit
 import LiveKitClient
 #endif
 
-final class CallFrameScaler: CallFrameSink, @unchecked Sendable {
-  private static let nanosecondTimescale: CMTimeScale = 1_000_000_000
-  private static let failureLogInterval = 30
+/// The file never waits for the call: a frame that arrives while the previous call frame is still in flight
+/// is dropped for the call only.
+final class CallFrameScaler: @unchecked Sendable {
+  private static let failureLog = LogThrottle(every: 30)
 
   private struct Gate {
     var busy = false
@@ -75,12 +76,13 @@ final class CallFrameScaler: CallFrameSink, @unchecked Sendable {
           VTPixelTransferSessionTransferImage(transfer, from: source, to: destination) == noErr
     else {
       scaleFailures += 1
-      if scaleFailures == 1 || scaleFailures.isMultiple(of: Self.failureLogInterval) {
+      if Self.failureLog.allows(scaleFailures) {
         log.warning("call", "Scaling a call frame failed", ["count": String(scaleFailures)])
       }
       return
     }
-    capturer.capture(destination, timeStampNs: CMTimeConvertScale(time, timescale: Self.nanosecondTimescale, method: .default).value, rotation: rotation)
+    // BufferCapturer publishes frames at their own size; it never scales.
+    capturer.capture(destination, timeStampNs: CMTimeConvertScale(time, timescale: nanosecondTimescale, method: .default).value, rotation: rotation)
   }
 
   private func prepare(_ profile: CallVideoProfile) {
@@ -107,7 +109,7 @@ final class CallFrameScaler: CallFrameSink, @unchecked Sendable {
     return pool
   }
 
-  static func videoRotation(forAngle angle: Double) -> VideoRotation {
+  private static func videoRotation(forAngle angle: Double) -> VideoRotation {
     switch Int(angle.rounded()) % 360 {
     case 90: ._90
     case 180: ._180

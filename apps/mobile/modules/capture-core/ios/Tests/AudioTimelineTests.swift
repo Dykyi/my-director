@@ -25,7 +25,7 @@ struct AudioTimelineTests {
     let steps = starts.enumerated().map { index, start in
       let observed = start + offset(index)
       let stamp = observed + Self.latency
-      return Step(observedStart: observed, placement: timeline.place(frameCount: Self.framesPerBuffer, firstFrameStamp: stamp))
+      return Step(observedStart: observed, placement: timeline.place(frameCount: Self.framesPerBuffer, firstFrameCaptureTime: stamp))
     }
     return (timeline, steps)
   }
@@ -42,10 +42,11 @@ struct AudioTimelineTests {
     }
   }
 
+  /// The engine tap stamps a buffer with the host time of its first frame, whatever the buffer's length.
   @Test func stampMarksTheFirstFrameOfTheBuffer() {
     var timeline = AudioTimeline(configuration: .init(
       sampleRate: Self.sampleRate, captureLatency: Self.latency, resyncThreshold: Self.threshold))
-    let placement = timeline.place(frameCount: 4_800, firstFrameStamp: 1_000)
+    let placement = timeline.place(frameCount: 4_800, firstFrameCaptureTime: 1_000)
     #expect(placement.presentationTime == 1_000 - Self.latency)
   }
 

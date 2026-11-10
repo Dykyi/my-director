@@ -127,3 +127,18 @@ struct AudioRouteTests {
     #expect(route.output == "AirPods Pro (BluetoothHFP) + Speaker (Speaker)")
   }
 }
+
+struct RecordedTimeTests {
+  @Test func addsTheOpenSegmentWhileRecording() {
+    #expect(SessionSnapshot.recordedSec(manifestSec: 60, phase: .recording, openSegmentSec: 12.5) == 72.5)
+  }
+
+  @Test func closedSegmentsAloneWhilePaused() {
+    #expect(SessionSnapshot.recordedSec(manifestSec: 60, phase: .paused, openSegmentSec: 0) == 60)
+  }
+
+  @Test func keepsTheOpenSegmentUntilItCloses() {
+    #expect(SessionSnapshot.recordedSec(manifestSec: 60, phase: .pausing, openSegmentSec: 12.5) == 72.5)
+    #expect(SessionSnapshot.recordedSec(manifestSec: 60, phase: .stopping, openSegmentSec: 12.5) == 72.5)
+  }
+}

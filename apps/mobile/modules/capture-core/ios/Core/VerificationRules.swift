@@ -60,6 +60,13 @@ struct VerificationReport: Codable, Equatable, Sendable {
   var pass: Bool
 }
 
+extension VerificationReport {
+  var failedCheckIds: [String] {
+    segments.flatMap { segment in segment.checks.filter { !$0.pass }.map { "\(segment.index):\($0.id)" } }
+  }
+}
+
+/// `tools/verify/verify-recording.py` mirrors these checks.
 enum VerificationRules {
   static let videoCodecs: Set<String> = ["hvc1", "avc1"]
   static let minShortSide = 1080

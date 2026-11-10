@@ -10,7 +10,7 @@ public final class CaptureCoreModule: Module {
 
   private lazy var controller = SessionController()
 
-  var captureSession: AVCaptureSession { controller.camera.session }
+  var captureSession: AVCaptureSession { controller.captureSession }
 
   public func definition() -> ModuleDefinition {
     Name(Self.moduleName)
@@ -33,9 +33,6 @@ public final class CaptureCoreModule: Module {
     }
     AsyncFunction("requestPermissions") { () async throws -> [String: Any] in
       try JSONBridge.object(await Permissions.request())
-    }
-    Function("getDefaultConfig") { () throws -> [String: Any] in
-      try JSONBridge.object(CaptureConfig.defaults)
     }
     Function("getConfig") { () throws -> [String: Any] in
       try JSONBridge.object(self.controller.configCache.withLock { $0 })
@@ -84,6 +81,7 @@ public final class CaptureCoreModule: Module {
 
     #if DEBUG
     Function("simulateCrash") {
+      // No lifecycle callback gets a chance to close the segment.
       kill(getpid(), SIGKILL)
     }
     #endif

@@ -92,19 +92,30 @@ struct CaptureConfig: Codable, Equatable, Sendable {
     var noiseSuppression: Bool
     var autoGainControl: Bool
     var resyncThresholdMs: Double
+
+    var resyncThresholdSec: Double { resyncThresholdMs / 1000 }
   }
 
   struct Session: Codable, Equatable, Sendable {
     var resumePolicy: ResumePolicy
     var heartbeatIntervalSec: Double
     var resumeTimeoutMs: Double
+
+    var resumeTimeoutSec: Double { resumeTimeoutMs / 1000 }
   }
 
   struct Health: Codable, Equatable, Sendable {
     var videoStallMs: Double
+    /// Above the 0.6 s a Bluetooth route switch silences the input before iOS reports it.
     var audioStallMs: Double
     var fileStallMs: Double
+    /// Silence allowed after the engine restarts or the input moves; 1.1 to 1.3 s after a call.
     var micRestartGraceMs: Double
+
+    var videoStallSec: Double { videoStallMs / 1000 }
+    var audioStallSec: Double { audioStallMs / 1000 }
+    var fileStallSec: Double { fileStallMs / 1000 }
+    var micRestartGraceSec: Double { micRestartGraceMs / 1000 }
   }
 
   struct Storage: Codable, Equatable, Sendable {

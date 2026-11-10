@@ -6,11 +6,12 @@ import LiveKit
 import LiveKitClient
 #endif
 
+/// Taps LiveKit's engine input right after voice processing: its local renderer is silent without a sent
+/// track. Every engine rewire, a Bluetooth route switch included, reinstalls the tap in the new format.
 final class EngineInputTap: AudioEngineObserver, @unchecked Sendable {
-  static let fileFormat = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: 48_000, channels: 1, interleaved: false)!
   /// A hint only: iOS picks the real tap size, which is why every buffer carries its own capture time.
   private static let tapFrames: AVAudioFrameCount = 480
-  private static let resamplerSlackFrames: AVAudioFrameCount = 64
+  /// About a second in, when the engine has settled: the buffer whose timing goes to the log.
   private static let timingSampleBuffer = 10
 
   private let pipeline: MediaPipeline
@@ -78,15 +79,15 @@ final class EngineInputTap: AudioEngineObserver, @unchecked Sendable {
   private func install(on node: AVAudioNode) {
     removeTap()
     let format = node.outputFormat(forBus: 0)
-    guard let converter = AVAudioConverter(from: format, to: Self.fileFormat) else {
+    guard let resampler = PCMResampler(from: format) else {
       log.error("audio", "Microphone format has no converter", ["format": format.description])
       return
     }
     node.installTap(onBus: 0, bufferSize: Self.tapFrames, format: format) { [pipeline, weak self] buffer, when in
       let stampedAt = AVAudioTime.seconds(forHostTime: when.hostTime)
       self?.logTimingOnce(buffer, stampedAt: stampedAt)
-      guard let converted = Self.convert(buffer, with: converter) else { return }
-      pipeline.handleAudio(converted, firstFrameStamp: stampedAt)
+      guard let converted = resampler.convert(buffer) else { return }
+      pipeline.handleAudio(converted, firstFrameHostTime: stampedAt)
     }
     state.withLock {
       $0.tapped = node
@@ -122,23 +123,5 @@ final class EngineInputTap: AudioEngineObserver, @unchecked Sendable {
   private func removeTap() {
     state.withLock { $0.tapped }?.removeTap(onBus: 0)
     state.withLock { $0.tapped = nil }
-  }
-
-  private static func convert(_ buffer: AVAudioPCMBuffer, with converter: AVAudioConverter) -> AVAudioPCMBuffer? {
-    let ratio = fileFormat.sampleRate / converter.inputFormat.sampleRate
-    let capacity = AVAudioFrameCount((Double(buffer.frameLength) * ratio).rounded(.up)) + resamplerSlackFrames
-    guard let output = AVAudioPCMBuffer(pcmFormat: fileFormat, frameCapacity: capacity) else { return nil }
-    var delivered = false
-    var error: NSError?
-    converter.convert(to: output, error: &error) { _, status in
-      if delivered {
-        status.pointee = .noDataNow
-        return nil
-      }
-      delivered = true
-      status.pointee = .haveData
-      return buffer
-    }
-    return error == nil && output.frameLength > 0 ? output : nil
   }
 }

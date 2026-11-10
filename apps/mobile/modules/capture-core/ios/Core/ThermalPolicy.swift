@@ -1,5 +1,7 @@
 import Foundation
 
+/// Drops call quality at once and restores it one step at a time, to the most conservative level seen
+/// during each calm period.
 struct ThermalPolicy: Sendable {
   private struct Recovery: Sendable {
     var since: Double
@@ -38,5 +40,17 @@ struct ThermalPolicy: Sendable {
     // The next step waits for its own calm period, measured from this one.
     recovery = target.rank > current.rank ? Recovery(since: now, floor: target) : nil
     return current
+  }
+}
+
+extension ThermalLevel {
+  init(_ state: ProcessInfo.ThermalState) {
+    switch state {
+    case .nominal: self = .nominal
+    case .fair: self = .fair
+    case .serious: self = .serious
+    case .critical: self = .critical
+    @unknown default: self = .critical
+    }
   }
 }

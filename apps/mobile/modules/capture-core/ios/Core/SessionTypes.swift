@@ -87,6 +87,12 @@ struct Failure: LocalizedError, Equatable, Sendable {
   var errorDescription: String? { "\(code.rawValue): \(message)" }
 }
 
+extension Failure {
+  init(_ error: CaptureError) {
+    self.init(code: error.code, message: error.message)
+  }
+}
+
 struct CaptureError: Codable, Equatable, Sendable {
   var code: CaptureErrorCode
   var message: String

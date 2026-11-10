@@ -57,11 +57,11 @@ struct SessionMachineTests {
     #expect(run.lastEffects == [.runStartSequence(sessionId: Self.sessionId)])
     run.send(.startSucceeded)
     #expect(run.state.phase == .recording)
-    #expect(run.lastEffects == [.openSegment(1), .persistManifest, .setIdleTimerDisabled(true)])
+    #expect(run.lastEffects == [.openSegment(1), .saveManifest, .setIdleTimerDisabled(true)])
     run.send(.stopRequested)
     #expect(run.lastEffects == [.runStopSequence])
     run.send(.segmentClosed(index: 1, failure: nil))
-    #expect(run.lastEffects == [.persistManifest])
+    #expect(run.lastEffects == [.saveManifest])
     run.send(.stopFinished)
     #expect(run.state.phase == .ready)
     #expect(run.state.sessionId == nil)
@@ -76,7 +76,7 @@ struct SessionMachineTests {
     #expect(run.lastEffects == Self.pauseEffects)
     run.send(.segmentClosed(index: 1, failure: nil))
     #expect(run.state.phase == .paused)
-    #expect(run.lastEffects == [.persistManifest, .endBackgroundTask])
+    #expect(run.lastEffects == [.saveManifest, .endBackgroundTask])
     run.send(.interruptionEnded(.audioSession))
     #expect(run.lastEffects.isEmpty)
     run.send(.resumeRequested)
@@ -85,7 +85,7 @@ struct SessionMachineTests {
     run.send(.resumeSucceeded)
     #expect(run.state.phase == .recording)
     #expect(run.state.segmentIndex == 2)
-    #expect(run.lastEffects == [.openSegment(2), .persistManifest])
+    #expect(run.lastEffects == [.openSegment(2), .saveManifest])
   }
 
   @Test(arguments: [true, false])
@@ -151,7 +151,7 @@ struct SessionMachineTests {
     #expect(run.state.phase == .pausing)
     run.send(.segmentClosed(index: 1, failure: nil))
     #expect(run.state.phase == .resuming)
-    #expect(run.lastEffects == [.persistManifest, .endBackgroundTask, .runResumeSequence])
+    #expect(run.lastEffects == [.saveManifest, .endBackgroundTask, .runResumeSequence])
   }
 
   @Test func automaticResumeSkipsPipelineFailures() {
@@ -207,7 +207,7 @@ struct SessionMachineTests {
     run.send(.stopRequested, .segmentClosed(index: 1, failure: Failure(code: .fileWriterFailed, message: "-11800")))
     #expect(run.state.phase == .stopping)
     #expect(run.state.warnings[.fileWriterFailed]?.message == "-11800")
-    #expect(run.lastEffects == [.persistManifest])
+    #expect(run.lastEffects == [.saveManifest])
   }
 
   @Test func stopWhileResumingCancelsResume() {
@@ -341,5 +341,12 @@ struct SessionMachineTests {
     run.send(.resumeRequested)
     #expect(run.state == before)
     #expect(run.lastEffects.isEmpty)
+  }
+}
+
+struct FailureTests {
+  @Test func keepsCodeAndMessageOfAStampedError() {
+    let error = CaptureError(Failure(code: .diskFull, message: "Only 10 MB left"), at: Fixtures.createdAt)
+    #expect(Failure(error) == Failure(code: .diskFull, message: "Only 10 MB left"))
   }
 }

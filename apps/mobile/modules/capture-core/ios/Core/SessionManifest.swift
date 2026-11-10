@@ -53,6 +53,7 @@ struct SessionManifest: Codable, Equatable, Sendable {
   var heartbeatAt: Date?
   var lastVideoSec: Double?
   var acknowledgedAt: Date?
+  /// Kept so the recovery dialog comes back on every launch until it is dismissed.
   var recoveryLoss: RecoveryLoss?
 
   var recordedSec: Double { segments.compactMap(\.durationSec).reduce(0, +) }

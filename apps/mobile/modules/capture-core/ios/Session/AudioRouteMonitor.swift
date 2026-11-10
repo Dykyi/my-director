@@ -1,5 +1,6 @@
 import AVFAudio
 
+/// Only watches: LiveKit moves its engine itself, and `EngineInputTap` reinstalls the tap on the rewire.
 @MainActor
 final class AudioRouteMonitor {
   private let log: EventLog

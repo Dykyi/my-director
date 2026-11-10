@@ -4,6 +4,7 @@ struct RecordingStore: Sendable {
   static let manifestFileName = "session.json"
   static let eventsFileName = "events.jsonl"
   static let verificationFileName = "verification.json"
+  static let documents = RecordingStore(root: URL.documentsDirectory.appending(path: "Recordings", directoryHint: .isDirectory))
 
   struct ScanResult: Sendable {
     var manifests: [SessionManifest]
@@ -69,6 +70,7 @@ struct RecordingStore: Sendable {
     try FileManager.default.removeItem(at: directory(for: sessionId))
   }
 
+  /// Readable while the phone is locked, so recording survives a screen lock.
   static func write(_ data: Data, to url: URL) throws {
     #if os(iOS)
     try data.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])

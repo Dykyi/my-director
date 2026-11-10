@@ -151,3 +151,17 @@ final class RecordingStoreTests {
     #expect(store.scan().manifests.isEmpty)
   }
 }
+
+struct FileSizeTests {
+  @Test func readsTheSizeOnDisk() throws {
+    let directory = Fixtures.temporaryDirectory()
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    let url = directory.appending(path: "segment.mov")
+    try Data(count: 1234).write(to: url)
+    #expect(url.fileSize == 1234)
+  }
+
+  @Test func missingFileIsEmpty() {
+    #expect(Fixtures.temporaryDirectory().appending(path: "none.mov").fileSize == 0)
+  }
+}
