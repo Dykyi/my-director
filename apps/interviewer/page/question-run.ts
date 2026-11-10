@@ -37,6 +37,10 @@ export class QuestionRun {
     return this.#current === this.questions.length - 1;
   }
 
+  hasNext(loop: boolean): boolean {
+    return !this.isLast || loop;
+  }
+
   markAsked(): void {
     this.#asked.add(this.#current);
   }

@@ -1,14 +1,12 @@
 // yarn interviewer [name]: serves the interviewer page on this Mac and opens it in Chrome.
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 
 import { InterviewerServer } from './interviewer-server.ts';
 import { PageBundle } from './page-bundle.ts';
+import { runProcess } from './run-process.ts';
 import { SpeechService } from './speech-service.ts';
 import { TokenService } from './token-service.ts';
 import { VoiceCatalog } from './voice-catalog.ts';
 
-const run = promisify(execFile);
 const HOST = '127.0.0.1';
 const PORT = 8080;
 const ORIGIN = `http://localhost:${PORT}`;
@@ -16,7 +14,9 @@ const SPEECH_CACHE = new URL('../.speech-cache/', import.meta.url);
 const guest = process.argv[2];
 const PAGE = guest ? `${ORIGIN}/?${new URLSearchParams({ as: guest })}` : ORIGIN;
 
-const openPage = () => run('open', ['-a', 'Google Chrome', PAGE]).catch(() => run('open', [PAGE]));
+/** Chrome records WebM, which the echo check reads. */
+const openPage = () =>
+  runProcess('open', ['-a', 'Google Chrome', PAGE]).catch(() => runProcess('open', [PAGE]));
 
 async function reuseRunningServer(error: unknown): Promise<never> {
   if ((error as NodeJS.ErrnoException).code !== 'EADDRINUSE') throw error;

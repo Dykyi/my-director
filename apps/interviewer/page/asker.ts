@@ -1,5 +1,8 @@
 import { fetchSpeech } from './server-api.ts';
 
+// The voice and the microphone share one bus, so switching keeps the published track and the recording.
+const stopTrack = (track: MediaStreamTrack) => track.stop();
+
 export class Asker {
   readonly #context: AudioContext;
   readonly #bus: MediaStreamAudioDestinationNode;
@@ -7,6 +10,7 @@ export class Asker {
   readonly #urls = new Map<string, Promise<string>>();
   #microphone: MediaStreamAudioSourceNode | undefined;
   #ticket = 0;
+  #microphoneRequest = 0;
   #speaking = false;
 
   constructor(context: AudioContext, speech: HTMLAudioElement, onSpoken: () => void) {
@@ -60,13 +64,19 @@ export class Asker {
   }
 
   async useMicrophone(on: boolean): Promise<void> {
-    this.#microphone?.mediaStream.getTracks().forEach((track) => track.stop());
+    const request = ++this.#microphoneRequest;
+    this.#microphone?.mediaStream.getTracks().forEach(stopTrack);
     this.#microphone?.disconnect();
     this.#microphone = undefined;
     if (!on) return;
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: true, noiseSuppression: true },
     });
+    // A later call won while the browser opened this one.
+    if (request !== this.#microphoneRequest) {
+      stream.getTracks().forEach(stopTrack);
+      return;
+    }
     this.#microphone = this.#context.createMediaStreamSource(stream);
     this.#microphone.connect(this.#bus);
   }

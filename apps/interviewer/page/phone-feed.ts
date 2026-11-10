@@ -1,5 +1,8 @@
 import { Track, type RemoteTrack } from 'livekit-client';
 
+import { rms } from './audio-level.ts';
+import { PauseClock } from './pause-clock.ts';
+
 const ANALYSER_SIZE = 2048;
 
 interface PhoneAudio {
@@ -11,12 +14,12 @@ interface PhoneAudio {
 }
 
 export class PhoneFeed {
+  readonly pauses = new PauseClock();
   readonly #context: AudioContext;
   readonly #videoHost: HTMLElement;
   #video: RemoteTrack | undefined;
   #audio: PhoneAudio | undefined;
   #joinedAt: number | undefined;
-  #pausedAt: number | undefined;
   #level = 0;
 
   constructor(context: AudioContext, videoHost: HTMLElement) {
@@ -46,11 +49,11 @@ export class PhoneFeed {
   }
 
   get pausedAt(): number | undefined {
-    return this.#pausedAt;
+    return this.pauses.pausedAt;
   }
 
   get paused(): boolean {
-    return this.#pausedAt !== undefined;
+    return this.pauses.paused;
   }
 
   get level(): number {
@@ -93,29 +96,21 @@ export class PhoneFeed {
     if (!this.#audio) return 0;
     const { analyser, samples } = this.#audio;
     analyser.getFloatTimeDomainData(samples);
-    this.#level = Math.sqrt(
-      samples.reduce((sum, sample) => sum + sample * sample, 0) / samples.length,
-    );
+    this.#level = rms(samples);
     return this.#level;
   }
 
   pause(): boolean {
-    if (this.paused) return false;
-    this.#pausedAt = Date.now();
-    return true;
+    return this.pauses.pause(Date.now());
   }
 
-  resume(): number | undefined {
-    if (this.#pausedAt === undefined) return undefined;
-    const pausedMs = Date.now() - this.#pausedAt;
-    this.#pausedAt = undefined;
-    return pausedMs;
+  resume(): boolean {
+    return this.pauses.resume(Date.now());
   }
 
-  clear(): number | undefined {
-    const pausedMs = this.resume();
+  clear(): void {
+    this.resume();
     for (const track of [this.#video, this.#audio?.track]) if (track) this.remove(track);
     this.#joinedAt = undefined;
-    return pausedMs;
   }
 }

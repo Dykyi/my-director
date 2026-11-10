@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# `home` opens Settings to background the app, `open` brings it back or starts it after a crash.
 set -euo pipefail
 source "$(dirname "$0")/device-env.sh"
 ACTION=${1:?Usage: yarn stand <action>}
@@ -10,8 +11,11 @@ launch() {
   xcrun devicectl device process launch --device "$DEVICE" "$@" >/dev/null
 }
 
+# Read in full: `grep -q` would stop early, and under pipefail the cut-off devicectl fails the check.
 running() {
-  xcrun devicectl device info processes --device "$DEVICE" 2>/dev/null | grep -q "/$APP_NAME.app/"
+  local processes
+  processes=$(xcrun devicectl device info processes --device "$DEVICE" 2>/dev/null)
+  [[ $processes == *"/$APP_NAME.app/"* ]]
 }
 
 case "$ACTION" in

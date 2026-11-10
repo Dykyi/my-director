@@ -23,6 +23,14 @@ describe('QuestionRun', () => {
     assert.equal(run.current, 0);
   });
 
+  it('has a next question before the last one, and after it only when it loops', () => {
+    const run = new QuestionRun(['A?', 'B?']);
+    assert.equal(run.hasNext(false), true);
+    run.select(1);
+    assert.equal(run.hasNext(false), false);
+    assert.equal(run.hasNext(true), true);
+  });
+
   it('stops after the last question unless it loops', () => {
     const run = new QuestionRun(['A?', 'B?']);
     run.select(1);

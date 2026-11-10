@@ -5,7 +5,7 @@ import type { TokenRequest } from './requests.ts';
 /** Long enough for a demo day; the page asks for a new one on every Join. */
 const TOKEN_TTL = '12h';
 
-export interface LiveKitProject {
+interface LiveKitProject {
   url: string;
   apiKey: string;
   apiSecret: string;

@@ -1,7 +1,5 @@
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
+import { runProcess } from './run-process.ts';
 
-const run = promisify(execFile);
 /** `say -v '?'` lines: the name (may hold spaces), the locale, then the sample after `#`. */
 const VOICE_LINE = /^(.+?)\s+([a-z]{2,3}_[A-Za-z0-9]+)\s+#/;
 
@@ -33,7 +31,7 @@ export class VoiceCatalog {
   }
 
   static async load(): Promise<VoiceCatalog> {
-    return new VoiceCatalog(parseVoices((await run('say', ['-v', '?'])).stdout));
+    return new VoiceCatalog(parseVoices((await runProcess('say', ['-v', '?'])).stdout));
   }
 
   has(name: string): boolean {

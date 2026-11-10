@@ -283,14 +283,19 @@ code,
   stroke-width: 1.6;
 }
 
-.empty-title {
+.empty-title,
+.paused-title {
   font: var(--text-stage-title);
+}
+
+.empty-text,
+.paused-text {
+  font: var(--text-body);
+  color: var(--color-subtle);
 }
 
 .empty-text {
   max-width: 460px;
-  font: var(--text-body);
-  color: var(--color-subtle);
 }
 
 .empty-text code {
@@ -315,6 +320,9 @@ code,
 
 .overlay {
   position: absolute;
+}
+
+.overlay-panel {
   padding: var(--space-1_5) var(--space-2_5);
   border-radius: var(--radius-tag);
   background: var(--color-overlay);
@@ -411,9 +419,6 @@ code,
 .rec-chip {
   right: var(--space-3_5);
   top: var(--space-3_5);
-  padding: var(--space-1) var(--space-2_5);
-  border-radius: var(--radius-pill);
-  background: var(--color-recording-soft);
 }
 
 .paused {
@@ -438,14 +443,11 @@ code,
 }
 
 .paused-title {
-  font: var(--text-stage-title);
   color: var(--color-paused);
 }
 
 .paused-text {
   max-width: 480px;
-  font: var(--text-body);
-  color: var(--color-subtle);
 }
 
 .prompter {
@@ -489,8 +491,8 @@ code,
 }
 
 .progress div {
-  height: 4px;
-  border-radius: var(--radius-bar);
+  height: 100%;
+  border-radius: inherit;
   background: var(--color-progress);
 }
 
@@ -710,13 +712,17 @@ code,
 }
 
 .switch {
+  --switch-width: 38px;
+  --switch-height: 22px;
+  --knob-inset: 2px;
+  --knob-size: calc(var(--switch-height) - 2 * var(--knob-inset));
   appearance: none;
   position: relative;
-  width: 38px;
-  height: 22px;
+  width: var(--switch-width);
+  height: var(--switch-height);
   margin: 0;
   flex-shrink: 0;
-  border-radius: 11px;
+  border-radius: calc(var(--switch-height) / 2);
   background: var(--color-border-strong);
   cursor: pointer;
 }
@@ -724,11 +730,11 @@ code,
 .switch::after {
   content: '';
   position: absolute;
-  left: 2px;
-  top: 2px;
-  width: 18px;
-  height: 18px;
-  border-radius: 9px;
+  left: var(--knob-inset);
+  top: var(--knob-inset);
+  width: var(--knob-size);
+  height: var(--knob-size);
+  border-radius: calc(var(--knob-size) / 2);
   background: var(--color-on-record);
   transition: left 120ms;
 }
@@ -738,7 +744,7 @@ code,
 }
 
 .switch:checked::after {
-  left: 18px;
+  left: calc(var(--switch-width) - var(--knob-size) - var(--knob-inset));
 }
 
 .backdrop {
@@ -798,9 +804,6 @@ code,
 
 .settings-section h3 {
   margin: 0;
-  font: var(--text-section-label);
-  letter-spacing: var(--tracking-section-label);
-  color: var(--color-muted);
 }
 
 .field {

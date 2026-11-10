@@ -1,4 +1,4 @@
-import { download, stamp } from './files.ts';
+import { download, fileStamp } from './downloads.ts';
 
 const RECEIVED_MIME = 'video/webm;codecs=vp8,opus';
 const SENT_MIME = 'audio/webm;codecs=opus';
@@ -17,27 +17,31 @@ function record(stream: MediaStream, mimeType: string, name: string): MediaRecor
 
 export class CallRecorder {
   #recorders: MediaRecorder[] = [];
-  #since: number | undefined;
+  #startedAt: number | undefined;
 
-  get since(): number | undefined {
-    return this.#since;
+  get startedAt(): number | undefined {
+    return this.#startedAt;
+  }
+
+  get recording(): boolean {
+    return this.#startedAt !== undefined;
   }
 
   start(received: MediaStream, sent: MediaStream): string {
-    const id = stamp();
+    const id = fileStamp();
     this.#recorders = [
       record(received, RECEIVED_MIME, `received-${id}.webm`),
       record(sent, SENT_MIME, `sent-${id}.webm`),
     ];
-    this.#since = Date.now();
+    this.#startedAt = Date.now();
     return id;
   }
 
   stop(): boolean {
-    if (this.#since === undefined) return false;
+    if (!this.recording) return false;
     this.#recorders.forEach((recorder) => recorder.stop());
     this.#recorders = [];
-    this.#since = undefined;
+    this.#startedAt = undefined;
     return true;
   }
 }

@@ -58,7 +58,7 @@
             </button>
           </div>
           <div id="video" class="video"></div>
-          <div id="phoneBadge" class="overlay badge">
+          <div id="phoneBadge" class="overlay overlay-panel badge">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
               <rect x="6.5" y="2.5" width="11" height="19" rx="2.5" />
               <path d="M10.5 18.5h3" />
@@ -67,8 +67,8 @@
             <span id="qualityBars" class="bars"><i></i><i></i><i></i></span>
             <span id="qualityText" class="quality-text"></span>
           </div>
-          <div id="statsLine" class="overlay stats-line"></div>
-          <div id="micMeter" class="overlay mic-meter">
+          <div id="statsLine" class="overlay overlay-panel stats-line"></div>
+          <div id="micMeter" class="overlay overlay-panel mic-meter">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
               <rect x="9" y="3.5" width="6" height="11" rx="3" />
               <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v2.5" />
@@ -208,7 +208,7 @@
       </div>
       <form id="settingsForm" class="settings-body">
         <section class="settings-section">
-          <h3>CONNECTION</h3>
+          <h3 class="eyebrow">CONNECTION</h3>
           <label class="field">
             <span>Room</span>
             <input name="room" class="mono" autocomplete="off" />
@@ -228,7 +228,7 @@
           </div>
         </section>
         <section class="settings-section">
-          <h3>QUESTIONS</h3>
+          <h3 class="eyebrow">QUESTIONS</h3>
           <div class="field">
             <span>Who asks</span>
             <div class="segmented">
@@ -257,7 +257,7 @@
           </label>
         </section>
         <section class="settings-section">
-          <h3>RECORDING AND STATS</h3>
+          <h3 class="eyebrow">RECORDING AND STATS</h3>
           <label class="toggle-row">
             <span class="toggle-label">
               Record when the phone joins

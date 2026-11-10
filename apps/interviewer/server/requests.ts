@@ -1,7 +1,8 @@
 import type { VoiceCatalog } from './voice-catalog.ts';
 
+const MAX_NAME_LENGTH = 64;
 /** Room and participant names LiveKit accepts and a URL never needs escaping for. */
-const NAME = /^[A-Za-z0-9_-]{1,64}$/;
+const NAME = new RegExp(`^[A-Za-z0-9_-]{1,${MAX_NAME_LENGTH}}$`);
 const MAX_SPEECH_CHARS = 500;
 
 export class RequestError extends Error {}
@@ -21,7 +22,7 @@ const fieldsOf = (body: unknown): Record<string, unknown> =>
 
 function requireName(value: unknown, field: string): string {
   if (typeof value !== 'string' || !NAME.test(value)) {
-    throw new RequestError(`${field} must be 1 to 64 letters, digits, - or _`);
+    throw new RequestError(`${field} must be 1 to ${MAX_NAME_LENGTH} letters, digits, - or _`);
   }
   return value;
 }

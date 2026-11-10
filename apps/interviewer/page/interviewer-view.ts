@@ -1,66 +1,25 @@
 import type { Voice } from '../server/voice-catalog.ts';
+import { litBars } from './audio-level.ts';
+import { byId, ContentKey, setClass, setDisabled, setHidden, setText, writeText } from './dom.ts';
 import { qualityOf } from './labels.ts';
-import { parseScript } from './question-run.ts';
+import { ScriptEditor } from './script-editor.ts';
+import { SettingsForm } from './settings-form.ts';
+import type { Settings } from './settings-store.ts';
 import {
-  clampQuietSec,
-  MAX_QUIET_SEC,
-  MIN_QUIET_SEC,
-  type Asker,
-  type Settings,
-} from './settings-store.ts';
+  SESSION_ROWS,
+  type ConnectionTone,
+  type SessionRow,
+  type ViewState,
+} from './view-state.ts';
 
 const METER_BARS = 12;
-const METER_FLOOR_DB = -60;
 const PERCENT = 100;
 
-export const SESSION_ROWS = {
-  phone: 'Phone',
-  inRoom: 'Phone in the room',
-  picture: 'Picture',
-  freezes: 'Freezes',
-  lost: 'Packets lost, video / audio',
-  pauses: 'Pauses',
-  asked: 'Questions asked',
-  recording: 'Recording',
-  rows: 'Stats rows',
-} as const;
-export type SessionRow = keyof typeof SESSION_ROWS;
-
-export type ChipLook = '' | 'chip-live' | 'chip-paused';
-
-export interface ViewState {
-  room: string;
-  identity: string;
-  connection: { text: string; look: ChipLook };
-  inRoom: boolean;
-  joining: boolean;
-  onJoin: readonly string[];
-  phone: {
-    name: string;
-    video: boolean;
-    audio: boolean;
-    quality: string;
-    levelDb: number;
-    pause: { title: string; meta: string } | undefined;
-  };
-  statsLine: string | undefined;
-  prompter: {
-    label: string;
-    text: string;
-    state: string;
-    quiet: string;
-    progress: number;
-    askLabel: string;
-    canAsk: boolean;
-    canPrevious: boolean;
-    canNext: boolean;
-    voice: string;
-  };
-  questions: { list: readonly string[]; current: number; asked: ReadonlySet<number> };
-  recording: { clock: string | undefined; label: string; enabled: boolean };
-  session: Record<SessionRow, string>;
-  canDownloadCsv: boolean;
-}
+const CONNECTION_CHIP: Record<ConnectionTone, string> = {
+  idle: 'chip',
+  live: 'chip chip-live',
+  paused: 'chip chip-paused',
+};
 
 export interface ViewActions {
   toggleJoin(): void;
@@ -77,32 +36,6 @@ export interface ViewActions {
   reset(): void;
 }
 
-function byId<T extends HTMLElement = HTMLElement>(id: string): T {
-  const element = document.getElementById(id);
-  if (!element) throw new Error(`#${id} is missing from index.html`);
-  return element as T;
-}
-
-function setText(id: string, value: string): void {
-  const element = byId(id);
-  if (element.textContent !== value) element.textContent = value;
-}
-
-function setHidden(id: string, hidden: boolean): void {
-  const element = byId(id);
-  if (element.hidden !== hidden) element.hidden = hidden;
-}
-
-function setDisabled(id: string, disabled: boolean): void {
-  const button = byId<HTMLButtonElement>(id);
-  if (button.disabled !== disabled) button.disabled = disabled;
-}
-
-function setClass(id: string, className: string): void {
-  const element = byId(id);
-  if (element.className !== className) element.className = className;
-}
-
 const code = (text: string) => Object.assign(document.createElement('code'), { textContent: text });
 const chip = (text: string) =>
   Object.assign(document.createElement('span'), { className: 'chip', textContent: text });
@@ -110,25 +43,20 @@ const chip = (text: string) =>
 export class InterviewerView {
   readonly speech = byId<HTMLAudioElement>('speech');
   readonly videoHost = byId('video');
-  readonly #form = byId<HTMLFormElement>('settingsForm');
+  readonly #settingsForm: SettingsForm;
   readonly #meterBars = Array.from({ length: METER_BARS }, () => document.createElement('i'));
   readonly #sessionCells: Record<SessionRow, HTMLTableCellElement>;
-  readonly #defaultScript: string;
-  #questions: readonly string[] = [];
-  #emptyKey = '';
-  #listKey = '';
+  readonly #scriptEditor: ScriptEditor;
+  readonly #emptyContent = new ContentKey();
+  readonly #listContent = new ContentKey();
 
   constructor(actions: ViewActions, voices: readonly Voice[], defaultScript: string) {
-    this.#defaultScript = defaultScript;
     byId('meterBars').replaceChildren(...this.#meterBars);
     this.#sessionCells = this.#buildSessionTable();
-    this.#select('voice').replaceChildren(
-      ...voices.map(({ name, locale }) => new Option(`${name} · ${locale}`, name)),
+    this.#settingsForm = new SettingsForm(byId('settingsForm'), voices, () =>
+      actions.settingsEdited(),
     );
-    Object.assign(this.#input('quietSec'), {
-      min: String(MIN_QUIET_SEC),
-      max: String(MAX_QUIET_SEC),
-    });
+    this.#scriptEditor = new ScriptEditor(defaultScript, (text) => actions.saveScript(text));
     this.#bind(actions);
   }
 
@@ -138,42 +66,12 @@ export class InterviewerView {
   }
 
   fillSettings(settings: Settings): void {
-    for (const name of ['room', 'identity', 'phone'] as const)
-      this.#input(name).value = settings[name];
-    this.#input('quietSec').value = String(settings.quietSec);
-    this.#select('voice').value = settings.voice;
-    this.#radio(settings.asker).checked = true;
-    for (const name of [
-      'startOnJoin',
-      'loop',
-      'recordOnJoin',
-      'statsCsv',
-      'statsOverlay',
-    ] as const) {
-      this.#input(name).checked = settings[name];
-    }
+    this.#settingsForm.fill(settings);
     byId<HTMLInputElement>('hearToggle').checked = settings.hearPhone;
   }
 
   readSettings(current: Settings): Settings {
-    const text = (name: 'room' | 'identity' | 'phone') =>
-      this.#input(name).value.trim() || current[name];
-    const checked = (name: string) => this.#input(name).checked;
-    const asker: Asker = this.#radio('microphone').checked ? 'microphone' : 'voice';
-    return {
-      ...current,
-      room: text('room'),
-      identity: text('identity'),
-      phone: text('phone'),
-      asker,
-      voice: this.#select('voice').value,
-      quietSec: clampQuietSec(Number(this.#input('quietSec').value), current.quietSec),
-      startOnJoin: checked('startOnJoin'),
-      loop: checked('loop'),
-      recordOnJoin: checked('recordOnJoin'),
-      statsCsv: checked('statsCsv'),
-      statsOverlay: checked('statsOverlay'),
-    };
+    return this.#settingsForm.read(current);
   }
 
   render(state: ViewState): void {
@@ -181,13 +79,13 @@ export class InterviewerView {
     this.#renderStage(state);
     this.#renderPrompter(state);
     this.#renderQuestions(state);
-    this.#renderSide(state);
+    this.#renderSessionPanel(state);
   }
 
   #renderHeader(state: ViewState): void {
     setText('roomName', state.room);
     setText('identityName', state.identity);
-    setClass('connChip', `chip ${state.connection.look}`.trim());
+    setClass('connChip', CONNECTION_CHIP[state.connection.tone]);
     setText('connText', state.connection.text);
     setText('joinButton', state.inRoom ? 'Leave' : 'Join');
     setDisabled('joinButton', state.joining);
@@ -217,7 +115,7 @@ export class InterviewerView {
     setHidden('statsLine', !phone.video || state.statsLine === undefined);
     setText('statsLine', state.statsLine ?? '');
     setHidden('micMeter', !phone.audio);
-    const lit = Math.round(((phone.levelDb - METER_FLOOR_DB) / -METER_FLOOR_DB) * METER_BARS);
+    const lit = litBars(phone.levelDb, METER_BARS);
     this.#meterBars.forEach((bar, index) => bar.classList.toggle('lit', index < lit));
     setText('meterDb', `${phone.levelDb} dB`);
     setHidden('recChip', state.recording.clock === undefined);
@@ -227,24 +125,18 @@ export class InterviewerView {
     setText('pausedMeta', phone.pause?.meta ?? '');
   }
 
-  #renderEmptyText(state: ViewState): void {
-    const key = JSON.stringify([state.inRoom, state.room, state.phone.name, state.onJoin]);
-    if (key === this.#emptyKey) return;
-    this.#emptyKey = key;
+  #renderEmptyText({ inRoom, room, phone, autoStartChips }: ViewState): void {
+    if (!this.#emptyContent.changed([inRoom, room, phone.name, autoStartChips])) return;
     byId('emptyText').replaceChildren(
-      ...(state.inRoom
+      ...(inRoom
         ? [
             'Press Start recording in MyDirector on the iPhone. It joins this room as ',
-            code(state.phone.name),
+            code(phone.name),
             '.',
           ]
-        : [
-            'Join room ',
-            code(state.room),
-            ' to see the phone, ask the questions and record the call.',
-          ]),
+        : ['Join room ', code(room), ' to see the phone, ask the questions and record the call.']),
     );
-    byId('emptyChips').replaceChildren(...(state.inRoom ? state.onJoin.map(chip) : []));
+    byId('emptyChips').replaceChildren(...(inRoom ? autoStartChips.map(chip) : []));
   }
 
   #renderPrompter({ prompter }: ViewState): void {
@@ -262,10 +154,9 @@ export class InterviewerView {
 
   /** Rebuilt only when the script, the current question or the marks change, so a click is never lost. */
   #renderQuestions({ questions }: ViewState): void {
-    this.#questions = questions.list;
-    const key = JSON.stringify([questions.list, questions.current, [...questions.asked]]);
-    if (key === this.#listKey) return;
-    this.#listKey = key;
+    this.#scriptEditor.questions = questions.list;
+    if (!this.#listContent.changed([questions.list, questions.current, [...questions.asked]]))
+      return;
     setText('questionsSummary', `${questions.asked.size} of ${questions.list.length} asked`);
     byId('questionList').replaceChildren(
       ...questions.list.map((text, index) => {
@@ -284,11 +175,9 @@ export class InterviewerView {
     );
   }
 
-  #renderSide({ recording, session, canDownloadCsv }: ViewState): void {
-    for (const [row, value] of Object.entries(session)) {
-      const cell = this.#sessionCells[row as SessionRow];
-      if (cell.textContent !== value) cell.textContent = value;
-    }
+  #renderSessionPanel({ recording, session, canDownloadCsv }: ViewState): void {
+    for (const [row, value] of Object.entries(session))
+      writeText(this.#sessionCells[row as SessionRow], value);
     setDisabled('csvButton', !canDownloadCsv);
     setText('recordButton', recording.label);
     setDisabled('recordButton', !recording.enabled);
@@ -314,8 +203,6 @@ export class InterviewerView {
     byId('csvButton').onclick = () => actions.downloadCsv();
     byId('resetButton').onclick = () => actions.reset();
 
-    this.#form.onsubmit = (event) => event.preventDefault();
-    this.#form.onchange = () => actions.settingsEdited();
     byId('settingsButton').onclick = () => this.#showSettings(true);
     byId('closeSettingsButton').onclick = () => this.#showSettings(false);
     byId('settingsBackdrop').onclick = () => this.#showSettings(false);
@@ -326,20 +213,6 @@ export class InterviewerView {
     for (const tab of document.querySelectorAll<HTMLElement>('[data-tab]')) {
       tab.onclick = () => this.#showTab(tab);
     }
-
-    const scriptText = byId<HTMLTextAreaElement>('scriptText');
-    byId('editScriptButton').onclick = () => this.#editScript(true);
-    byId('cancelScriptButton').onclick = () => this.#editScript(false);
-    byId('defaultScriptButton').onclick = () => {
-      scriptText.value = this.#defaultScript.trim();
-      setDisabled('saveScriptButton', false);
-    };
-    scriptText.oninput = () =>
-      setDisabled('saveScriptButton', parseScript(scriptText.value).length === 0);
-    byId('saveScriptButton').onclick = () => {
-      actions.saveScript(scriptText.value);
-      this.#editScript(false);
-    };
   }
 
   #buildSessionTable(): Record<SessionRow, HTMLTableCellElement> {
@@ -362,31 +235,5 @@ export class InterviewerView {
       tab.setAttribute('aria-selected', String(tab === selected));
       setHidden(`panel-${tab.dataset.tab}`, tab !== selected);
     }
-  }
-
-  #editScript(open: boolean): void {
-    setHidden('scriptEditor', !open);
-    setHidden('questionList', open);
-    setHidden('editScriptButton', open);
-    if (open) byId<HTMLTextAreaElement>('scriptText').value = this.#questions.join('\n');
-    setDisabled('saveScriptButton', false);
-  }
-
-  #field<T extends Element>(selector: string): T {
-    const field = this.#form.querySelector<T>(selector);
-    if (!field) throw new Error(`${selector} is missing from the settings form`);
-    return field;
-  }
-
-  #input(name: string): HTMLInputElement {
-    return this.#field(`input[name="${name}"]`);
-  }
-
-  #radio(asker: Asker): HTMLInputElement {
-    return this.#field(`input[name="asker"][value="${asker}"]`);
-  }
-
-  #select(name: string): HTMLSelectElement {
-    return this.#field(`select[name="${name}"]`);
   }
 }

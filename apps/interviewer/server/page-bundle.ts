@@ -4,7 +4,7 @@ import { renderWebCss, type DesignTokens } from '@mydirector/design-system';
 import { context, type BuildContext, type BuildOptions } from 'esbuild';
 
 const PAGE_DIR = new URL('../page/', import.meta.url);
-export const SCRIPT_PATH = '/app.js';
+const SCRIPT_PATH = '/app.js';
 const TOKENS_PATH = '/tokens.css';
 const FONT_PATH = /^\/fonts\/(\w+)\.ttf$/;
 // The page loads the same font files the app bundles.
@@ -42,7 +42,7 @@ export async function fontFile(face: string): Promise<Buffer | undefined> {
   return readFile(file).catch(() => undefined);
 }
 
-export interface PageFile {
+interface PageFile {
   body: string | Buffer;
   type: string;
 }

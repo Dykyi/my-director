@@ -1,10 +1,10 @@
-export type Asker = 'voice' | 'microphone';
+export type AskerMode = 'voice' | 'microphone';
 
 export interface Settings {
   room: string;
   identity: string;
   phone: string;
-  asker: Asker;
+  asker: AskerMode;
   voice: string;
   quietSec: number;
   startOnJoin: boolean;
