@@ -20,15 +20,15 @@ const row = (rows: ReturnType<typeof healthRows>, label: string) =>
 describe('healthRows', () => {
   it('shows a recording in full', () =>
     expect(healthRows(health(), session('recording'))).toEqual([
-      { label: 'Camera', value: '30.0 fps 1920×1080', tone: 'normal' },
-      { label: 'File', value: '30.0 fps  212.0 MB  drops 0', tone: 'normal' },
-      { label: 'Audio', value: '-18 dB  drift +3 ms', tone: 'normal', meterBars: 4 },
+      { label: 'Camera', value: '30.0 fps 1920×1080', tone: 'foreground' },
+      { label: 'File', value: '30.0 fps  212.0 MB  drops 0', tone: 'foreground' },
+      { label: 'Audio', value: '-18 dB  drift +3 ms', tone: 'foreground', meterBars: 4 },
       { label: 'Input', value: 'AirPods Pro (BluetoothHFP)', tone: 'accent' },
       { label: 'Output', value: 'AirPods Pro (BluetoothHFP)', tone: 'accent' },
-      { label: 'Call', value: '720×1280 30 fps 1.6 Mbps', tone: 'normal' },
-      { label: 'Room', value: 'mydirector-poc · interviewer', tone: 'normal' },
-      { label: 'Thermal', value: 'nominal · pressure nominal', tone: 'normal' },
-      { label: 'Disk', value: '41.0 GB free', tone: 'normal' },
+      { label: 'Call', value: '720×1280 30 fps 1.6 Mbps', tone: 'foreground' },
+      { label: 'Room', value: 'mydirector-poc · interviewer', tone: 'foreground' },
+      { label: 'Thermal', value: 'nominal · pressure nominal', tone: 'foreground' },
+      { label: 'Disk', value: '41.0 GB free', tone: 'foreground' },
     ]));
 
   it('shows the mic as off when no audio arrives outside a recording', () =>
@@ -55,7 +55,7 @@ describe('healthRows', () => {
     ).toEqual({
       label: 'Audio',
       value: 'no audio for 2.3 s',
-      tone: 'error',
+      tone: 'danger',
     }));
 
   it('keeps the built-in route plain', () =>
@@ -72,7 +72,7 @@ describe('healthRows', () => {
         ),
         'Input',
       )?.tone,
-    ).toBe('normal'));
+    ).toBe('foreground'));
 
   it('shows an idle writer and a quiet call', () => {
     const rows = healthRows(
@@ -95,7 +95,11 @@ describe('healthRows', () => {
       }),
       session('paused'),
     );
-    expect(row(rows, 'File')).toEqual({ label: 'File', value: 'failed · 212.0 MB', tone: 'error' });
+    expect(row(rows, 'File')).toEqual({
+      label: 'File',
+      value: 'failed · 212.0 MB',
+      tone: 'danger',
+    });
     expect(row(rows, 'Call')).toEqual({
       label: 'Call',
       value: '720×1280 30 fps 1.6 Mbps · limited by bandwidth',

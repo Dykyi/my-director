@@ -1,13 +1,13 @@
 import { useEffect } from 'react';
 
-import { useSession } from '@features/capture/capture-session-context';
-import { hookContext } from '@shared/hook-context';
+import { useCaptureSession } from '@features/capture/capture-session-context';
+import { createHookContext } from '@shared/hook-context';
 
-import { useRecordings } from './use-recordings';
+import { useNativeRecordings } from './use-native-recordings';
 
-function useRecordingsOfSession() {
-  const recordings = useRecordings();
-  const { snapshot } = useSession();
+function useRecordingsRefreshedOnStop() {
+  const recordings = useNativeRecordings();
+  const { snapshot } = useCaptureSession();
   const { refresh } = recordings.actions;
   useEffect(() => {
     if (snapshot.phase === 'ready') void refresh();
@@ -15,8 +15,8 @@ function useRecordingsOfSession() {
   return recordings;
 }
 
-export const [RecordingsProvider, useRecordingsState] = hookContext(
+export const [RecordingsProvider, useRecordings] = createHookContext(
   'Recordings',
-  useRecordingsOfSession,
+  useRecordingsRefreshedOnStop,
 );
-export type Recordings = ReturnType<typeof useRecordingsState>;
+export type Recordings = ReturnType<typeof useRecordings>;

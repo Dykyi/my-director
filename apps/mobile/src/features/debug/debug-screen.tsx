@@ -1,18 +1,22 @@
-import { View } from 'react-native';
-
-import { useSession, useSessionIssues } from '@features/capture/capture-session-context';
+import {
+  useCaptureSession,
+  useEventLog,
+  useHealth,
+  useSessionIssues,
+} from '@features/capture/capture-session-context';
 import { issueBadge } from '@features/capture/session-issues';
 import { useRemoteStatus } from '@features/remote/use-stand-commands';
 import { TabScreen } from '@features/shell/tab-screen';
-import { Button } from '@ui/button';
-import { Text } from '@ui/text';
 
+import { CrashRow } from './components/crash-row';
 import { EventLog } from './components/event-log';
 import { HealthGrid } from './components/health-grid';
 import { RemoteStatus } from './components/remote-status';
 
 export function DebugScreen() {
-  const { snapshot, health, logs, actions } = useSession();
+  const { snapshot, actions } = useCaptureSession();
+  const health = useHealth();
+  const logs = useEventLog();
   const badge = issueBadge(useSessionIssues());
   const { lastCommand } = useRemoteStatus();
   return (
@@ -22,18 +26,7 @@ export function DebugScreen() {
       {__DEV__ && (
         <>
           <RemoteStatus lastCommand={lastCommand} />
-          <View className="flex-row items-center gap-2.5 px-4 py-2.5">
-            <Text variant="caption" className="text-muted">
-              Debug build only
-            </Text>
-            <Button
-              title="Simulate crash"
-              variant="danger"
-              size="compact"
-              className="ml-auto"
-              onPress={actions.simulateCrash}
-            />
-          </View>
+          <CrashRow onCrash={actions.simulateCrash} />
         </>
       )}
     </TabScreen>

@@ -2,9 +2,8 @@ import { View } from 'react-native';
 
 import { HEALTH_LOG_INTERVAL_MS, type LastCommand } from '@features/remote/use-remote-control';
 import { formatClock } from '@shared/format';
+import { MS_PER_SEC } from '@shared/units';
 import { Text } from '@ui/text';
-
-const MS_PER_SEC = 1_000;
 
 function Row({ label, value }: { label: string; value: string }) {
   return (

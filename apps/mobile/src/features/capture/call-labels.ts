@@ -1,10 +1,10 @@
-import type { CallQuality, HealthSnapshot } from '@modules/capture-core';
+import type { CallQuality, CallStatus, HealthSnapshot } from '@modules/capture-core';
 
-import type { ChipTone } from '@ui/tone';
+import { formatResolution } from '@shared/format';
+import { KBIT_PER_MBIT } from '@shared/units';
+import type { ChipView } from '@ui/tone';
 
-export type QualityLook = { label: string; tone: ChipTone; lit: number };
-
-const KBPS_PER_MBPS = 1_000;
+export type QualityLook = ChipView & { lit: number };
 
 export const QUALITY_LOOK: Record<CallQuality, QualityLook> = {
   excellent: { label: 'excellent', tone: 'success', lit: 3 },
@@ -14,7 +14,7 @@ export const QUALITY_LOOK: Record<CallQuality, QualityLook> = {
   unknown: { label: 'measuring', tone: 'neutral', lit: 0 },
 };
 
-export const mbps = (kbps: number) => `${(kbps / KBPS_PER_MBPS).toFixed(1)} Mbps`;
+export const formatMbps = (kbps: number) => `${(kbps / KBIT_PER_MBIT).toFixed(1)} Mbps`;
 
 export function sendingText({
   sentWidth,
@@ -23,5 +23,12 @@ export function sendingText({
   bitrateKbps,
 }: HealthSnapshot['call']): string | undefined {
   if (sentWidth === 0) return undefined;
-  return `${sentWidth}×${sentHeight} ${sentFps.toFixed(0)} fps ${mbps(bitrateKbps)}`;
+  return `${formatResolution(sentWidth, sentHeight)} ${sentFps.toFixed(0)} fps ${formatMbps(bitrateKbps)}`;
 }
+
+export function participantNames({ participants }: CallStatus): string[] {
+  return participants.map((participant) => participant.identity);
+}
+
+export const roomName = (call: CallStatus, fallback: string | undefined) =>
+  call.room ?? fallback ?? '';

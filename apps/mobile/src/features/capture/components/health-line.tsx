@@ -19,7 +19,7 @@ const row = cva('h-11 flex-row items-center gap-2 border-t px-4', {
   },
 });
 
-const ISSUE = {
+const ISSUE_STYLE = {
   warning: {
     text: 'text-warning',
     detail: 'text-on-warning-soft',
@@ -63,7 +63,7 @@ export function HealthLine({ view, onPress }: { view: HealthLineView; onPress: (
       </Pressable>
     );
   }
-  const issue = ISSUE[view.tone];
+  const issue = ISSUE_STYLE[view.tone];
   return (
     <Pressable
       accessibilityRole="button"

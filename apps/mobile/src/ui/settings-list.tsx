@@ -4,7 +4,7 @@ import { View } from 'react-native';
 
 import { Text } from './text';
 
-export type SettingsRowData = {
+export type SettingsRowItem = {
   label: string;
   value?: string;
   mono?: boolean;
@@ -23,29 +23,29 @@ const rowLabel = cva('', {
 });
 
 function SettingsRow({
-  data,
+  row: item,
   first,
   locked,
 }: {
-  data: SettingsRowData;
+  row: SettingsRowItem;
   first: boolean;
   locked: boolean;
 }) {
   return (
-    <View className={row({ control: data.control !== undefined, first })}>
+    <View className={row({ control: item.control !== undefined, first })}>
       <Text variant="body" className={rowLabel({ locked })}>
-        {data.label}
+        {item.label}
       </Text>
       <View className="flex-1 items-end">
-        {data.control ?? (
+        {item.control ?? (
           <Text
             selectable
             numberOfLines={1}
             ellipsizeMode="middle"
-            variant={data.mono ? 'mono-value' : 'body'}
+            variant={item.mono ? 'mono-value' : 'body'}
             className="text-right text-muted"
           >
-            {data.value}
+            {item.value}
           </Text>
         )}
       </View>
@@ -62,7 +62,7 @@ export function SettingsGroup({
   locked = false,
 }: {
   label: string;
-  rows: SettingsRowData[];
+  rows: SettingsRowItem[];
   banner?: ReactNode;
   note?: string;
   action?: ReactNode;
@@ -75,8 +75,8 @@ export function SettingsGroup({
       </Text>
       {banner}
       <View className="rounded-md border border-border border-continuous bg-surface">
-        {rows.map((data, index) => (
-          <SettingsRow key={data.label} data={data} first={index === 0} locked={locked} />
+        {rows.map((item, index) => (
+          <SettingsRow key={item.label} row={item} first={index === 0} locked={locked} />
         ))}
       </View>
       {note !== undefined && (

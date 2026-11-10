@@ -4,6 +4,7 @@ import type { CallCredentials } from '@modules/capture-core';
 import { readEnv } from './env-schema';
 import { tokenGrant, type CallTarget } from './token-grant';
 
+/** Expo inlines EXPO_PUBLIC_* only for dot access to process.env. */
 export const env = readEnv({
   EXPO_PUBLIC_LIVEKIT_URL: process.env.EXPO_PUBLIC_LIVEKIT_URL,
   EXPO_PUBLIC_LIVEKIT_TOKEN: process.env.EXPO_PUBLIC_LIVEKIT_TOKEN,

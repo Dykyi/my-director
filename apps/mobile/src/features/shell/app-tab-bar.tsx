@@ -1,6 +1,6 @@
 import type { BottomTabBarProps } from 'expo-router/js-tabs';
 
-import { useSession, useSessionIssues } from '@features/capture/capture-session-context';
+import { useCaptureSession, useSessionIssues } from '@features/capture/capture-session-context';
 import { issueBadge } from '@features/capture/session-issues';
 import { PHASE_PILL } from '@features/capture/session-labels';
 import { Icon } from '@ui/icon';
@@ -10,7 +10,7 @@ import { APP_TABS } from './app-tabs';
 import { RecordTabIcon } from './record-tab-icon';
 
 export function AppTabBar({ state, navigation, insets }: BottomTabBarProps) {
-  const { snapshot } = useSession();
+  const { snapshot } = useCaptureSession();
   const badge = issueBadge(useSessionIssues());
   const pillTone = PHASE_PILL[snapshot.phase].tone;
   return (

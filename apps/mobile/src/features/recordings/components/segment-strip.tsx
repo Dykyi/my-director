@@ -3,12 +3,12 @@ import { Fragment } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { PAUSE_REASON } from '@features/capture/session-labels';
+import { PERCENT } from '@shared/units';
 import { Icon } from '@ui/icon';
 import { Text } from '@ui/text';
 
 import type { SegmentItem } from '../player-view';
 
-const PERCENT = 100;
 const MIN_BLOCK_SEC = 1;
 
 const block = cva('h-3 basis-0 overflow-hidden rounded-bar border-continuous', {
@@ -22,7 +22,7 @@ const block = cva('h-3 basis-0 overflow-hidden rounded-bar border-continuous', {
   },
 });
 
-function lookOf({ current, recovered, playable }: SegmentItem) {
+function blockLook({ current, recovered, playable }: SegmentItem) {
   if (current) return 'current';
   if (!playable) return 'missing';
   return recovered ? 'recovered' : 'plain';
@@ -31,13 +31,13 @@ function lookOf({ current, recovered, playable }: SegmentItem) {
 export function SegmentStrip({
   items,
   progress,
-  whole,
+  overallTime,
   endsInCrash,
   onSelect,
 }: {
   items: SegmentItem[];
   progress: number;
-  whole: string;
+  overallTime: string;
   endsInCrash: boolean;
   onSelect: (index: number) => void;
 }) {
@@ -52,7 +52,7 @@ export function SegmentStrip({
               disabled={!item.playable || item.current}
               onPress={() => onSelect(item.index)}
               hitSlop={{ top: 12, bottom: 12 }}
-              className={block({ look: lookOf(item) })}
+              className={block({ look: blockLook(item) })}
               style={{ flexGrow: Math.max(item.durationSec, MIN_BLOCK_SEC) }}
             >
               {item.current && (
@@ -72,7 +72,7 @@ export function SegmentStrip({
       </View>
       <View className="flex-row">
         <Text selectable variant="mono-meta" className="text-muted">
-          {whole}
+          {overallTime}
         </Text>
         <Text variant="mono-meta" className="ml-auto text-muted">
           whole recording

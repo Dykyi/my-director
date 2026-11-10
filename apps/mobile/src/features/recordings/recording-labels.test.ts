@@ -1,16 +1,20 @@
 import { describe, expect, it } from '@jest/globals';
 
-import type { RecordingSummary, SegmentSummary } from '@modules/capture-core';
+import type { RecordingSummary, RecoveryReport, SegmentSummary } from '@modules/capture-core';
 
 import type { UploadStatus } from '@features/upload/upload-plan';
+import { sampleHealth } from '@test/session-fixtures';
 
 import {
   cardActions,
   deleteMessage,
+  isCompleteSegment,
   lossNote,
   recordingChip,
   recordingMeta,
+  recordingsFact,
   recoveredNote,
+  recoveryView,
   segmentLine,
 } from './recording-labels';
 
@@ -111,4 +115,48 @@ describe('lossNote', () => {
     ).toBe(
       'Video reaches the disk every 2 s and the progress note every 1 s, so a crash loses only the tail after the last save.',
     ));
+});
+
+describe('isCompleteSegment', () => {
+  it('counts finalized and recovered files, not writing or unplayable ones', () => {
+    const states = ['finalized', 'recovered', 'writing', 'unplayable'] as const;
+    expect(states.filter((state) => isCompleteSegment(segment(1, { state })))).toEqual([
+      'finalized',
+      'recovered',
+    ]);
+  });
+});
+
+describe('recordingsFact', () => {
+  it('counts the sessions and adds the free space once health arrives', () => {
+    expect(recordingsFact(0, null)).toBe('0 sessions');
+    expect(recordingsFact(2, sampleHealth())).toBe('2 sessions · 41.0 GB free');
+  });
+});
+
+describe('recoveryView', () => {
+  const report = (segments: SegmentSummary[]): RecoveryReport => ({
+    sessionId: 's1',
+    createdAt: '2026-11-10T09:12:00.000Z',
+    segments,
+    recoveredSec: 362,
+    knownLossSec: 0.4,
+    maxUnseenLossSec: 1,
+  });
+
+  it('plays from the last segment that opens and counts the ones that do not', () => {
+    const view = recoveryView(report([segment(1), segment(2, { state: 'unplayable' })]));
+    expect(view.lastPlayable).toBe(1);
+    expect(view.summary).toBe('The app was closed while recording. What was on disk is playable.');
+    expect(view.unplayableNote).toBe('1 segment could not be opened.');
+  });
+
+  it('says so when nothing on disk opens', () => {
+    const view = recoveryView(report([segment(1, { state: 'unplayable' })]));
+    expect(view.lastPlayable).toBeUndefined();
+    expect(view.summary).toBe(
+      'The app was closed while recording. Nothing on disk could be opened.',
+    );
+    expect(view.unplayableNote).toBeUndefined();
+  });
 });

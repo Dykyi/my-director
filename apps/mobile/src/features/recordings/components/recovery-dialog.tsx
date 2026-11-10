@@ -2,13 +2,14 @@ import { View } from 'react-native';
 
 import type { RecoveryReport } from '@modules/capture-core';
 
-import { formatDuration, formatLoss, formatSessionTime, plural } from '@shared/format';
+import { formatDuration, formatLoss, formatSessionTime } from '@shared/format';
 import { Button } from '@ui/button';
-import { Dialog, StatTile } from '@ui/dialog';
+import { Dialog } from '@ui/dialog';
 import { Icon } from '@ui/icon';
+import { StatTile } from '@ui/stat-tile';
 import { Text } from '@ui/text';
 
-import { PLAYABLE } from '../recording-labels';
+import { recoveryView } from '../recording-labels';
 
 export function RecoveryDialog({
   report,
@@ -24,8 +25,7 @@ export function RecoveryDialog({
   onDismiss: (sessionId: string) => void;
 }) {
   if (!report) return null;
-  const lastPlayable = report.segments.findLast((segment) => PLAYABLE.has(segment.state));
-  const unplayable = report.segments.filter((segment) => segment.state === 'unplayable').length;
+  const { lastPlayable, summary, unplayableNote } = recoveryView(report);
   return (
     <Dialog>
       <View className="flex-row gap-2.5">
@@ -35,12 +35,11 @@ export function RecoveryDialog({
             Unfinished recording · {formatSessionTime(report.createdAt)}
           </Text>
           <Text variant="callout" className="text-subtle">
-            The app was closed while recording.{' '}
-            {lastPlayable ? 'What was on disk is playable.' : 'Nothing on disk could be opened.'}
+            {summary}
           </Text>
-          {unplayable > 0 && lastPlayable && (
+          {unplayableNote && (
             <Text variant="footnote" className="text-danger">
-              {plural(unplayable, 'segment')} could not be opened.
+              {unplayableNote}
             </Text>
           )}
         </View>
@@ -57,9 +56,9 @@ export function RecoveryDialog({
         <Button
           title="Play"
           variant="primary"
-          disabled={!lastPlayable}
+          disabled={lastPlayable === undefined}
           className="flex-1"
-          onPress={() => lastPlayable && onPlay(report.sessionId, lastPlayable.index)}
+          onPress={() => lastPlayable !== undefined && onPlay(report.sessionId, lastPlayable)}
         />
         <Button title="Verify" className="flex-1" onPress={() => onVerify(report.sessionId)} />
         <Button

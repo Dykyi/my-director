@@ -1,35 +1,66 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
-import type { CameraPosition } from '@modules/capture-core';
+import {
+  CaptureCore,
+  type CameraPosition,
+  type HealthSnapshot,
+  type LogEntry,
+} from '@modules/capture-core';
 
 import { captureOverrides } from '@config/capture-config';
 import { useAccess } from '@features/access/use-access';
-import { hookContext } from '@shared/hook-context';
+import { createHookContext } from '@shared/hook-context';
 
 import { cameraPreference } from './camera-preference';
 import { sessionIssues, type SessionIssue } from './session-issues';
-import { useCaptureSession } from './use-capture-session';
+import { useNativeSession } from './use-native-session';
 
-function useSessionWithCamera() {
+function useCaptureSessionValue() {
   const cameraPosition = cameraPreference.use();
   const access = useAccess();
   const overrides = useMemo(() => captureOverrides(cameraPosition), [cameraPosition]);
-  return { ...useCaptureSession(overrides, access.ready), access };
+  return { ...useNativeSession(overrides, access.ready), access };
 }
 
-export const [CaptureSessionProvider, useSession] = hookContext(
+const LOG_LIMIT = 200;
+
+function useNativeHealth() {
+  const [health, setHealth] = useState<HealthSnapshot | null>(null);
+  useEffect(() => {
+    const subscription = CaptureCore.addListener('onHealth', setHealth);
+    return () => subscription.remove();
+  }, []);
+  return health;
+}
+
+function useNativeLog() {
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  useEffect(() => {
+    const subscription = CaptureCore.addListener('onLog', (entry) => {
+      if (entry.level !== 'debug') setLogs((current) => [entry, ...current].slice(0, LOG_LIMIT));
+    });
+    return () => subscription.remove();
+  }, []);
+  return logs;
+}
+
+// Health comes every second and the log with every event; apart, they re-render only their readers.
+export const [CaptureSessionProvider, useCaptureSession] = createHookContext(
   'CaptureSession',
-  useSessionWithCamera,
+  useCaptureSessionValue,
 );
+export const [HealthProvider, useHealth] = createHookContext('Health', useNativeHealth);
+export const [EventLogProvider, useEventLog] = createHookContext('EventLog', useNativeLog);
 
 export function useChangeCamera() {
-  const { actions } = useSession();
+  const { actions } = useCaptureSession();
   return async (position: CameraPosition | undefined) => {
     if (await actions.prepare(captureOverrides(position))) cameraPreference.set(position);
   };
 }
 
 export function useSessionIssues(): SessionIssue[] {
-  const { snapshot, logs } = useSession();
+  const { snapshot } = useCaptureSession();
+  const logs = useEventLog();
   return useMemo(() => sessionIssues(snapshot, logs), [snapshot, logs]);
 }

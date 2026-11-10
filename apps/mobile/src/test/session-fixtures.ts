@@ -7,7 +7,7 @@ import type {
   SessionSnapshot,
 } from '@modules/capture-core';
 
-import type { CaptureSessionActions } from '@features/capture/use-capture-session';
+import type { CaptureSessionActions } from '@features/capture/use-native-session';
 
 import { inRoom, noCall } from './call-fixtures';
 
@@ -33,13 +33,6 @@ export const recordingSnapshot = snapshot({
   recordedSec: 312,
   call: inRoom(),
 });
-export const pausedSnapshot = snapshot({
-  ...recordingSnapshot,
-  phase: 'paused',
-  pauseReason: 'phoneCall',
-  call: { ...inRoom(), isMuted: true },
-});
-
 export const sampleHealth = (overrides: Partial<HealthSnapshot> = {}): HealthSnapshot => ({
   at: '2026-11-10T09:00:00.000Z',
   camera: { fps: 30, width: 1920, height: 1080 },

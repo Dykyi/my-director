@@ -2,7 +2,7 @@ import { View } from 'react-native';
 
 import type { HealthSnapshot, SessionSnapshot } from '@modules/capture-core';
 
-import { METER_BARS } from '@features/capture/session-labels';
+import { METER_BARS } from '@features/capture/mic-level';
 import { cn } from '@ui/cn';
 import { LevelMeter } from '@ui/level-meter';
 import { Text } from '@ui/text';

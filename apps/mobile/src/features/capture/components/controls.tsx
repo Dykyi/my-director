@@ -5,8 +5,9 @@ import type { SessionSnapshot } from '@modules/capture-core';
 import { plural } from '@shared/format';
 import { Button } from '@ui/button';
 
+import { canReconnectCall } from '../record-views';
 import { PHASE_PROGRESS } from '../session-labels';
-import type { CaptureSessionActions } from '../use-capture-session';
+import type { CaptureSessionActions } from '../use-native-session';
 
 function PhaseButtons({
   snapshot,
@@ -86,13 +87,10 @@ export function Controls({
   actions: CaptureSessionActions;
   accessReady: boolean;
 }) {
-  const { phase, call } = snapshot;
-  const canReconnect =
-    (phase === 'recording' || phase === 'paused') && call.state === 'disconnected';
   return (
     <View className="gap-2.5 border-t border-border px-4 pb-4 pt-3">
       <PhaseButtons snapshot={snapshot} actions={actions} accessReady={accessReady} />
-      {canReconnect && (
+      {canReconnectCall(snapshot) && (
         <Button
           title="Reconnect call"
           variant="notice"

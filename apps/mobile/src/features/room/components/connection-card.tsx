@@ -1,8 +1,7 @@
 import { View } from 'react-native';
 
+import { CallChip } from '@features/capture/components/call-chip';
 import { Button } from '@ui/button';
-import { Chip } from '@ui/chip';
-import { QualityChip } from '@ui/quality-chip';
 import { StatusDot } from '@ui/status-dot';
 import { Text } from '@ui/text';
 
@@ -32,11 +31,7 @@ export function ConnectionCard({
             </Text>
           ) : null}
         </View>
-        {'lit' in view.chip ? (
-          <QualityChip {...view.chip} className="self-center" />
-        ) : (
-          <Chip label={view.chip.label} tone={view.chip.tone} className="self-center" />
-        )}
+        <CallChip chip={view.chip} />
       </View>
       {view.text !== undefined && (
         <Text variant="callout" className="text-subtle">

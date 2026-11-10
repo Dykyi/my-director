@@ -5,20 +5,20 @@ import type {
   SessionSnapshot,
 } from '@modules/capture-core';
 
-import { sendingText } from '@features/capture/call-labels';
-import { litBars, participantNames } from '@features/capture/session-labels';
-import { formatBytes } from '@shared/format';
+import { participantNames, sendingText } from '@features/capture/call-labels';
+import { litBars } from '@features/capture/mic-level';
+import { formatBytes, formatResolution } from '@shared/format';
+import { MS_PER_SEC } from '@shared/units';
 import type { TextTone } from '@ui/tone';
 
-export type HealthRow = { label: string; value: string; tone: TextTone; meterBars?: number };
+type HealthRow = { label: string; value: string; tone: TextTone; meterBars?: number };
 
 const MIC_SILENT_AFTER_MS = 1_000;
-const MS_PER_SEC = 1_000;
 const BLUETOOTH_PORT = 'Bluetooth';
 const HOT: ReadonlySet<HealthSnapshot['thermal']> = new Set(['serious', 'critical']);
 const RECORDING_PHASES: ReadonlySet<SessionPhase> = new Set(['recording', 'resuming']);
 
-function signed(value: number): string {
+function formatSigned(value: number): string {
   const rounded = Math.round(value);
   return rounded > 0 ? `+${rounded}` : `${rounded}`;
 }
@@ -29,14 +29,14 @@ function audioRow({ audio }: HealthSnapshot, phase: SessionPhase): HealthRow {
     return {
       label: 'Audio',
       value: `no audio for ${(audio.lastBufferAgeMs / MS_PER_SEC).toFixed(1)} s`,
-      tone: 'error',
+      tone: 'danger',
     };
   }
   if (silent) return { label: 'Audio', value: 'mic off', tone: 'muted' };
   return {
     label: 'Audio',
-    value: `${audio.levelDb.toFixed(0)} dB  drift ${signed(audio.driftMs)} ms${audio.resyncCount > 0 ? `  resync ${audio.resyncCount}` : ''}`,
-    tone: 'normal',
+    value: `${audio.levelDb.toFixed(0)} dB  drift ${formatSigned(audio.driftMs)} ms${audio.resyncCount > 0 ? `  resync ${audio.resyncCount}` : ''}`,
+    tone: 'foreground',
     meterBars: litBars(audio.levelDb),
   };
 }
@@ -48,12 +48,12 @@ function fileRow({ file }: HealthSnapshot): HealthRow {
       return {
         label: 'File',
         value: `${file.fps.toFixed(1)} fps  ${size}  drops ${file.droppedFrames}`,
-        tone: 'normal',
+        tone: 'foreground',
       };
     case 'finishing':
-      return { label: 'File', value: `finishing · ${size}`, tone: 'secondary' };
+      return { label: 'File', value: `finishing · ${size}`, tone: 'subtle' };
     case 'failed':
-      return { label: 'File', value: `failed · ${size}`, tone: 'error' };
+      return { label: 'File', value: `failed · ${size}`, tone: 'danger' };
     case 'idle':
       return { label: 'File', value: 'idle', tone: 'muted' };
   }
@@ -63,7 +63,7 @@ function callRow({ call }: HealthSnapshot): HealthRow {
   const sent = sendingText(call);
   if (sent === undefined) return { label: 'Call', value: 'not sending', tone: 'muted' };
   return call.qualityLimitation === 'none'
-    ? { label: 'Call', value: sent, tone: 'normal' }
+    ? { label: 'Call', value: sent, tone: 'foreground' }
     : { label: 'Call', value: `${sent} · limited by ${call.qualityLimitation}`, tone: 'warning' };
 }
 
@@ -72,11 +72,12 @@ function roomRow(call: CallStatus): HealthRow {
     return { label: 'Room', value: 'not joined', tone: 'muted' };
   const names = participantNames(call);
   return names.length > 0
-    ? { label: 'Room', value: `${call.room} · ${names.join(', ')}`, tone: 'normal' }
+    ? { label: 'Room', value: `${call.room} · ${names.join(', ')}`, tone: 'foreground' }
     : { label: 'Room', value: `${call.room} · nobody else yet`, tone: 'warning' };
 }
 
-const routeTone = (port: string): TextTone => (port.includes(BLUETOOTH_PORT) ? 'accent' : 'normal');
+const routeTone = (port: string): TextTone =>
+  port.includes(BLUETOOTH_PORT) ? 'accent' : 'foreground';
 
 export function healthRows(
   health: HealthSnapshot,
@@ -88,8 +89,8 @@ export function healthRows(
       ? { label: 'Camera', value: 'off', tone: 'muted' }
       : {
           label: 'Camera',
-          value: `${camera.fps.toFixed(1)} fps ${camera.width}×${camera.height}`,
-          tone: 'normal',
+          value: `${camera.fps.toFixed(1)} fps ${formatResolution(camera.width, camera.height)}`,
+          tone: 'foreground',
         },
     fileRow(health),
     audioRow(health, phase),
@@ -100,8 +101,8 @@ export function healthRows(
     {
       label: 'Thermal',
       value: `${health.thermal} · pressure ${health.systemPressure}`,
-      tone: HOT.has(health.thermal) ? 'warning' : 'normal',
+      tone: HOT.has(health.thermal) ? 'warning' : 'foreground',
     },
-    { label: 'Disk', value: `${formatBytes(health.diskFreeBytes)} free`, tone: 'normal' },
+    { label: 'Disk', value: `${formatBytes(health.diskFreeBytes)} free`, tone: 'foreground' },
   ];
 }

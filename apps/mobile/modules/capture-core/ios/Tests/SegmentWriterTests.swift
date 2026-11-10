@@ -5,6 +5,7 @@ import Testing
 final class SegmentWriterTests {
   private static let fps = 30
   private static let sampleRate = 48_000.0
+  private static let busyRetries = 200
   private let directory = Fixtures.temporaryDirectory()
   private var url: URL { directory.appending(path: "segment-001.mov") }
 
@@ -44,9 +45,16 @@ final class SegmentWriterTests {
     return try #require(sample)
   }
 
+  /// Appends with the pacing a camera gives; a frame the busy encoder skipped is offered again.
   private func appendFrames(_ count: Int, to writer: SegmentWriter) async throws {
     for index in 0..<count {
-      #expect(writer.appendVideo(try frame(at: index)) == .appended)
+      let sample = try frame(at: index)
+      var result = writer.appendVideo(sample)
+      for _ in 0..<Self.busyRetries where result == .skipped {
+        try await Task.sleep(for: .milliseconds(5))
+        result = writer.appendVideo(sample)
+      }
+      #expect(result == .appended)
       try await Task.sleep(for: .milliseconds(5))
     }
   }

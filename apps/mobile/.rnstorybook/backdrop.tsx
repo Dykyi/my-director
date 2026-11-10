@@ -6,8 +6,8 @@ import { appearance } from '@theme/appearance';
 import { useThemeName } from '@theme/use-theme-colors';
 import { Icon } from '@ui/icon';
 
-export type BackdropKind = 'screen' | 'sheet';
-export type StoryInset = 'padded' | 'centered' | 'none';
+type BackdropKind = 'screen' | 'sheet';
+type StoryInset = 'padded' | 'centered' | 'none';
 
 const INSET_CLASS: Record<StoryInset, string> = {
   padded: 'flex-1 p-4',
@@ -42,6 +42,7 @@ function Ground({ kind, children }: { kind: BackdropKind; children: ReactNode })
 
 export const withBackdrop: Decorator = (Story, context) => {
   const kind: BackdropKind = context.parameters.backdrop ?? 'screen';
+  // Not `layout`: Storybook owns that name and its padding would frame the canvas.
   const inset: StoryInset = context.parameters.inset ?? 'padded';
   return (
     <View className="flex-1">

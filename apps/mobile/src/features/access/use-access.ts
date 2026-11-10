@@ -32,7 +32,5 @@ export function useAccess() {
     skipNotices: () => noticesAnswer.set('skipped'),
   };
   const card = accessCard(media, notices);
-  return { card, ready: card === null, act: (action: AccessAction) => actions[action]() };
+  return { card, ready: card === null, perform: (action: AccessAction) => actions[action]() };
 }
-
-export type Access = ReturnType<typeof useAccess>;

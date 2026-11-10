@@ -8,8 +8,10 @@ import {
   formatDuration,
   formatLogLine,
   formatLoss,
+  formatResolution,
   formatSessionTime,
   formatTimer,
+  profileLabel,
 } from './format';
 
 describe('formatDuration', () => {
@@ -79,4 +81,14 @@ describe('formatTimer', () => {
   it('pads minutes like the header timer', () => expect(formatTimer(312)).toBe('05:12'));
   it('shows hours when needed', () => expect(formatTimer(3_725)).toBe('1:02:05'));
   it('starts at zero', () => expect(formatTimer(0)).toBe('00:00'));
+});
+
+describe('formatResolution', () => {
+  it('joins width and height with a times sign', () =>
+    expect(formatResolution(1920, 1080)).toBe('1920×1080'));
+});
+
+describe('profileLabel', () => {
+  it('names a call profile by its height and frame rate', () =>
+    expect(profileLabel({ height: 720, fps: 30 })).toBe('720p 30 fps'));
 });

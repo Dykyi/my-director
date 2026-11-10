@@ -5,7 +5,7 @@ import type { RecoveryReport } from '@modules/capture-core';
 import { interview } from '@test/player-fixtures';
 import { recording, segment } from '@test/session-fixtures';
 
-import { playerView, startingSegment, type Playback } from './player-view';
+import { playerTarget, playerView, startingSegment, type Playback } from './player-view';
 
 const at = (current: number, elapsedSec = 0, playback: Playback = 'playing') => ({
   current,
@@ -18,17 +18,17 @@ describe('playerView', () => {
     const view = playerView(interview, at(1, 72));
     expect(view.title).toBe('Segment 1 of 3');
     expect(view.file).toBe('segment-001.mov · 3:58');
-    expect(view.origin).toBe('Start of the recording');
+    expect(view.startedAfter).toBe('Start of the recording');
   });
 
   it('says what came before a later segment', () => {
-    expect(playerView(interview, at(2, 0)).origin).toBe('Starts after a phone call');
-    expect(playerView(interview, at(3, 0)).origin).toBe('Starts after the screen locked');
+    expect(playerView(interview, at(2, 0)).startedAfter).toBe('Starts after a phone call');
+    expect(playerView(interview, at(3, 0)).startedAfter).toBe('Starts after the screen locked');
   });
 
   it('places the segment in the whole recording', () => {
     const view = playerView(interview, at(2, 20));
-    expect(view.whole).toBe('4:18 of 9:10');
+    expect(view.overallTime).toBe('4:18 of 9:10');
     expect(view.progress).toBeCloseTo(20 / 160);
   });
 
@@ -119,4 +119,24 @@ describe('startingSegment', () => {
 
   it('has nothing to start when no segment plays', () =>
     expect(startingSegment([segment(1, { state: 'unplayable' })], 1)).toBeUndefined());
+});
+
+describe('playerTarget', () => {
+  const recordings = [{ ...interview, sessionId: 'a' }];
+
+  it('opens the requested segment of the requested recording', () =>
+    expect(playerTarget(recordings, [], 'a', '2')).toEqual({
+      recording: recordings[0],
+      start: 2,
+      report: undefined,
+    }));
+
+  it('starts from the first segment that plays when none is requested', () =>
+    expect(playerTarget(recordings, [], 'a', undefined)?.start).toBe(1));
+
+  it('has nothing to play for a missing recording or one without a playable segment', () => {
+    expect(playerTarget(recordings, [], 'b', '1')).toBeUndefined();
+    const broken = [recording({ sessionId: 'c', segments: [segment(1, { state: 'unplayable' })] })];
+    expect(playerTarget(broken, [], 'c', '1')).toBeUndefined();
+  });
 });

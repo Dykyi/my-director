@@ -3,7 +3,7 @@ import { Pressable, View } from 'react-native';
 
 import { Text } from './text';
 
-export type SegmentOption<T extends string> = { value: T; label: string };
+type SegmentOption<T extends string> = { value: T; label: string };
 
 const TRACK =
   'flex-row self-end rounded-segmented border border-border border-continuous bg-background p-0.5';

@@ -1,9 +1,9 @@
 import { router } from 'expo-router';
 
-import { useChangeCamera, useSession } from '@features/capture/capture-session-context';
-import { useRecordingsState } from '@features/recordings/recordings-context';
-import { useUploadsState } from '@features/upload/uploads-context';
-import { hookContext } from '@shared/hook-context';
+import { useCaptureSession, useChangeCamera } from '@features/capture/capture-session-context';
+import { useRecordings } from '@features/recordings/recordings-context';
+import { useUploads } from '@features/upload/uploads-context';
+import { createHookContext } from '@shared/hook-context';
 import { appearance } from '@theme/appearance';
 
 import { STAND_ROUTES } from './stand-routes';
@@ -14,15 +14,15 @@ const routeCommands = Object.fromEntries(
 );
 
 function useStandCommands() {
-  const { actions, access } = useSession();
+  const { actions, access } = useCaptureSession();
   const changeCamera = useChangeCamera();
-  const recordings = useRecordingsState();
-  const uploads = useUploadsState();
+  const recordings = useRecordings();
+  const uploads = useUploads();
   const latest = recordings.recordings[0];
   const recoveryReport = recordings.recoveryReports[0];
   return useRemoteControl({
     ...routeCommands,
-    permissions: () => access.act('ask'),
+    permissions: () => access.perform('ask'),
     prepare: () => actions.prepare(),
     start: actions.start,
     pause: actions.pause,
@@ -46,7 +46,7 @@ function useStandCommands() {
 }
 
 /** Stand commands navigate, so the provider sits inside the tab navigator, which is ready by then. */
-export const [RemoteControlProvider, useRemoteStatus] = hookContext(
+export const [RemoteControlProvider, useRemoteStatus] = createHookContext(
   'RemoteControl',
   useStandCommands,
 );

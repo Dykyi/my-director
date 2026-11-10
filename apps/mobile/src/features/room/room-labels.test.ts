@@ -3,7 +3,7 @@ import { describe, expect, it } from '@jest/globals';
 import { formatClock } from '@shared/format';
 import { inRoom, noCall, participant } from '@test/call-fixtures';
 
-import { connectionView, initials, ownTracks, participantView, roomView } from './room-labels';
+import { connectionView, initials, ownTracks, participantView, roomOccupancy } from './room-labels';
 
 const STANDARD = { width: 1280, height: 720, fps: 30 };
 
@@ -15,10 +15,10 @@ describe('initials', () => {
   ])('%s → %s', (identity, expected) => expect(initials(identity)).toBe(expected));
 });
 
-describe('roomView', () => {
-  it('is not joined before Start', () => expect(roomView(noCall)).toBe('notJoined'));
-  it('is empty with nobody else', () => expect(roomView(inRoom([]))).toBe('empty'));
-  it('is occupied with the interviewer', () => expect(roomView(inRoom())).toBe('occupied'));
+describe('roomOccupancy', () => {
+  it('is not joined before Start', () => expect(roomOccupancy(noCall)).toBe('notJoined'));
+  it('is empty with nobody else', () => expect(roomOccupancy(inRoom([]))).toBe('empty'));
+  it('is occupied with the interviewer', () => expect(roomOccupancy(inRoom())).toBe('occupied'));
 });
 
 describe('participantView', () => {

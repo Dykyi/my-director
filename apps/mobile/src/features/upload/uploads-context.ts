@@ -1,6 +1,6 @@
-import { hookContext } from '@shared/hook-context';
+import { createHookContext } from '@shared/hook-context';
 
-import { useUploads } from './use-uploads';
+import { useNativeUploads } from './use-native-uploads';
 
-export const [UploadsProvider, useUploadsState] = hookContext('Uploads', useUploads);
-export type Uploads = ReturnType<typeof useUploadsState>;
+export const [UploadsProvider, useUploads] = createHookContext('Uploads', useNativeUploads);
+export type Uploads = ReturnType<typeof useUploads>;

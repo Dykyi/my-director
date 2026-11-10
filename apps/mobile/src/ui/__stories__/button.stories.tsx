@@ -2,7 +2,8 @@ import type { Meta, StoryObj } from '@storybook/react-native';
 
 import { iconControl, selectOf } from '@test/story-controls';
 
-import { Button, type ButtonSize, type ButtonVariant } from '../button';
+import { Button } from '../button';
+import type { ButtonSize, ButtonVariant } from '../button-classes';
 
 const meta = {
   title: 'UI/Controls/Button',

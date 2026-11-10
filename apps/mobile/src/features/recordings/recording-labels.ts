@@ -1,18 +1,22 @@
 import type {
   CaptureConfig,
+  HealthSnapshot,
   RecordingState,
   RecordingSummary,
+  RecoveryReport,
   SegmentState,
   SegmentSummary,
 } from '@modules/capture-core';
 
 import type { UploadStatus } from '@features/upload/upload-plan';
 import { formatBytes, formatDuration, plural } from '@shared/format';
-import type { ChipTone } from '@ui/tone';
+import type { ChipTone, ChipView } from '@ui/tone';
 
 export type CardAction = 'play' | 'verify' | 'upload' | 'cancel' | 'delete';
 
-export const PLAYABLE: ReadonlySet<SegmentState> = new Set(['finalized', 'recovered']);
+const COMPLETE: ReadonlySet<SegmentState> = new Set(['finalized', 'recovered']);
+
+export const isCompleteSegment = (segment: SegmentSummary) => COMPLETE.has(segment.state);
 
 const STATE_TONE: Record<RecordingState, ChipTone> = {
   recording: 'recording',
@@ -24,7 +28,7 @@ const STATE_TONE: Record<RecordingState, ChipTone> = {
 export function recordingChip(
   { state }: RecordingSummary,
   { uploading, verified, pending }: UploadStatus,
-): { label: string; tone: ChipTone } {
+): ChipView {
   if (uploading) return { label: 'uploading', tone: 'accent' };
   if (verified && pending.length === 0) return { label: 'uploaded', tone: 'success' };
   return { label: state, tone: STATE_TONE[state] };
@@ -33,13 +37,13 @@ export function recordingChip(
 export const recordingMeta = ({ totalSec, segments, totalBytes }: RecordingSummary) =>
   `${formatDuration(totalSec)} · ${segments.length} seg · ${formatBytes(totalBytes)}`;
 
-export const fileName = (uri: string) => uri.slice(uri.lastIndexOf('/') + 1);
+export const segmentFileName = (uri: string) => uri.slice(uri.lastIndexOf('/') + 1);
 
 export const segmentLine = ({ uri, durationSec, bytes }: SegmentSummary) =>
-  `${fileName(uri)} ${formatDuration(durationSec)} ${formatBytes(bytes)}`;
+  `${segmentFileName(uri)} ${formatDuration(durationSec)} ${formatBytes(bytes)}`;
 
 export function recoveredNote({ segments }: RecordingSummary): string {
-  const playable = segments.filter((segment) => PLAYABLE.has(segment.state)).length;
+  const playable = segments.filter(isCompleteSegment).length;
   return `Recovered after the app was closed. Playable segments: ${playable} of ${segments.length}.`;
 }
 
@@ -65,4 +69,26 @@ export function lossNote({
   session: Pick<CaptureConfig['session'], 'heartbeatIntervalSec'>;
 }): string {
   return `Video reaches the disk every ${recording.fragmentIntervalSec} s and the progress note every ${session.heartbeatIntervalSec} s, so a crash loses only the tail after the last save.`;
+}
+
+export function recordingsFact(count: number, health: HealthSnapshot | null): string {
+  const free = health && `${formatBytes(health.diskFreeBytes)} free`;
+  return [plural(count, 'session'), free].filter(Boolean).join(' · ');
+}
+
+export function recoveryView(report: RecoveryReport) {
+  const lastPlayable = report.segments.findLast(isCompleteSegment)?.index;
+  const unplayable = report.segments.filter((segment) => segment.state === 'unplayable').length;
+  const found =
+    lastPlayable === undefined
+      ? 'Nothing on disk could be opened.'
+      : 'What was on disk is playable.';
+  return {
+    lastPlayable,
+    summary: `The app was closed while recording. ${found}`,
+    unplayableNote:
+      unplayable > 0 && lastPlayable !== undefined
+        ? `${plural(unplayable, 'segment')} could not be opened.`
+        : undefined,
+  };
 }

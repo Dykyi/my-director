@@ -25,7 +25,7 @@ function SegmentStripStory({
     <SegmentStrip
       items={view.items}
       progress={view.progress}
-      whole={view.whole}
+      overallTime={view.overallTime}
       endsInCrash={view.endsInCrash}
       onSelect={() => {}}
     />

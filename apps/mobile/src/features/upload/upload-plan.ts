@@ -1,9 +1,9 @@
 import type { UploadSnapshot } from '@modules/background-upload';
-import type { RecordingSummary, SegmentState, SegmentSummary } from '@modules/capture-core';
+import type { RecordingSummary, SegmentSummary } from '@modules/capture-core';
+
+import { isCompleteSegment } from '@features/recordings/recording-labels';
 
 import { ACTIVE_UPLOAD, needsUpload, segmentObjectKey } from './upload-format';
-
-const UPLOADABLE: ReadonlySet<SegmentState> = new Set(['finalized', 'recovered']);
 
 export type UploadStatus = { pending: SegmentSummary[]; uploading: boolean; verified: boolean };
 export type UploadStep = { segment: SegmentSummary; replaces?: UploadSnapshot };
@@ -34,7 +34,7 @@ export function recordingStatus(
   uploads: UploadSnapshot[],
 ): UploadStatus {
   const closed = segmentJobs(recording, uploads).filter(({ segment }) =>
-    UPLOADABLE.has(segment.state),
+    isCompleteSegment(segment),
   );
   return {
     pending: closed.filter(({ upload }) => needsUpload(upload)).map(({ segment }) => segment),
@@ -60,7 +60,7 @@ export function runningJobs(
 
 export function uploadPlan(recording: RecordingSummary, uploads: UploadSnapshot[]): UploadStep[] {
   return segmentJobs(recording, uploads)
-    .filter(({ segment, upload }) => UPLOADABLE.has(segment.state) && needsUpload(upload))
+    .filter(({ segment, upload }) => isCompleteSegment(segment) && needsUpload(upload))
     .map(({ segment, upload }) =>
       upload?.phase === 'failed' ? { segment, replaces: upload } : { segment },
     );

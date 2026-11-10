@@ -7,11 +7,13 @@ import type {
 } from '@modules/capture-core';
 
 import type { CallTarget } from '@config/token-grant';
+import { formatResolution } from '@shared/format';
+import { BITS_PER_KBIT, BITS_PER_MBIT, MB_PER_GB, MS_PER_SEC, UNKNOWN } from '@shared/units';
 
-export type SettingsRowView = { label: string; value: string; mono?: boolean };
-export type SettingsGroupId = 'camera' | 'file' | 'microphone' | 'call' | 'upload' | 'about';
+type SettingsRowView = { label: string; value: string; mono?: boolean };
+type SettingsGroupId = 'camera' | 'file' | 'microphone' | 'call' | 'upload' | 'about';
 export type SettingsGroupView = { id: SettingsGroupId; title: string; rows: SettingsRowView[] };
-export type UpdateInfo = {
+type UpdateInfo = {
   enabled: boolean;
   embedded: boolean;
   updateId: string | null;
@@ -28,11 +30,6 @@ export type AboutInfo = {
   update: UpdateInfo;
 };
 
-const BITS_PER_MBIT = 1_000_000;
-const BITS_PER_KBIT = 1_000;
-const MB_PER_GB = 1_000;
-const MS_PER_SEC = 1_000;
-const UNKNOWN = '?';
 const SHORT_ID_LENGTH = 8;
 /** Fixed in the native pipeline: CameraSource takes the wide lens with video HDR off, SegmentWriter writes mono AAC. */
 const LENS = 'Wide 1×';
@@ -48,7 +45,8 @@ const WEAK_NETWORK: Record<CallDegradation, (fps: number) => string> = {
   balanced: () => 'drops size and frame rate together',
 };
 
-const profileText = ({ width, height, fps }: CallVideoProfile) => `${width}×${height} ${fps} fps`;
+const profileText = ({ width, height, fps }: CallVideoProfile) =>
+  `${formatResolution(width, height)} ${fps} fps`;
 const gigabytes = (megabytes: number) => `${megabytes / MB_PER_GB} GB`;
 
 function processing({ noiseSuppression, autoGainControl }: CaptureConfig['audio']): string {
@@ -88,7 +86,10 @@ export function settingsGroups(
       title: 'CAMERA',
       rows: [
         { label: 'Lens', value: LENS },
-        { label: 'Format', value: `${camera.width}×${camera.height} · ${camera.fps} fps locked` },
+        {
+          label: 'Format',
+          value: `${formatResolution(camera.width, camera.height)} · ${camera.fps} fps locked`,
+        },
         { label: 'Stabilization', value: camera.stabilization === 'off' ? 'Off' : 'Standard' },
         { label: 'Video HDR', value: VIDEO_HDR },
       ],
@@ -137,7 +138,7 @@ export function settingsGroups(
         },
         {
           label: 'Video',
-          value: `${CALL_CODEC[codec]} · ${standard.width}×${standard.height} · ${standard.fps} fps`,
+          value: `${CALL_CODEC[codec]} · ${formatResolution(standard.width, standard.height)} · ${standard.fps} fps`,
         },
         { label: 'Phone hot', value: profileText(profiles[thermalProfiles.serious]) },
         { label: 'Phone critical', value: profileText(profiles[thermalProfiles.critical]) },

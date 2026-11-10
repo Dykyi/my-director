@@ -1,32 +1,24 @@
 import { Linking, View } from 'react-native';
 
-import type { SessionSnapshot } from '@modules/capture-core';
-
 import { Button } from '@ui/button';
 import { ErrorNotice, WarningNotice } from '@ui/notice';
 
-import { ERROR_TITLE } from '../session-labels';
+import type { RecordNoticesView } from '../record-views';
 
 export function RecordNotices({
-  snapshot,
-  commandError,
+  view,
   onDismiss,
 }: {
-  snapshot: SessionSnapshot;
-  commandError: string | null;
+  view: RecordNoticesView | null;
   onDismiss: () => void;
 }) {
-  const { error, warnings, phase, call } = snapshot;
-  const callDown = phase === 'recording' && call.state !== 'connected';
-  if (!error && !commandError && !callDown && warnings.length === 0) return null;
-  const notice = error
-    ? { title: ERROR_TITLE[error.code], message: error.message }
-    : commandError && { title: 'Command failed', message: commandError };
+  if (!view) return null;
+  const { error, warnings } = view;
   return (
     <View className="gap-2 px-4 pt-2">
-      {notice && (
-        <ErrorNotice title={notice.title} message={notice.message}>
-          {error?.code === 'permissionDenied' && (
+      {error && (
+        <ErrorNotice title={error.title} message={error.message}>
+          {error.openSettings && (
             <Button
               title="Open Settings"
               variant="danger"
@@ -37,13 +29,8 @@ export function RecordNotices({
           <Button title="Dismiss" variant="danger" size="compact" onPress={onDismiss} />
         </ErrorNotice>
       )}
-      {callDown && (
-        <WarningNotice
-          message={`The call ${call.state === 'reconnecting' ? 'is reconnecting' : 'dropped'}. Recording continues on the phone with full quality.`}
-        />
-      )}
-      {warnings.map((warning) => (
-        <WarningNotice key={warning.code} message={warning.message} />
+      {warnings.map((message) => (
+        <WarningNotice key={message} message={message} />
       ))}
     </View>
   );

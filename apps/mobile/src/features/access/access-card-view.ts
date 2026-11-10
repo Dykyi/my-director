@@ -6,16 +6,16 @@ export const NOTICES_ANSWERS = ['asked', 'skipped'] as const;
 export type NoticesAnswer = (typeof NOTICES_ANSWERS)[number];
 
 export type AccessAction = 'ask' | 'openSettings' | 'allowNotices' | 'skipNotices';
-export type AccessTone = 'muted' | 'accent' | 'success' | 'danger';
+type AccessTone = 'muted' | 'accent' | 'success' | 'danger';
 
-export interface AccessRow {
+interface AccessRow {
   icon: IconName;
   label: string;
   status: string;
   tone: AccessTone;
 }
 
-export interface AccessButton {
+interface AccessButton {
   title: string;
   action: AccessAction;
 }
@@ -28,20 +28,25 @@ export interface AccessCardView {
   secondary?: AccessButton;
 }
 
-const MEDIUM = {
+const MEDIA_ROW = {
   camera: { icon: 'camera', label: 'Camera' },
   microphone: { icon: 'mic', label: 'Microphone' },
 } as const satisfies Record<keyof PermissionsState, { icon: IconName; label: string }>;
 
-const OFF = {
-  camera: { title: 'Camera is off', need: 'the camera to film your interview. Turn it' },
+const COME_BACK = 'then come back: this screen updates by itself.';
+
+const TURNED_OFF = {
+  camera: {
+    title: 'Camera is off',
+    body: `MyDirector needs the camera to film your interview. Turn it on in Settings, ${COME_BACK}`,
+  },
   microphone: {
     title: 'Microphone is off',
-    need: 'the microphone to record your answers. Turn it',
+    body: `MyDirector needs the microphone to record your answers. Turn it on in Settings, ${COME_BACK}`,
   },
   both: {
     title: 'Camera and microphone are off',
-    need: 'the camera and the microphone to record your interview. Turn them',
+    body: `MyDirector needs the camera and the microphone to record your interview. Turn them on in Settings, ${COME_BACK}`,
   },
 };
 
@@ -59,14 +64,14 @@ const NOTICES_STATUS = {
 const INTRO =
   'MyDirector records your interview on this iPhone and shows you to the interviewer live. iOS asks for each one in turn.';
 
-function rows(
+function accessRows(
   media: PermissionsState,
   notices: NoticesAnswer | undefined,
   asking: boolean,
 ): AccessRow[] {
   const mediaRows = (['camera', 'microphone'] as const).map((medium) => ({
-    icon: MEDIUM[medium].icon,
-    label: MEDIUM[medium].label,
+    icon: MEDIA_ROW[medium].icon,
+    label: MEDIA_ROW[medium].label,
     ...MEDIA_STATUS[media[medium]],
   }));
   if (notices) return mediaRows;
@@ -74,7 +79,7 @@ function rows(
   return [...mediaRows, { icon: 'bell', label: 'Upload notices', ...status }];
 }
 
-function turnedOff({ camera, microphone }: PermissionsState): keyof typeof OFF | undefined {
+function turnedOff({ camera, microphone }: PermissionsState): keyof typeof TURNED_OFF | undefined {
   if (camera === 'denied') return microphone === 'denied' ? 'both' : 'camera';
   return microphone === 'denied' ? 'microphone' : undefined;
 }
@@ -86,9 +91,8 @@ export function accessCard(
   const off = turnedOff(media);
   if (off) {
     return {
-      title: OFF[off].title,
-      body: `MyDirector needs ${OFF[off].need} on in Settings, then come back: this screen updates by itself.`,
-      rows: rows(media, notices, false),
+      ...TURNED_OFF[off],
+      rows: accessRows(media, notices, false),
       primary: { title: 'Open Settings', action: 'openSettings' },
     };
   }
@@ -96,7 +100,7 @@ export function accessCard(
     return {
       title: 'Camera and microphone',
       body: INTRO,
-      rows: rows(media, notices, false),
+      rows: accessRows(media, notices, false),
       primary: { title: 'Continue', action: 'ask' },
     };
   }
@@ -104,7 +108,7 @@ export function accessCard(
   return {
     title: 'Tell you when an upload finishes?',
     body: 'Uploads keep going while the phone is locked. iOS can show a notice on the lock screen when one is done.',
-    rows: rows(media, notices, true),
+    rows: accessRows(media, notices, true),
     primary: { title: 'Allow notices', action: 'allowNotices' },
     secondary: { title: 'Not now', action: 'skipNotices' },
   };

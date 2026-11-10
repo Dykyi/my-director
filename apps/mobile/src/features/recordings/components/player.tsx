@@ -63,7 +63,7 @@ export function Player({
               {view.file}
             </Text>
             <Text variant="caption" className="text-muted">
-              {view.origin}
+              {view.startedAfter}
             </Text>
           </View>
           <IconButton
@@ -84,7 +84,7 @@ export function Player({
         <SegmentStrip
           items={view.items}
           progress={view.progress}
-          whole={view.whole}
+          overallTime={view.overallTime}
           endsInCrash={view.endsInCrash}
           onSelect={onSelect}
         />

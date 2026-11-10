@@ -2,7 +2,8 @@ import type { Meta, StoryObj } from '@storybook/react-native';
 import { View } from 'react-native';
 
 import { Button } from '../button';
-import { Dialog, StatTile } from '../dialog';
+import { Dialog } from '../dialog';
+import { StatTile } from '../stat-tile';
 import { Text } from '../text';
 
 function DialogStory({

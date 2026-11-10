@@ -13,8 +13,9 @@ import { Icon } from '@ui/icon';
 import { LevelMeter } from '@ui/level-meter';
 import { Text } from '@ui/text';
 
+import { METER_BARS } from '../mic-level';
 import { micChip, pausedView, previewCaption, recChipText } from '../record-views';
-import { METER_BARS } from '../session-labels';
+import { isCameraLive } from '../session-labels';
 
 const NativePreview = withUniwind(CapturePreview);
 
@@ -67,7 +68,7 @@ export function PreviewPanel({
   accessCard?: ReactNode;
 }) {
   const { phase } = snapshot;
-  const cameraLive = phase !== 'idle' && phase !== 'preparing';
+  const cameraLive = isCameraLive(phase);
   return (
     <ScopedTheme theme="dark">
       <View className="flex-1 overflow-hidden bg-surface">

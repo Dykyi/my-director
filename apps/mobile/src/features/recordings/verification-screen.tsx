@@ -2,11 +2,11 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useEffectEvent } from 'react';
 
 import { VerificationReport } from './components/verification-report';
-import { useRecordingsState } from './recordings-context';
+import { useRecordings } from './recordings-context';
 
 export function VerificationScreen() {
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
-  const { verification, actions } = useRecordingsState();
+  const { verification, actions } = useRecordings();
   const start = useEffectEvent(() => actions.verify(sessionId));
   const finish = useEffectEvent(() => actions.closeVerification());
   useEffect(() => {

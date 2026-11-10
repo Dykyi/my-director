@@ -3,15 +3,14 @@ import { View } from 'react-native';
 
 import type { UploadSnapshot } from '@modules/background-upload';
 
+import { PERCENT } from '@shared/units';
 import { Button } from '@ui/button';
 import { CopyButton } from '@ui/copy-button';
 import { Icon } from '@ui/icon';
 import { Text } from '@ui/text';
 
 import { ACTIVE_UPLOAD, describeUpload, uploadProgress } from '../upload-format';
-import type { UploadActions } from '../use-uploads';
-
-const PERCENT = 100;
+import type { UploadActions } from '../use-native-uploads';
 
 const phaseText = cva('', {
   variants: {

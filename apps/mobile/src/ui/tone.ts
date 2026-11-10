@@ -14,6 +14,7 @@ export const chipGround = cva('', {
 });
 
 export type ChipTone = NonNullable<VariantProps<typeof chipGround>['tone']>;
+export type ChipView = { label: string; tone: ChipTone };
 
 export const chipText = cva('', {
   variants: {
@@ -57,12 +58,12 @@ export const chipBar = cva('', {
 export const textTone = cva('', {
   variants: {
     tone: {
-      normal: 'text-foreground',
-      secondary: 'text-subtle',
+      foreground: 'text-foreground',
+      subtle: 'text-subtle',
       muted: 'text-muted',
       accent: 'text-accent',
       warning: 'text-warning',
-      error: 'text-danger',
+      danger: 'text-danger',
     },
   },
 });

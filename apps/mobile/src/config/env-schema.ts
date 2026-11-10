@@ -7,7 +7,7 @@ const envSchema = z.object({
   EXPO_PUBLIC_UPLOAD_API_TOKEN: z.string().min(1),
 });
 
-export type Env = z.infer<typeof envSchema>;
+type Env = z.infer<typeof envSchema>;
 
 export function readEnv(source: Record<keyof Env, string | undefined>): Env {
   const parsed = envSchema.safeParse(source);

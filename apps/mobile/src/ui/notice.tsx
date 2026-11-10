@@ -55,9 +55,7 @@ export function WarningNotice({
       <Text variant={locked ? 'callout' : 'footnote'} className={warningText({ locked })}>
         {message}
       </Text>
-      {link && (
-        <TextButton title={`${link.title} ›`} onPress={link.onPress} textClassName="text-warning" />
-      )}
+      {link && <TextButton title={`${link.title} ›`} onPress={link.onPress} tone="warning" />}
     </View>
   );
 }

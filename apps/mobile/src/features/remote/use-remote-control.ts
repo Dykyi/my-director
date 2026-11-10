@@ -12,13 +12,13 @@ import { standAction } from './stand-routes';
 
 export const HEALTH_LOG_INTERVAL_MS = 10_000;
 
-export type RemoteCommands = Readonly<Record<string, () => unknown>>;
+type RemoteCommands = Readonly<Record<string, () => unknown>>;
 export type LastCommand = { name: string; at: string };
 
 export function useRemoteControl(commands: RemoteCommands) {
   const [lastCommand, setLastCommand] = useState<LastCommand>();
 
-  const perform = useEffectEvent(async (url: string) => {
+  const runStandLink = useEffectEvent(async (url: string) => {
     const name = standAction(url);
     if (name === undefined) return;
     const command = commands[name];
@@ -40,7 +40,7 @@ export function useRemoteControl(commands: RemoteCommands) {
     let lastHealthLog = 0;
     let lastRoomLine = '';
     const subscriptions = [
-      Linking.addEventListener('url', ({ url }) => void perform(url)),
+      Linking.addEventListener('url', ({ url }) => void runStandLink(url)),
       CaptureCore.addListener('onLog', (entry) => console.log(formatLogLine(entry))),
       CaptureCore.addListener('onHealth', (health) => {
         const now = Date.now();

@@ -5,13 +5,13 @@ import type {
   TrackStatus,
 } from '@modules/capture-core';
 
-import { mbps, QUALITY_LOOK, type QualityLook } from '@features/capture/call-labels';
-import { formatClock, plural } from '@shared/format';
+import { formatMbps, QUALITY_LOOK, type QualityLook } from '@features/capture/call-labels';
+import { formatClock, plural, profileLabel } from '@shared/format';
 import type { IconName } from '@ui/icons';
-import type { ChipTone } from '@ui/tone';
+import type { ChipTone, ChipView } from '@ui/tone';
 
-export type RoomView = 'notJoined' | 'empty' | 'occupied';
-export type TrackKind = 'mic' | 'camera';
+type RoomOccupancy = 'notJoined' | 'empty' | 'occupied';
+type TrackKind = 'mic' | 'camera';
 export type TrackChipView = { label: string; tone: ChipTone; icon: IconName; speaking: boolean };
 export type ParticipantView = {
   name: string;
@@ -26,7 +26,7 @@ export type ConnectionView = {
   detail?: string;
   live: boolean;
   text?: string;
-  chip: QualityLook | { label: string; tone: ChipTone };
+  chip: QualityLook | ChipView;
 };
 
 const TRACK_NAME: Record<TrackKind, string> = { mic: 'Mic', camera: 'Camera' };
@@ -45,7 +45,7 @@ export function initials(identity: string): string {
 }
 
 /** LiveKit shows a room only to its members, so before Start nobody can be listed. */
-export function roomView({ state, room, participants }: CallStatus): RoomView {
+export function roomOccupancy({ state, room, participants }: CallStatus): RoomOccupancy {
   if (state === 'disconnected' || room === undefined) return 'notJoined';
   return participants.length === 0 ? 'empty' : 'occupied';
 }
@@ -129,7 +129,7 @@ export function ownTracks(
   profile: CallVideoProfile,
   bitrateKbps: number | undefined,
 ): TrackChipView[] {
-  const video = `${profile.height}p ${profile.fps} fps`;
+  const video = profileLabel(profile);
   if (call.state !== 'connected') {
     return [
       { label: `Camera ${video}`, tone: 'neutral', icon: TRACK_ICON.camera.on, speaking: false },
@@ -137,7 +137,7 @@ export function ownTracks(
     ];
   }
   if (call.isMuted) return [trackChip('camera', 'muted', false), trackChip('mic', 'muted', false)];
-  const sending = bitrateKbps ? `${video} · ${mbps(bitrateKbps)}` : video;
+  const sending = bitrateKbps ? `${video} · ${formatMbps(bitrateKbps)}` : video;
   return [
     { label: `Camera ${sending}`, tone: 'success', icon: TRACK_ICON.camera.on, speaking: false },
     trackChip('mic', 'live', false),
@@ -146,4 +146,5 @@ export function ownTracks(
 
 export const peopleHeading = ({ participants }: CallStatus) =>
   `IN THE ROOM · ${participants.length}`;
-export const ownHeading = (view: RoomView) => (view === 'notJoined' ? 'YOU WILL SEND' : 'YOU');
+export const ownHeading = (occupancy: RoomOccupancy) =>
+  occupancy === 'notJoined' ? 'YOU WILL SEND' : 'YOU';

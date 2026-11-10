@@ -1,16 +1,15 @@
-import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
-import { View } from 'react-native';
 
 import { callTarget } from '@config/env';
-import { useSession } from '@features/capture/capture-session-context';
+import { roomName } from '@features/capture/call-labels';
+import { useCaptureSession, useHealth } from '@features/capture/capture-session-context';
 import { Button } from '@ui/button';
 import { EmptyState } from '@ui/empty-state';
 import { Sheet } from '@ui/sheet';
-import { Text } from '@ui/text';
 
 import { ConnectionCard } from './components/connection-card';
 import { OwnCard, ParticipantCard } from './components/participant-card';
+import { RoomNameCopy } from './components/room-name-copy';
 import { RoomSection } from './components/room-section';
 import {
   connectionView,
@@ -18,27 +17,15 @@ import {
   ownTracks,
   participantView,
   peopleHeading,
-  roomView,
+  roomOccupancy,
 } from './room-labels';
 
-function RoomNameCopy({ room }: { room: string }) {
-  return (
-    <View className="flex-row items-center gap-2">
-      <View className="rounded-tag border border-border border-continuous bg-surface px-3 py-2">
-        <Text selectable variant="mono-body" className="text-foreground">
-          {room}
-        </Text>
-      </View>
-      <Button title="Copy" size="compact" onPress={() => void Clipboard.setStringAsync(room)} />
-    </View>
-  );
-}
-
 export function RoomScreen() {
-  const { snapshot, health, config, actions } = useSession();
+  const { snapshot, config, actions } = useCaptureSession();
+  const health = useHealth();
   const { call } = snapshot;
-  const view = roomView(call);
-  const room = call.room ?? callTarget.room ?? '';
+  const occupancy = roomOccupancy(call);
+  const room = roomName(call, callTarget.room);
   return (
     <Sheet title="Room" subtitle={room} onClose={() => router.back()}>
       <ConnectionCard
@@ -46,13 +33,13 @@ export function RoomScreen() {
         canReconnect={snapshot.sessionId !== undefined}
         onReconnect={actions.reconnectCall}
       />
-      <RoomSection title={ownHeading(view)}>
+      <RoomSection title={ownHeading(occupancy)}>
         <OwnCard
           identity={call.identity ?? callTarget.identity ?? 'this phone'}
           tracks={ownTracks(call, config.call.profiles[call.profile], health?.call.bitrateKbps)}
         />
       </RoomSection>
-      {view === 'notJoined' ? (
+      {occupancy === 'notJoined' ? (
         <Button
           title="Start recording and join"
           variant="record"
@@ -62,7 +49,7 @@ export function RoomScreen() {
         />
       ) : (
         <RoomSection title={peopleHeading(call)}>
-          {view === 'empty' ? (
+          {occupancy === 'empty' ? (
             <EmptyState
               icon="users"
               title="Nobody else in the room yet"

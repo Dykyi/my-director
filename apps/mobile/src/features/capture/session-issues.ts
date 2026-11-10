@@ -1,17 +1,18 @@
 import type { LogEntry, SessionPhase, SessionSnapshot } from '@modules/capture-core';
 
 import { formatTimer } from '@shared/format';
+import { MS_PER_SEC } from '@shared/units';
+import type { TabBadge } from '@ui/tab-bar';
 
-export type IssueSeverity = 'warning' | 'error';
+import { isCameraLive } from './session-labels';
+
+type IssueSeverity = 'warning' | 'error';
 export type SessionIssue = { severity: IssueSeverity; text: string; at: string };
 export type HealthLineView =
   | { tone: 'ok'; text: string }
   | { tone: 'quiet'; text: string }
   | { tone: IssueSeverity; text: string; detail?: string };
-export type IssueBadge = { count: number; severity: IssueSeverity };
 
-const MS_PER_SEC = 1_000;
-const CAMERA_OFF_PHASES: ReadonlySet<SessionPhase> = new Set(['idle', 'preparing']);
 const PAUSED_PHASES: ReadonlySet<SessionPhase> = new Set(['pausing', 'paused', 'resuming']);
 
 const isIssue = (entry: LogEntry): entry is LogEntry & { level: IssueSeverity } =>
@@ -35,7 +36,7 @@ export function sessionIssues(
 }
 
 function calmText(phase: SessionPhase): string {
-  if (CAMERA_OFF_PHASES.has(phase)) return 'Camera off';
+  if (!isCameraLive(phase)) return 'Camera off';
   return phase === 'ready' ? 'Camera and microphone ready' : 'File, camera and audio all normal';
 }
 
@@ -63,7 +64,7 @@ export function healthLine(
   return { tone: 'ok', text: calmText(phase) };
 }
 
-export function issueBadge(issues: SessionIssue[]): IssueBadge | undefined {
+export function issueBadge(issues: SessionIssue[]): TabBadge | undefined {
   const worst = worstOf(issues);
   return worst && { count: issues.length, severity: worst.severity };
 }

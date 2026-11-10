@@ -19,7 +19,7 @@ import {
   verifiedKeys,
 } from './upload-plan';
 
-export function useUploads() {
+export function useNativeUploads() {
   const [uploads, setUploads] = useState<UploadSnapshot[]>([]);
   const { error, reportError, guard } = useReportedErrors();
   const cancelledSessions = useRef(new Set<string>());
@@ -29,6 +29,7 @@ export function useUploads() {
     [reportError],
   );
 
+  // Events sent while JS sleeps in the background never reach it, so the jobs are reread on every return.
   useEffect(() => {
     const subscriptions = [
       BackgroundUpload.addListener('onUploadChange', (snapshot) =>
@@ -92,4 +93,4 @@ export function useUploads() {
   };
 }
 
-export type UploadActions = ReturnType<typeof useUploads>['actions'];
+export type UploadActions = ReturnType<typeof useNativeUploads>['actions'];

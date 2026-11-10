@@ -1,6 +1,4 @@
 import { router, usePathname } from 'expo-router';
-import Storage from 'expo-sqlite/kv-store';
-import { useEffect } from 'react';
 import { useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
@@ -11,13 +9,13 @@ import { Icon } from '@ui/icon';
 import { AnimatedView } from '@ui/styled';
 import { Text } from '@ui/text';
 
-import { defaultPosition, snapToEdge, type Bounds, type Point } from './snap';
+import { defaultPosition, snapToEdge, type Bounds } from './snap';
+import { useSavedPosition } from './use-saved-position';
 
 const SIZE = 48;
 const MARGIN = 16;
 const TAB_BAR_OFFSET = 90;
 const DRAG_THRESHOLD = 8;
-const POSITION_KEY = 'dev.storybook-button';
 const STORYBOOK_ROUTE = '/storybook';
 
 export function StorybookButton() {
@@ -37,17 +35,7 @@ export function StorybookButton() {
   const y = useSharedValue(start.y);
   const open = pathname === STORYBOOK_ROUTE;
 
-  useEffect(() => {
-    void Storage.getItem(POSITION_KEY).then((saved) => {
-      if (!saved) return;
-      const target = snapToEdge(JSON.parse(saved) as Point, bounds);
-      x.set(target.x);
-      y.set(target.y);
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const save = (target: Point) => void Storage.setItem(POSITION_KEY, JSON.stringify(target));
+  const save = useSavedPosition(bounds, x, y);
   const toggle = () => {
     if (!open) router.push(STORYBOOK_ROUTE);
     else if (router.canGoBack()) router.back();

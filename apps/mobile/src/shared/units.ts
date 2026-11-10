@@ -1,0 +1,9 @@
+export const MS_PER_SEC = 1_000;
+export const SECONDS_PER_HOUR = 3_600;
+export const BITS_PER_BYTE = 8;
+export const BITS_PER_KBIT = 1_000;
+export const KBIT_PER_MBIT = 1_000;
+export const BITS_PER_MBIT = BITS_PER_KBIT * KBIT_PER_MBIT;
+export const MB_PER_GB = 1_000;
+export const PERCENT = 100;
+export const UNKNOWN = '?';

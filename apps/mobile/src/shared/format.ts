@@ -1,6 +1,7 @@
 import type { LogEntry, RecoveryReport } from '@modules/capture-core';
 
-const SECONDS_PER_HOUR = 3_600;
+import { SECONDS_PER_HOUR } from './units';
+
 const SECONDS_PER_MINUTE = 60;
 const BYTE_UNITS = ['B', 'KB', 'MB', 'GB'] as const;
 const BYTES_PER_UNIT = 1_024;
@@ -88,3 +89,8 @@ export function formatLogLine({ at, level, category, message, data }: LogEntry):
 export function plural(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? '' : 's'}`;
 }
+
+export const formatResolution = (width: number, height: number) => `${width}×${height}`;
+
+export const profileLabel = ({ height, fps }: { height: number; fps: number }) =>
+  `${height}p ${fps} fps`;

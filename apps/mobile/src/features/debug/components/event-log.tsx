@@ -3,9 +3,10 @@ import { ScrollView, Share, View } from 'react-native';
 
 import type { LogEntry } from '@modules/capture-core';
 
-import type { IssueBadge } from '@features/capture/session-issues';
 import { formatLogLine, plural } from '@shared/format';
 import { Chip } from '@ui/chip';
+import { cn } from '@ui/cn';
+import type { TabBadge } from '@ui/tab-bar';
 import { Text } from '@ui/text';
 import { TextButton } from '@ui/text-button';
 
@@ -36,7 +37,7 @@ function LogLine({ entry }: { entry: LogEntry }) {
           key={detail}
           selectable
           variant="log"
-          className={`pl-16 ${line({ level: entry.level })}`}
+          className={cn('pl-16', line({ level: entry.level }))}
         >
           {detail}
         </Text>
@@ -45,7 +46,7 @@ function LogLine({ entry }: { entry: LogEntry }) {
   );
 }
 
-export function EventLog({ entries, badge }: { entries: LogEntry[]; badge?: IssueBadge }) {
+export function EventLog({ entries, badge }: { entries: LogEntry[]; badge?: TabBadge }) {
   const share = () => void Share.share({ message: entries.map(formatLogLine).join('\n') });
   return (
     <View className="flex-1">

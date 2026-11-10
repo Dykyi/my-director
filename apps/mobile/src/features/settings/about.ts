@@ -2,9 +2,9 @@ import * as Application from 'expo-application';
 import * as Device from 'expo-device';
 import * as Updates from 'expo-updates';
 
-import type { AboutInfo } from './settings-rows';
+import { UNKNOWN } from '@shared/units';
 
-const UNKNOWN = '?';
+import type { AboutInfo } from './settings-rows';
 
 export const ABOUT: AboutInfo = {
   app: Application.applicationName ?? UNKNOWN,

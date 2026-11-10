@@ -2,14 +2,14 @@ import { Alert, type AlertButton } from 'react-native';
 
 import type { RecordingSummary } from '@modules/capture-core';
 
-import { useUploadsState } from '@features/upload/uploads-context';
+import { useUploads } from '@features/upload/uploads-context';
 
 import { deleteMessage } from './recording-labels';
-import { useRecordingsState } from './recordings-context';
+import { useRecordings } from './recordings-context';
 
 export function useConfirmDelete() {
-  const { actions } = useRecordingsState();
-  const uploads = useUploadsState();
+  const { actions } = useRecordings();
+  const uploads = useUploads();
 
   return (recording: RecordingSummary) => {
     const uploaded = uploads.keysInBucket(recording).length;

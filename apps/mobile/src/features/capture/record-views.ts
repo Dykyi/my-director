@@ -1,35 +1,34 @@
 import type {
   CallProfileName,
   CallVideoProfile,
-  CameraPosition,
   CaptureConfig,
   HealthSnapshot,
   PauseReason,
+  SessionPhase,
   SessionSnapshot,
 } from '@modules/capture-core';
 
-import { formatBytes, formatTimer } from '@shared/format';
-import type { ChipTone } from '@ui/tone';
+import { formatBytes, formatResolution, formatTimer, profileLabel } from '@shared/format';
+import { BITS_PER_BYTE, SECONDS_PER_HOUR } from '@shared/units';
+import type { ChipView } from '@ui/tone';
 
-import { QUALITY_LOOK, type QualityLook } from './call-labels';
-import { litBars, participantNames, PAUSE_REASON, PHASE_PILL } from './session-labels';
+import { participantNames, QUALITY_LOOK, type QualityLook } from './call-labels';
+import { CAMERA_LABEL } from './camera-preference';
+import { litBars } from './mic-level';
+import { ERROR_TITLE, PAUSE_REASON, PHASE_PILL } from './session-labels';
 
 export type CallRowView = {
   title: string;
   detail: string;
   inCall: boolean;
-  chip: QualityLook | { label: string; tone: ChipTone };
+  chip: QualityLook | ChipView;
 };
-export type RecStripView = {
+type RecStripView = {
   tone: 'recording' | 'paused';
   label: string;
   time: string;
   detail: string;
 };
-
-const BITS_PER_BYTE = 8;
-const SECONDS_PER_HOUR = 3_600;
-const CAMERA_NAME: Record<CameraPosition, string> = { front: 'Front', back: 'Back' };
 
 export function headerFact(
   { phase, sessionId, segmentIndex }: SessionSnapshot,
@@ -49,8 +48,6 @@ export function headerFact(
   return `${formatBytes(health.diskFreeBytes)} free · about ${hours} h`;
 }
 
-const stateChip = (label: string, tone: ChipTone) => ({ label, tone });
-
 function connectedView(
   call: SessionSnapshot['call'],
   profiles: Record<CallProfileName, CallVideoProfile>,
@@ -62,7 +59,7 @@ function connectedView(
       title: `Room ${room}`,
       detail: 'Nobody else here yet',
       inCall: true,
-      chip: stateChip('waiting', 'paused'),
+      chip: { label: 'waiting', tone: 'paused' },
     };
   }
   const title = others.length > 0 ? `${first} +${others.length}` : first;
@@ -71,13 +68,13 @@ function connectedView(
       title,
       detail: 'Still in the room · your camera and mic are muted',
       inCall: false,
-      chip: stateChip('muted', 'paused'),
+      chip: { label: 'muted', tone: 'paused' },
     };
   }
   const { height, fps } = profiles[call.profile];
   return {
     title,
-    detail: `${room} · you send ${height}p ${fps} fps`,
+    detail: `${room} · you send ${profileLabel({ height, fps })}`,
     inCall: true,
     chip: QUALITY_LOOK[call.quality],
   };
@@ -94,7 +91,7 @@ export function callRowView(
       title: roomTitle,
       detail: 'You join the call when recording starts',
       inCall: false,
-      chip: stateChip('not joined', 'neutral'),
+      chip: { label: 'not joined', tone: 'neutral' },
     };
   }
   switch (call.state) {
@@ -103,14 +100,14 @@ export function callRowView(
         title: roomTitle,
         detail: 'Joining the call…',
         inCall: false,
-        chip: stateChip('joining', 'neutral'),
+        chip: { label: 'joining', tone: 'neutral' },
       };
     case 'reconnecting':
       return {
         title: roomTitle,
         detail: 'Reconnecting. Recording continues on the phone',
         inCall: false,
-        chip: stateChip('reconnecting', 'paused'),
+        chip: { label: 'reconnecting', tone: 'paused' },
       };
     case 'disconnected':
       return {
@@ -125,7 +122,7 @@ export function callRowView(
 }
 
 export function previewCaption({ position, width, height, fps }: CaptureConfig['camera']): string {
-  return `${CAMERA_NAME[position]} camera · ${width}×${height} · ${fps} fps`;
+  return `${CAMERA_LABEL[position]} camera · ${formatResolution(width, height)} · ${fps} fps`;
 }
 
 export const recChipText = ({ file }: HealthSnapshot) => `REC ${file.fps.toFixed(0)} fps`;
@@ -149,4 +146,33 @@ export function recStripView({ phase, recordedSec, segmentIndex }: SessionSnapsh
   return PHASE_PILL[phase].tone === 'paused'
     ? { tone: 'paused', label: 'PAUSED', time, detail: `· seg ${segmentIndex} saved` }
     : { tone: 'recording', label: 'REC', time, detail: `· seg ${segmentIndex}` };
+}
+
+const RECONNECT_PHASES: ReadonlySet<SessionPhase> = new Set(['recording', 'paused']);
+
+export const canReconnectCall = ({ phase, call }: SessionSnapshot) =>
+  RECONNECT_PHASES.has(phase) && call.state === 'disconnected';
+
+export type RecordNoticesView = {
+  error?: { title: string; message: string; openSettings: boolean };
+  warnings: string[];
+};
+
+export function recordNotices(
+  { error, warnings }: SessionSnapshot,
+  commandError: string | null,
+): RecordNoticesView | null {
+  if (!error && !commandError && warnings.length === 0) return null;
+  return {
+    error: error
+      ? {
+          title: ERROR_TITLE[error.code],
+          message: error.message,
+          openSettings: error.code === 'permissionDenied',
+        }
+      : commandError
+        ? { title: 'Command failed', message: commandError, openSettings: false }
+        : undefined,
+    warnings: warnings.map((warning) => warning.message),
+  };
 }

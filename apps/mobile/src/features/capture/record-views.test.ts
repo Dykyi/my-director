@@ -7,13 +7,16 @@ import { snapshot } from '@test/session-fixtures';
 
 import {
   callRowView,
+  canReconnectCall,
   headerFact,
   micChip,
   pausedView,
   previewCaption,
   recChipText,
+  recordNotices,
   recStripView,
 } from './record-views';
+import { ERROR_TITLE } from './session-labels';
 
 const GB = 1_024 ** 3;
 const MB = 1_024 ** 2;
@@ -139,4 +142,61 @@ describe('preview chips', () => {
       lit: 4,
       level: '-23 dB',
     }));
+});
+
+describe('canReconnectCall', () => {
+  it('offers Reconnect only in a recording or paused session whose call dropped', () => {
+    const dropped = { ...inRoom(), state: 'disconnected' as const };
+    expect(canReconnectCall(snapshot({ phase: 'recording', call: dropped }))).toBe(true);
+    expect(canReconnectCall(snapshot({ phase: 'paused', call: dropped }))).toBe(true);
+    expect(canReconnectCall(snapshot({ phase: 'resuming', call: dropped }))).toBe(false);
+    expect(
+      canReconnectCall(
+        snapshot({ phase: 'recording', call: { ...dropped, state: 'reconnecting' } }),
+      ),
+    ).toBe(false);
+  });
+});
+
+describe('recordNotices', () => {
+  const callWarning = {
+    code: 'callDisconnected' as const,
+    message: 'Call reconnecting, recording continues',
+    since: '2026-11-10T09:20:00.000Z',
+  };
+  const dropped = { ...inRoom(), state: 'reconnecting' as const };
+
+  it('shows nothing while all is well', () => expect(recordNotices(snapshot(), null)).toBeNull());
+
+  it('puts the session error first and offers Settings for missing access', () => {
+    const view = recordNotices(
+      snapshot({
+        error: {
+          code: 'permissionDenied',
+          message: 'Camera access is off',
+          at: '2026-11-10T09:20:00.000Z',
+          recoverable: false,
+        },
+      }),
+      'start: failed',
+    );
+    expect(view?.error).toEqual({
+      title: ERROR_TITLE.permissionDenied,
+      message: 'Camera access is off',
+      openSettings: true,
+    });
+  });
+
+  it('shows a failed command when there is no session error', () =>
+    expect(recordNotices(snapshot(), 'start: failed')?.error).toEqual({
+      title: 'Command failed',
+      message: 'start: failed',
+      openSettings: false,
+    }));
+
+  it('tells about a dropped call once, with the warning of the session', () =>
+    expect(
+      recordNotices(snapshot({ phase: 'recording', call: dropped, warnings: [callWarning] }), null)
+        ?.warnings,
+    ).toEqual(['Call reconnecting, recording continues']));
 });

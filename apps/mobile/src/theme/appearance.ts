@@ -1,6 +1,6 @@
 import { storedPreference } from '@shared/stored-preference';
 
-export const THEME_PREFERENCES = ['system', 'light', 'dark'] as const;
+const THEME_PREFERENCES = ['system', 'light', 'dark'] as const;
 export type ThemePreference = (typeof THEME_PREFERENCES)[number];
 
 const DEFAULT_THEME: ThemePreference = 'system';

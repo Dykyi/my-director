@@ -1,9 +1,4 @@
-import type {
-  CallStatus,
-  CaptureErrorCode,
-  PauseReason,
-  SessionPhase,
-} from '@modules/capture-core';
+import type { CaptureErrorCode, PauseReason, SessionPhase } from '@modules/capture-core';
 
 import type { IconName } from '@ui/icons';
 import type { PillTone } from '@ui/status-pill';
@@ -130,14 +125,11 @@ export const ERROR_TITLE: Record<CaptureErrorCode, string> = {
   startInterrupted: 'Recording did not start',
 };
 
-export function participantNames({ participants }: CallStatus): string[] {
-  return participants.map((participant) => participant.identity);
-}
+const CAMERA_OFF_PHASES: ReadonlySet<SessionPhase> = new Set(['idle', 'preparing']);
 
-export const METER_BARS = 5;
-const METER_FLOOR_DB = -60;
+export const isCameraLive = (phase: SessionPhase) => !CAMERA_OFF_PHASES.has(phase);
 
-export function litBars(levelDb: number): number {
-  const ratio = Math.min(1, Math.max(0, (levelDb - METER_FLOOR_DB) / -METER_FLOOR_DB));
-  return Math.ceil(ratio * METER_BARS);
-}
+const CAMERA_EDITABLE_PHASES: ReadonlySet<SessionPhase> = new Set(['idle', 'ready']);
+
+/** The native session changes the camera only between sessions. */
+export const isCameraEditable = (phase: SessionPhase) => CAMERA_EDITABLE_PHASES.has(phase);

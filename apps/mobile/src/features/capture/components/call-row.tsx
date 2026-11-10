@@ -1,11 +1,10 @@
 import { Pressable, View } from 'react-native';
 
-import { Chip } from '@ui/chip';
 import { Icon } from '@ui/icon';
-import { QualityChip } from '@ui/quality-chip';
 import { Text } from '@ui/text';
 
 import type { CallRowView } from '../record-views';
+import { CallChip } from './call-chip';
 
 export function CallRow({ view, onPress }: { view: CallRowView; onPress: () => void }) {
   return (
@@ -28,11 +27,7 @@ export function CallRow({ view, onPress }: { view: CallRowView; onPress: () => v
           {view.detail}
         </Text>
       </View>
-      {'lit' in view.chip ? (
-        <QualityChip {...view.chip} className="self-center" />
-      ) : (
-        <Chip label={view.chip.label} tone={view.chip.tone} className="self-center" />
-      )}
+      <CallChip chip={view.chip} />
       <Icon name="chevron-right" className="size-3.5" tint="accent-faint" />
     </Pressable>
   );

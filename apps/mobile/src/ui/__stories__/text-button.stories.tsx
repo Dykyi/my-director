@@ -9,14 +9,11 @@ const meta = {
     title: 'Reset camera to defaults',
     disabled: false,
     compact: false,
-    textClassName: 'text-accent',
+    tone: 'accent',
     onPress: () => {},
   },
   argTypes: {
-    textClassName: {
-      control: { type: 'select' },
-      options: ['text-accent', 'text-warning', 'text-danger', 'text-muted'],
-    },
+    tone: { control: { type: 'select' }, options: ['accent', 'warning'] },
   },
   parameters: { inset: 'centered' },
 } satisfies Meta<typeof TextButton>;
@@ -27,6 +24,6 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
 export const InBanner: Story = {
-  args: { title: 'Record ›', textClassName: 'text-warning', compact: true },
+  args: { title: 'Record ›', tone: 'warning', compact: true },
 };
 export const Disabled: Story = { args: { disabled: true } };

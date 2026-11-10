@@ -11,25 +11,26 @@ const textButton = cva('justify-center px-1', {
 
 const label = cva('', {
   variants: {
-    accent: { true: '' },
+    tone: { accent: 'text-accent', warning: 'text-warning' },
     pressed: { true: '' },
     disabled: { true: 'text-faint' },
   },
-  compoundVariants: [{ accent: true, pressed: true, className: 'text-accent-pressed' }],
+  compoundVariants: [{ tone: 'accent', pressed: true, className: 'text-accent-pressed' }],
+  defaultVariants: { tone: 'accent' },
 });
 
 export function TextButton({
   title,
   onPress,
   disabled = false,
-  textClassName = 'text-accent',
+  tone,
   compact,
-}: VariantProps<typeof textButton> & {
-  title: string;
-  onPress: () => void;
-  disabled?: boolean;
-  textClassName?: string;
-}) {
+}: VariantProps<typeof textButton> &
+  Pick<VariantProps<typeof label>, 'tone'> & {
+    title: string;
+    onPress: () => void;
+    disabled?: boolean;
+  }) {
   return (
     <Pressable
       accessibilityRole="button"
@@ -39,13 +40,7 @@ export function TextButton({
       className={textButton({ compact })}
     >
       {({ pressed }) => (
-        <Text
-          variant="link"
-          className={cn(
-            textClassName,
-            label({ accent: textClassName === 'text-accent', pressed, disabled }),
-          )}
-        >
+        <Text variant="link" className={cn(label({ tone, pressed, disabled }))}>
           {title}
         </Text>
       )}

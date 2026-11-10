@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import type { ReactNode } from 'react';
 
-import { useSession } from '@features/capture/capture-session-context';
+import { useCaptureSession } from '@features/capture/capture-session-context';
 import { recStripView } from '@features/capture/record-views';
 import { RecStrip } from '@ui/rec-strip';
 import { ScreenHeader } from '@ui/screen-header';
@@ -20,7 +20,7 @@ export function TabScreen({
   compact?: boolean;
   children: ReactNode;
 }) {
-  const { snapshot } = useSession();
+  const { snapshot } = useCaptureSession();
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-background">
       {snapshot.sessionId !== undefined && (

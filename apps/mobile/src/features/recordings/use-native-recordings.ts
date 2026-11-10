@@ -1,4 +1,3 @@
-import * as Sharing from 'expo-sharing';
 import { useCallback, useEffect, useState } from 'react';
 
 import {
@@ -10,9 +9,7 @@ import {
 
 import { useReportedErrors } from '@shared/use-reported-errors';
 
-const QUICKTIME = { mimeType: 'video/quicktime', UTI: 'com.apple.quicktime-movie' } as const;
-
-export function useRecordings() {
+export function useNativeRecordings() {
   const [recordings, setRecordings] = useState<RecordingSummary[]>([]);
   const [recoveryReports, setRecoveryReports] = useState<RecoveryReport[]>([]);
   const [verification, setVerification] = useState<VerificationReport | null>(null);
@@ -42,8 +39,6 @@ export function useRecordings() {
   const verify = (sessionId: string) =>
     guard(async () => setVerification(await CaptureCore.verifyRecording(sessionId)));
 
-  const share = (uri: string) => guard(() => Sharing.shareAsync(uri, QUICKTIME));
-
   const remove = (sessionId: string) =>
     guard(async () => {
       await CaptureCore.deleteRecording(sessionId);
@@ -59,11 +54,8 @@ export function useRecordings() {
       refresh,
       acknowledge,
       verify,
-      share,
       remove,
       closeVerification: () => setVerification(null),
     },
   };
 }
-
-export type RecordingsActions = ReturnType<typeof useRecordings>['actions'];

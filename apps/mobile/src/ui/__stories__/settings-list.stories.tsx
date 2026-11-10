@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-native';
 
 import { WarningNotice } from '../notice';
 import { SegmentedControl } from '../segmented-control';
-import { SettingsGroup, type SettingsRowData } from '../settings-list';
+import { SettingsGroup, type SettingsRowItem } from '../settings-list';
 import { TextButton } from '../text-button';
 
 const CAMERA = [
@@ -18,12 +18,12 @@ function SettingsStory({
   withCamera,
 }: {
   label: string;
-  rows: SettingsRowData[];
+  rows: SettingsRowItem[];
   note: string;
   locked: boolean;
   withCamera: boolean;
 }) {
-  const camera: SettingsRowData[] = withCamera
+  const camera: SettingsRowItem[] = withCamera
     ? [
         {
           label: 'Camera',

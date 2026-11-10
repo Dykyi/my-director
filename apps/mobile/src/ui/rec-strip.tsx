@@ -1,6 +1,7 @@
 import { cva, type VariantProps } from 'class-variance-authority';
 import { Pressable } from 'react-native';
 
+import { cn } from './cn';
 import { PauseMark, StatusDot } from './status-dot';
 import { Text } from './text';
 
@@ -58,7 +59,7 @@ export function RecStrip({
       <Text variant="footnote" className={stripDetail({ tone })}>
         {detail}
       </Text>
-      <Text variant="footnote-strong" className={`ml-auto ${stripText({ tone })}`}>
+      <Text variant="footnote-strong" className={cn('ml-auto', stripText({ tone }))}>
         Back to Record ›
       </Text>
     </Pressable>

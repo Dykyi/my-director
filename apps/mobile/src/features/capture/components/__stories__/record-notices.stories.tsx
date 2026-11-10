@@ -4,6 +4,7 @@ import type { CaptureErrorCode } from '@modules/capture-core';
 
 import { recordingSnapshot } from '@test/session-fixtures';
 
+import { recordNotices } from '../../record-views';
 import { RecordNotices } from '../record-notices';
 
 const AT = '2026-11-10T09:15:00.000Z';
@@ -29,12 +30,14 @@ function RecordNoticesStory({
 }) {
   return (
     <RecordNotices
-      snapshot={{
-        ...recordingSnapshot,
-        error: error === 'none' ? undefined : { code: error, message, at: AT, recoverable: true },
-        warnings: warning === 'none' ? [] : [{ code: warning, message, since: AT }],
-      }}
-      commandError={commandError || null}
+      view={recordNotices(
+        {
+          ...recordingSnapshot,
+          error: error === 'none' ? undefined : { code: error, message, at: AT, recoverable: true },
+          warnings: warning === 'none' ? [] : [{ code: warning, message, since: AT }],
+        },
+        commandError || null,
+      )}
       onDismiss={() => {}}
     />
   );

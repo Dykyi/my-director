@@ -1,6 +1,6 @@
 import type { Preview } from '@storybook/react-native';
 
-import { withBackdrop } from './Backdrop';
+import { withBackdrop } from './backdrop';
 
 const GROUP_ORDER = [
   'Branding',
@@ -8,7 +8,7 @@ const GROUP_ORDER = [
   'UI',
   ['Type', 'Controls', 'Status', 'Feedback', 'Containers', 'Navigation'],
   'Features',
-  ['Record', 'Room', 'Debug', 'Recordings', 'Settings', 'Shell'],
+  ['Record', 'Room', 'Debug', 'Recordings', 'Settings'],
 ];
 
 const preview: Preview = {
