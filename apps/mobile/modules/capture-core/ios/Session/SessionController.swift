@@ -71,6 +71,8 @@ final class SessionController {
     routeMonitor = AudioRouteMonitor(log: log)
   }
 
+  /// Every module instance calls this. A JS reload creates a new module but keeps this controller,
+  /// so a recording goes on; the new screen only needs the current state and any recovery not yet dismissed.
   func activate() async {
     guard healthLoop == nil else {
       emitSnapshot()
