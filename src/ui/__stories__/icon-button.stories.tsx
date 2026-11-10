@@ -18,4 +18,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
 export const Disabled: Story = { args: { disabled: true } };
+export const Round: Story = {
+  args: { icon: 'chevron-right', label: 'Next segment', look: 'round' },
+};
 export const Close: Story = { render: (args) => <CloseButton onPress={args.onPress} /> };

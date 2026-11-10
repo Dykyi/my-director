@@ -120,7 +120,6 @@ export const recording = (overrides: Partial<RecordingSummary> = {}): RecordingS
 const done = async () => true;
 
 export const noopActions: CaptureSessionActions = {
-  requestPermissions: done,
   prepare: done,
   start: done,
   pause: done,

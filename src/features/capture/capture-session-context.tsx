@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import type { CameraPosition } from '@modules/capture-core';
 
 import { captureOverrides } from '@config/capture-config';
+import { useAccess } from '@features/access/use-access';
 import { hookContext } from '@shared/hook-context';
 
 import { cameraPreference } from './camera-preference';
@@ -11,7 +12,9 @@ import { useCaptureSession } from './use-capture-session';
 
 function useSessionWithCamera() {
   const cameraPosition = cameraPreference.use();
-  return useCaptureSession(useMemo(() => captureOverrides(cameraPosition), [cameraPosition]));
+  const access = useAccess();
+  const overrides = useMemo(() => captureOverrides(cameraPosition), [cameraPosition]);
+  return { ...useCaptureSession(overrides, access.ready), access };
 }
 
 export const [CaptureSessionProvider, useSession] = hookContext(

@@ -86,7 +86,6 @@ export function useUploads() {
 
   const startRecording = (recording: RecordingSummary) =>
     guard(async () => {
-      await BackgroundUpload.requestNotificationPermission();
       for (const segment of uploadStatus(recording).pending) {
         const snapshot = await BackgroundUpload.startUpload({
           fileUri: segment.uri,

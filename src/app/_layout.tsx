@@ -12,7 +12,7 @@ export default function RootLayout() {
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: background } }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="verification/[sessionId]" options={{ presentation: 'pageSheet' }} />
-        <Stack.Screen name="player" options={{ presentation: 'pageSheet' }} />
+        <Stack.Screen name="player" options={{ presentation: 'fullScreenModal' }} />
         <Stack.Screen name="room" options={{ presentation: 'pageSheet' }} />
         <Stack.Screen
           name="recovery"

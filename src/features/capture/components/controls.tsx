@@ -11,13 +11,18 @@ import type { CaptureSessionActions } from '../use-capture-session';
 function PhaseButtons({
   snapshot,
   actions,
+  accessReady,
 }: {
   snapshot: SessionSnapshot;
   actions: CaptureSessionActions;
+  accessReady: boolean;
 }) {
   const { phase } = snapshot;
   switch (phase) {
     case 'idle':
+      if (!accessReady) {
+        return <Button title="Start recording" variant="record" size="large" icon="dot" disabled />;
+      }
       return (
         <Button title="Retry camera" size="large" icon="camera" onPress={() => actions.prepare()} />
       );
@@ -75,16 +80,18 @@ function PhaseButtons({
 export function Controls({
   snapshot,
   actions,
+  accessReady,
 }: {
   snapshot: SessionSnapshot;
   actions: CaptureSessionActions;
+  accessReady: boolean;
 }) {
   const { phase, call } = snapshot;
   const canReconnect =
     (phase === 'recording' || phase === 'paused') && call.state === 'disconnected';
   return (
     <View className="gap-2.5 border-t border-border px-4 pb-4 pt-3">
-      <PhaseButtons snapshot={snapshot} actions={actions} />
+      <PhaseButtons snapshot={snapshot} actions={actions} accessReady={accessReady} />
       {canReconnect && (
         <Button
           title="Reconnect call"

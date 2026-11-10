@@ -23,7 +23,7 @@ const meta = {
   title: 'Features/Record/HealthLine',
   component: HealthLineStory,
   args: { tone: 'ok', text: 'Camera and microphone ready', detail: '' },
-  argTypes: { tone: { control: { type: 'radio' }, options: ['ok', 'paused', 'warning', 'error'] } },
+  argTypes: { tone: { control: { type: 'radio' }, options: ['ok', 'quiet', 'warning', 'error'] } },
   parameters: { inset: 'none' },
 } satisfies Meta<typeof HealthLineStory>;
 
@@ -33,7 +33,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Ok: Story = {};
 export const Paused: Story = {
-  args: { tone: 'paused', text: 'Paused · segment 2 is safe on disk' },
+  args: { tone: 'quiet', text: 'Paused · segment 2 is safe on disk' },
 };
 export const Warning: Story = {
   args: { tone: 'warning', text: 'Call quality poor', detail: 'the recording is not affected' },

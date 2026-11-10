@@ -14,7 +14,7 @@ const routeCommands = Object.fromEntries(
 );
 
 function useStandCommands() {
-  const { actions } = useSession();
+  const { actions, access } = useSession();
   const changeCamera = useChangeCamera();
   const recordings = useRecordingsState();
   const uploads = useUploadsState();
@@ -22,7 +22,7 @@ function useStandCommands() {
   const recoveryReport = recordings.recoveryReports[0];
   return useRemoteControl({
     ...routeCommands,
-    permissions: actions.requestPermissions,
+    permissions: () => access.act('ask'),
     prepare: () => actions.prepare(),
     start: actions.start,
     pause: actions.pause,

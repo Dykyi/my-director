@@ -12,7 +12,7 @@ import { EmptyState } from '@ui/empty-state';
 import { Text } from '@ui/text';
 
 import { RecordingCard, type CardHandlers } from './components/recording-card';
-import { PLAYABLE, segmentLine } from './recording-labels';
+import { segmentLine } from './recording-labels';
 import { useRecordingsState } from './recordings-context';
 import { useConfirmDelete } from './use-confirm-delete';
 
@@ -26,10 +26,8 @@ export function RecordingsScreen() {
   const confirmDelete = useConfirmDelete();
 
   const handlers: CardHandlers = {
-    play: (recording) => {
-      const segment = recording.segments.find((candidate) => PLAYABLE.has(candidate.state));
-      if (segment) router.navigate({ pathname: '/player', params: { uri: segment.uri } });
-    },
+    play: (recording) =>
+      router.navigate({ pathname: '/player', params: { sessionId: recording.sessionId } }),
     verify: (recording) => router.navigate(`/verification/${recording.sessionId}`),
     upload: (recording) => void uploads.actions.startRecording(recording),
     cancel: (recording) => void uploads.actions.cancelRecording(recording),

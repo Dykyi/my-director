@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState } from 'react-native';
 
 import {
   CaptureCore,
@@ -7,7 +6,6 @@ import {
   type CaptureConfigInput,
   type HealthSnapshot,
   type LogEntry,
-  type PermissionsState,
   type SessionSnapshot,
 } from '@modules/capture-core';
 
@@ -16,18 +14,11 @@ import { describeError } from '@shared/describe-error';
 
 const LOG_LIMIT = 200;
 
-function allGranted(permissions: PermissionsState): boolean {
-  return permissions.camera === 'granted' && permissions.microphone === 'granted';
-}
-
-export function useCaptureSession(overrides: CaptureConfigInput) {
+export function useCaptureSession(overrides: CaptureConfigInput, accessReady: boolean) {
   const [snapshot, setSnapshot] = useState<SessionSnapshot>(() => CaptureCore.getSnapshot());
   const [config, setConfig] = useState<CaptureConfig>(() => CaptureCore.getConfig());
   const [health, setHealth] = useState<HealthSnapshot | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [permissions, setPermissions] = useState<PermissionsState>(() =>
-    CaptureCore.getPermissions(),
-  );
   const [commandError, setCommandError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -39,13 +30,6 @@ export function useCaptureSession(overrides: CaptureConfigInput) {
       }),
     ];
     return () => subscriptions.forEach((subscription) => subscription.remove());
-  }, []);
-
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') setPermissions(CaptureCore.getPermissions());
-    });
-    return () => subscription.remove();
   }, []);
 
   const run = useCallback(async (command: () => Promise<unknown>) => {
@@ -60,20 +44,17 @@ export function useCaptureSession(overrides: CaptureConfigInput) {
   }, []);
 
   const preparedRef = useRef(false);
-  const granted = allGranted(permissions);
   const cameraIdle = snapshot.phase === 'idle';
   useEffect(() => {
-    if (!granted || !cameraIdle || preparedRef.current) return;
+    if (!accessReady || !cameraIdle || preparedRef.current) return;
     preparedRef.current = true;
     CaptureCore.prepare(overrides)
       .then(setConfig)
       .catch((error: unknown) => setCommandError(describeError(error)));
-  }, [granted, cameraIdle, overrides]);
+  }, [accessReady, cameraIdle, overrides]);
 
   const actions = useMemo(
     () => ({
-      requestPermissions: () =>
-        run(async () => setPermissions(await CaptureCore.requestPermissions())),
       prepare: (next: CaptureConfigInput = overrides) =>
         run(async () => setConfig(await CaptureCore.prepare(next))),
       start: () => run(() => CaptureCore.start(callCredentials)),
@@ -90,7 +71,7 @@ export function useCaptureSession(overrides: CaptureConfigInput) {
     [overrides, run],
   );
 
-  return { snapshot, config, health, logs, permissions, commandError, actions };
+  return { snapshot, config, health, logs, commandError, actions };
 }
 
 export type CaptureSession = ReturnType<typeof useCaptureSession>;

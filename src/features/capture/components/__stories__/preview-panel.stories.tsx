@@ -1,25 +1,25 @@
 import type { Meta, StoryObj } from '@storybook/react-native';
 
-import type { PauseReason, PermissionStatus, SessionPhase } from '@modules/capture-core';
+import type { PauseReason, SessionPhase } from '@modules/capture-core';
 
+import { accessCard } from '@features/access/access-card-view';
+import { AccessCard } from '@features/access/components/access-card';
 import { recordingSnapshot, sampleCamera, sampleHealth } from '@test/session-fixtures';
 import { rangeOf, selectOf } from '@test/story-controls';
 
 import { PAUSE_REASON, PHASE_PILL } from '../../session-labels';
 import { PreviewPanel } from '../preview-panel';
 
-const PERMISSION = selectOf<PermissionStatus>({ granted: true, denied: true, undetermined: true });
+const FIRST_LAUNCH = accessCard({ camera: 'undetermined', microphone: 'undetermined' }, undefined);
 
 function PreviewPanelStory({
   phase,
-  camera,
-  microphone,
+  waitingForAccess,
   pauseReason,
   levelDb,
 }: {
   phase: SessionPhase;
-  camera: PermissionStatus;
-  microphone: PermissionStatus;
+  waitingForAccess: boolean;
   pauseReason: PauseReason;
   levelDb: number;
 }) {
@@ -28,9 +28,10 @@ function PreviewPanelStory({
     <PreviewPanel
       snapshot={{ ...recordingSnapshot, phase, pauseReason }}
       health={{ ...health, audio: { ...health.audio, levelDb } }}
-      permissions={{ camera, microphone }}
       camera={sampleCamera}
-      onRequestPermissions={() => {}}
+      accessCard={
+        waitingForAccess && FIRST_LAUNCH && <AccessCard card={FIRST_LAUNCH} onAction={() => {}} />
+      }
     />
   );
 }
@@ -40,15 +41,12 @@ const meta = {
   component: PreviewPanelStory,
   args: {
     phase: 'idle',
-    camera: 'undetermined',
-    microphone: 'undetermined',
+    waitingForAccess: true,
     pauseReason: 'phoneCall',
     levelDb: -18,
   },
   argTypes: {
     phase: selectOf(PHASE_PILL),
-    camera: PERMISSION,
-    microphone: PERMISSION,
     pauseReason: selectOf(PAUSE_REASON),
     levelDb: rangeOf(-60, 0),
   },
@@ -59,11 +57,6 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-export const NoPermission: Story = {};
-export const Denied: Story = { args: { camera: 'denied', microphone: 'granted' } };
-export const Starting: Story = {
-  args: { phase: 'preparing', camera: 'granted', microphone: 'granted' },
-};
-export const PausedForCall: Story = {
-  args: { phase: 'paused', camera: 'granted', microphone: 'granted' },
-};
+export const WaitingForAccess: Story = {};
+export const Starting: Story = { args: { phase: 'preparing', waitingForAccess: false } };
+export const PausedForCall: Story = { args: { phase: 'paused', waitingForAccess: false } };

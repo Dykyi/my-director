@@ -84,7 +84,7 @@ describe('healthLine', () => {
 
   it('says the mic is off while paused', () =>
     expect(healthLine([], snapshot({ phase: 'paused' }))).toEqual({
-      tone: 'paused',
+      tone: 'quiet',
       text: 'Microphone off while paused',
     }));
 

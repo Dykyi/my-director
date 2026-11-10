@@ -19,7 +19,7 @@ export function RecoveryDialog({
 }: {
   report: RecoveryReport | undefined;
   note: string;
-  onPlay: (uri: string) => void;
+  onPlay: (sessionId: string, segment: number) => void;
   onVerify: (sessionId: string) => void;
   onDismiss: (sessionId: string) => void;
 }) {
@@ -59,7 +59,7 @@ export function RecoveryDialog({
           variant="primary"
           disabled={!lastPlayable}
           className="flex-1"
-          onPress={() => lastPlayable && onPlay(lastPlayable.uri)}
+          onPress={() => lastPlayable && onPlay(report.sessionId, lastPlayable.index)}
         />
         <Button title="Verify" className="flex-1" onPress={() => onVerify(report.sessionId)} />
         <Button

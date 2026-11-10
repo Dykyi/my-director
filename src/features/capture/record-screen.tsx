@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 
 import { callTarget } from '@config/env';
+import { AccessCard } from '@features/access/components/access-card';
 import { formatTimer } from '@shared/format';
 import { SafeAreaView } from '@ui/styled';
 
@@ -12,12 +13,13 @@ import { PreviewPanel } from './components/preview-panel';
 import { RecordHeader } from './components/record-header';
 import { RecordNotices } from './components/record-notices';
 import { callRowView, headerFact } from './record-views';
-import { healthLine } from './session-issues';
+import { healthLine, WAITING_FOR_ACCESS } from './session-issues';
 import { PHASE_PILL } from './session-labels';
 
 export function RecordScreen() {
-  const { snapshot, health, config, permissions, commandError, actions } = useSession();
-  const line = healthLine(useSessionIssues(), snapshot);
+  const { snapshot, health, config, access, commandError, actions } = useSession();
+  const issues = useSessionIssues();
+  const line = access.ready ? healthLine(issues, snapshot) : WAITING_FOR_ACCESS;
   const room = snapshot.call.room ?? callTarget.room ?? '';
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-background">
@@ -39,12 +41,11 @@ export function RecordScreen() {
       <PreviewPanel
         snapshot={snapshot}
         health={health}
-        permissions={permissions}
         camera={config.camera}
-        onRequestPermissions={actions.requestPermissions}
+        accessCard={access.card && <AccessCard card={access.card} onAction={access.act} />}
       />
       <HealthLine view={line} onPress={() => router.navigate('/debug')} />
-      <Controls snapshot={snapshot} actions={actions} />
+      <Controls snapshot={snapshot} actions={actions} accessReady={access.ready} />
     </SafeAreaView>
   );
 }

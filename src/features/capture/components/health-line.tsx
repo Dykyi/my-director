@@ -11,7 +11,7 @@ const row = cva('h-11 flex-row items-center gap-2 border-t px-4', {
   variants: {
     tone: {
       ok: 'border-border active:opacity-70',
-      paused: 'border-border',
+      quiet: 'border-border',
       warning: 'border-warning-line bg-warning-soft active:opacity-70',
       error: 'border-danger-line bg-danger-soft active:opacity-70',
     },
@@ -34,9 +34,9 @@ const ISSUE = {
 } as const;
 
 export function HealthLine({ view, onPress }: { view: HealthLineView; onPress: () => void }) {
-  if (view.tone === 'paused') {
+  if (view.tone === 'quiet') {
     return (
-      <View className={row({ tone: 'paused' })}>
+      <View className={row({ tone: 'quiet' })}>
         <View className="size-2.5 rounded-pill border-[1.5px] border-muted" />
         <Text variant="footnote" className="text-subtle">
           {view.text}

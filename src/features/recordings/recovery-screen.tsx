@@ -18,7 +18,9 @@ export function RecoveryScreen() {
     <RecoveryDialog
       report={report}
       note={lossNote(config)}
-      onPlay={(uri) => router.navigate({ pathname: '/player', params: { uri } })}
+      onPlay={(sessionId, segment) =>
+        router.navigate({ pathname: '/player', params: { sessionId, segment } })
+      }
       onVerify={(id) => router.navigate(`/verification/${id}`)}
       onDismiss={actions.acknowledge}
     />

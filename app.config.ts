@@ -29,9 +29,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     deploymentTarget: '17.0',
     infoPlist: {
       NSCameraUsageDescription:
-        'The camera records your interview and shows you to the interviewer.',
+        'MyDirector films your interview on this iPhone in full quality and shows you to the interviewer during the call.',
       NSMicrophoneUsageDescription:
-        'The microphone records your answers and lets the interviewer hear you.',
+        'MyDirector records your answers on this iPhone and lets the interviewer hear you during the call.',
       UIBackgroundModes: ['audio'],
       UIFileSharingEnabled: true,
       LSSupportsOpeningDocumentsInPlace: true,

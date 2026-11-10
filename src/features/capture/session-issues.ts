@@ -6,7 +6,7 @@ export type IssueSeverity = 'warning' | 'error';
 export type SessionIssue = { severity: IssueSeverity; text: string; at: string };
 export type HealthLineView =
   | { tone: 'ok'; text: string }
-  | { tone: 'paused'; text: string }
+  | { tone: 'quiet'; text: string }
   | { tone: IssueSeverity; text: string; detail?: string };
 export type IssueBadge = { count: number; severity: IssueSeverity };
 
@@ -42,6 +42,11 @@ function calmText(phase: SessionPhase): string {
 const worstOf = (issues: SessionIssue[]) =>
   issues.find((issue) => issue.severity === 'error') ?? issues[0];
 
+export const WAITING_FOR_ACCESS: HealthLineView = {
+  tone: 'quiet',
+  text: 'Waiting for camera and microphone access',
+};
+
 export function healthLine(
   issues: SessionIssue[],
   { phase, startedAt }: Pick<SessionSnapshot, 'phase' | 'startedAt'>,
@@ -54,7 +59,7 @@ export function healthLine(
         : `at ${formatTimer((Date.parse(worst.at) - Date.parse(startedAt)) / MS_PER_SEC)}`;
     return { tone: worst.severity, text: worst.text, detail };
   }
-  if (PAUSED_PHASES.has(phase)) return { tone: 'paused', text: 'Microphone off while paused' };
+  if (PAUSED_PHASES.has(phase)) return { tone: 'quiet', text: 'Microphone off while paused' };
   return { tone: 'ok', text: calmText(phase) };
 }
 

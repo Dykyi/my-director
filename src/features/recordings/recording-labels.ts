@@ -33,7 +33,7 @@ export function recordingChip(
 export const recordingMeta = ({ totalSec, segments, totalBytes }: RecordingSummary) =>
   `${formatDuration(totalSec)} · ${segments.length} seg · ${formatBytes(totalBytes)}`;
 
-const fileName = (uri: string) => uri.slice(uri.lastIndexOf('/') + 1);
+export const fileName = (uri: string) => uri.slice(uri.lastIndexOf('/') + 1);
 
 export const segmentLine = ({ uri, durationSec, bytes }: SegmentSummary) =>
   `${fileName(uri)} ${formatDuration(durationSec)} ${formatBytes(bytes)}`;
