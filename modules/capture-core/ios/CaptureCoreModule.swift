@@ -4,65 +4,108 @@ import ExpoModulesCore
 public final class CaptureCoreModule: Module {
   static let moduleName = "CaptureCore"
 
-  private lazy var harness = DebugHarness()
+  private struct RecoveryEvent: Encodable {
+    var reports: [RecoveryReport]
+  }
 
-  var captureSession: AVCaptureSession { harness.camera.session }
+  private lazy var controller = SessionController()
+
+  var captureSession: AVCaptureSession { controller.camera.session }
 
   public func definition() -> ModuleDefinition {
     Name(Self.moduleName)
-    Events("onLog")
+    Events("onStateChange", "onHealth", "onLog", "onRecoveryFound")
 
     OnCreate { [self] in
-      self.harness.log.setListener { [weak self] entry in
-        guard let payload = try? JSONBridge.object(entry) else { return }
-        self?.sendEvent("onLog", payload)
+      let controller = self.controller
+      controller.log.setListener { [weak self] entry in self?.emit("onLog", entry) }
+      Task { @MainActor [weak self] in
+        controller.onSnapshot = { self?.emit("onStateChange", $0) }
+        controller.onHealth = { self?.emit("onHealth", $0) }
+        controller.onRecoveryFound = { self?.emit("onRecoveryFound", RecoveryEvent(reports: $0)) }
+        controller.activate()
+        await controller.recoverUnfinishedSessions()
       }
     }
 
+    Function("getPermissions") { () throws -> [String: Any] in
+      try JSONBridge.object(Permissions.current())
+    }
     AsyncFunction("requestPermissions") { () async throws -> [String: Any] in
       try JSONBridge.object(await Permissions.request())
     }
-    AsyncFunction("debugStartCamera") { () async throws -> [String: String] in
-      try await self.harness.startCamera()
+    Function("getDefaultConfig") { () throws -> [String: Any] in
+      try JSONBridge.object(CaptureConfig.defaults)
     }
-    AsyncFunction("debugStartSegment") { () async throws -> String in
-      try await self.harness.startSegment()
+    Function("getSnapshot") { () throws -> [String: Any] in
+      try JSONBridge.object(self.controller.snapshotCache.withLock { $0 })
     }
-    AsyncFunction("debugStopSegment") { () async -> String in
-      await self.harness.stopSegment()
+
+    AsyncFunction("prepare") { (overrides: [String: Any]?) async throws -> [String: Any] in
+      try await self.command { controller in try JSONBridge.object(try await controller.prepare(overrides: overrides ?? [:])) }
     }
-    AsyncFunction("debugStats") { () async -> [String: String] in
-      await self.harness.stats()
+    AsyncFunction("start") { (url: String, token: String) async throws -> String in
+      try await self.command { controller in try await controller.start(CallCredentials(url: url, token: token)) }
     }
-    AsyncFunction("debugStartMic") { () async throws -> [String: String] in
-      try await self.harness.startMic()
+    AsyncFunction("pause") { () async throws in
+      try await self.command { controller in try await controller.pause() }
     }
-    AsyncFunction("debugStopMic") { () async in
-      await self.harness.stopMic()
+    AsyncFunction("resume") { () async throws in
+      try await self.command { controller in try await controller.resume() }
     }
-    AsyncFunction("debugConnect") { (url: String, token: String) async throws -> [String] in
-      try await self.harness.connect(url: url, token: token)
+    AsyncFunction("reconnectCall") { () async throws in
+      try await self.command { controller in try await controller.reconnectCall() }
     }
-    AsyncFunction("debugDisconnect") { () async in
-      await self.harness.disconnect()
+    AsyncFunction("stop") { () async throws -> [String: Any] in
+      try await self.command { controller in try JSONBridge.object(try await controller.stop()) }
     }
-    AsyncFunction("debugSetCallProfile") { (name: String) async throws in
-      guard let profile = CallProfileName(rawValue: name) else {
-        throw Failure(code: .configInvalid, message: "Unknown call profile \(name)")
-      }
-      await self.harness.setCallProfile(profile)
+    AsyncFunction("dismissError") { () async in
+      await self.controller.dismissError()
     }
-    AsyncFunction("debugInspectLatestSegment") { () async throws -> [String: String] in
-      try await self.harness.inspectLatestSegment()
+
+    AsyncFunction("listRecordings") { () async throws -> [[String: Any]] in
+      try await self.command { controller in try JSONBridge.array(await controller.listRecordings()) }
     }
-    Function("debugCrash") {
+    AsyncFunction("getRecoveryReports") { () async throws -> [[String: Any]] in
+      try await self.command { controller in try JSONBridge.array(controller.recoveryReports) }
+    }
+    AsyncFunction("acknowledgeRecovery") { (sessionId: String) async throws in
+      try await self.command { controller in try controller.acknowledgeRecovery(sessionId: sessionId) }
+    }
+    AsyncFunction("verifyRecording") { (sessionId: String) async throws -> [String: Any] in
+      try await self.command { controller in try JSONBridge.object(try await controller.verifyRecording(sessionId: sessionId)) }
+    }
+    AsyncFunction("deleteRecording") { (sessionId: String) async throws in
+      try await self.command { controller in try controller.deleteRecording(sessionId: sessionId) }
+    }
+
+    #if DEBUG
+    Function("simulateCrash") {
       kill(getpid(), SIGKILL)
     }
+    #endif
 
     View(CapturePreviewView.self) {
       Prop("videoGravity") { (view: CapturePreviewView, gravity: PreviewGravity) in
         view.gravity = gravity
       }
+    }
+  }
+
+  private func command<T>(_ body: @MainActor (SessionController) async throws -> T) async throws -> T {
+    let controller = controller
+    do {
+      return try await body(controller)
+    } catch {
+      throw CaptureException(Failure(error, fallback: .invalidState))
+    }
+  }
+
+  private func emit(_ event: String, _ payload: some Encodable) {
+    do {
+      sendEvent(event, try JSONBridge.object(payload))
+    } catch {
+      controller.log.error("bridge", "Event encoding failed", ["event": event, "error": "\(error)"])
     }
   }
 }

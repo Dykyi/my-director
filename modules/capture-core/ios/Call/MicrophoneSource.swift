@@ -11,6 +11,7 @@ final class MicrophoneSource {
   private let log: EventLog
   private var options: AudioProcessingOptions?
   private(set) var isRunning = false
+  private(set) var lastEngineStopAt: Double?
 
   nonisolated init(pipeline: MediaPipeline, log: EventLog) {
     tap = EngineInputTap(pipeline: pipeline, log: log)
@@ -18,7 +19,7 @@ final class MicrophoneSource {
     let manager = AudioManager.shared
     manager.set(engineObservers: [manager.audioSession, manager.mixer, tap])
     tap.onEngineStopped = { [weak self] in
-      Task { @MainActor in self?.restartAfterEngineStop() }
+      Task { @MainActor in self?.engineStopped() }
     }
   }
 
@@ -60,8 +61,10 @@ final class MicrophoneSource {
     ]
   }
 
-  private func restartAfterEngineStop() {
-    guard isRunning, !AudioManager.shared.isEngineRunning else { return }
+  private func engineStopped() {
+    guard isRunning else { return }
+    lastEngineStopAt = HostClock.now()
+    guard !AudioManager.shared.isEngineRunning else { return }
     do {
       try AudioManager.shared.startLocalRecording(audioProcessingOptions: options)
       log.warning("audio", "Microphone restarted after the engine stopped")

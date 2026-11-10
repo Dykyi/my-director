@@ -111,6 +111,10 @@ struct ConfigValidatorTests {
     #expect(problems { $0.health.fileStallMs = 4000 }.contains { $0.hasPrefix("health.fileStallMs") })
   }
 
+  @Test func micRestartGraceMustCoverTheAudioStall() {
+    #expect(problems { $0.health.micRestartGraceMs = 400 }.contains { $0.hasPrefix("health.micRestartGraceMs") })
+  }
+
   @Test func storageThresholdsMustBeOrdered() {
     #expect(problems { $0.storage.criticalFreeSpaceMB = 2000 }.contains { $0.hasPrefix("storage") })
   }

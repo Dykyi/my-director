@@ -14,9 +14,12 @@
     "react-native-safe-area-context": "~5.7.0"
   },
   "devDependencies": {
+    "@jest/globals": "~29.7.0",
     "@types/react": "~19.2.2",
     "eslint": "^9.39.5",
     "eslint-config-expo": "~57.0.2",
+    "jest": "~29.7.0",
+    "jest-expo": "~57.0.6",
     "livekit-server-sdk": "^2.19.2",
     "typescript": "~6.0.3"
   },
@@ -28,7 +31,15 @@
     "lint": "expo lint",
     "token": "node --env-file=.env.local tools/livekit-token/token.mjs",
     "pull": "set -a && . ./.env.local && set +a && tools/device/pull-recordings.sh",
-    "stand": "set -a && . ./.env.local && set +a && tools/device/stand.sh"
+    "stand": "set -a && . ./.env.local && set +a && tools/device/stand.sh",
+    "test": "jest"
   },
-  "private": true
+  "private": true,
+  "jest": {
+    "preset": "jest-expo",
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/tools/"
+    ]
+  }
 }

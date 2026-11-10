@@ -52,6 +52,7 @@ enum ConfigValidator {
     require(health.audioStallMs >= minAudioStallMs, "health.audioStallMs must be at least \(minAudioStallMs)")
     require(health.fileStallMs > 2 * recording.fragmentIntervalSec * 1000,
             "health.fileStallMs must exceed two fragment intervals")
+    require(health.micRestartGraceMs >= health.audioStallMs, "health.micRestartGraceMs must be at least health.audioStallMs")
 
     let storage = config.storage
     require(storage.criticalFreeSpaceMB > 0

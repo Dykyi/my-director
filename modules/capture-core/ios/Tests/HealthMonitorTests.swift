@@ -54,6 +54,45 @@ struct HealthMonitorTests {
     )
     #expect(edges == [HealthEdge(pipeline: .microphone, stalled: true)])
   }
+
+  @Test func micRestartIsNotAStallWithinTheGrace() {
+    var monitor = HealthMonitor(health: health)
+    var edges: [HealthEdge] = []
+    for step in 0..<40 {
+      let now = Double(step) * Self.tick
+      let lastBeat = now < 5 || now >= 6.5 ? now : 4.9
+      edges += monitor.evaluate(now: now, lastBeats: [.microphone: lastBeat], watched: [.microphone: 0], restartedAt: [.microphone: 5])
+    }
+    #expect(edges.isEmpty)
+  }
+
+  @Test func restartThatNeverDeliversStallsAfterTheGrace() {
+    var monitor = HealthMonitor(health: health)
+    let restart: [Pipeline: Double] = [.microphone: 5]
+    let grace = health.micRestartGraceMs / 1000
+    #expect(monitor.evaluate(now: 5 + grace - 0.1, lastBeats: [.microphone: 4.9], watched: [.microphone: 0], restartedAt: restart).isEmpty)
+    #expect(monitor.evaluate(now: 5 + grace + 0.1, lastBeats: [.microphone: 4.9], watched: [.microphone: 0], restartedAt: restart)
+      == [HealthEdge(pipeline: .microphone, stalled: true)])
+  }
+
+  @Test func beatAfterTheRestartEndsTheGrace() {
+    var monitor = HealthMonitor(health: health)
+    let restart: [Pipeline: Double] = [.microphone: 5]
+    #expect(monitor.evaluate(now: 6.4, lastBeats: [.microphone: 6.2], watched: [.microphone: 0], restartedAt: restart).isEmpty)
+    #expect(monitor.evaluate(now: 6.8, lastBeats: [.microphone: 6.2], watched: [.microphone: 0], restartedAt: restart)
+      == [HealthEdge(pipeline: .microphone, stalled: true)])
+  }
+
+  @Test func restartCoversOnlyThePipelinesItNames() {
+    var monitor = HealthMonitor(health: health)
+    let edges = monitor.evaluate(
+      now: 5.8,
+      lastBeats: [.microphone: 4.9, .fileAudio: 4.9],
+      watched: [.microphone: 0, .fileAudio: 0],
+      restartedAt: [.microphone: 5]
+    )
+    #expect(edges == [HealthEdge(pipeline: .fileAudio, stalled: true)])
+  }
 }
 
 struct RateMeterTests {

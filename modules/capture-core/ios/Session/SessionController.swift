@@ -478,7 +478,8 @@ final class SessionController {
   private func healthTick() {
     let now = HostClock.now()
     let stats = pipeline.statsSnapshot
-    for edge in healthMonitor.evaluate(now: now, lastBeats: pipeline.heartbeats.snapshot(), watched: watched) {
+    let restartedAt = microphone.lastEngineStopAt.map { [Pipeline.microphone: $0] } ?? [:]
+    for edge in healthMonitor.evaluate(now: now, lastBeats: pipeline.heartbeats.snapshot(), watched: watched, restartedAt: restartedAt) {
       handle(edge)
     }
     if machine.state.phase == .recording {

@@ -4,6 +4,9 @@
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "paths": {
+      "@/*": [
+        "./*"
+      ],
       "@modules/*": [
         "./modules/*"
       ]
