@@ -67,6 +67,14 @@ struct SessionMachine: Sendable {
   private static let segmentWarnings: Set<CaptureErrorCode> = [.audioStalled, .fileFpsLow]
   private static let callWarningPhases: Set<SessionPhase> = [.recording, .pausing, .paused]
 
+  private static func interruptedStartMessage(_ source: InterruptionSource) -> String {
+    switch source {
+    case .audioSession: "A call or another app took the microphone, so recording did not start. Press Start when it ends."
+    case .camera: "iOS took the camera, so recording did not start. Press Start again."
+    case .appBackground: "The app left the screen, so recording did not start. Press Start again."
+    }
+  }
+
   private(set) var state = SessionState()
 
   mutating func handle(_ event: SessionEvent, at now: Date) -> [SessionEffect] {
@@ -105,7 +113,7 @@ struct SessionMachine: Sendable {
 
     case (.starting, .interruptionBegan(let source, _)):
       noteInterruption(source)
-      return abortStart(Failure(code: .startInterrupted, message: "Start was interrupted (\(source.rawValue))"), at: now)
+      return abortStart(Failure(code: .startInterrupted, message: Self.interruptedStartMessage(source)), at: now)
 
     case (.recording, .pauseRequested):
       return pause(.user)

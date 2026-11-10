@@ -1,4 +1,9 @@
-import type { CallStatus, PauseReason, SessionPhase } from '@modules/capture-core';
+import type {
+  CallStatus,
+  CaptureErrorCode,
+  PauseReason,
+  SessionPhase,
+} from '@modules/capture-core';
 
 import type { IconName } from '@ui/icons';
 import type { PillTone } from '@ui/status-pill';
@@ -99,6 +104,30 @@ export const PAUSE_REASON: Record<
     detail: 'iOS restarted its media services.',
     after: 'after iOS reset its media',
   },
+};
+
+export const ERROR_TITLE: Record<CaptureErrorCode, string> = {
+  permissionDenied: 'No access to the camera or microphone',
+  configInvalid: 'The settings are not valid',
+  cameraFormatUnsupported: 'The camera cannot record this format',
+  cameraUnavailable: 'The camera is not available',
+  cameraStalled: 'The camera stopped',
+  cameraRuntimeError: 'The camera failed',
+  micUnavailable: 'The microphone is not available',
+  audioStalled: 'The microphone stopped',
+  fileWriterFailed: 'The file could not be written',
+  fileStalled: 'The file stopped growing',
+  fileFpsLow: 'The file records too few frames',
+  diskSpaceLow: 'The phone is almost full',
+  diskFull: 'The phone is full',
+  callConnectFailed: 'Could not join the call',
+  callDisconnected: 'The call dropped',
+  callPublishFailed: 'Could not send to the call',
+  mediaServicesReset: 'iOS reset its media',
+  resumeBlocked: 'Cannot resume yet',
+  recoveryUnplayable: 'The recording cannot be opened',
+  invalidState: 'Not possible right now',
+  startInterrupted: 'Recording did not start',
 };
 
 export function participantNames({ participants }: CallStatus): string[] {

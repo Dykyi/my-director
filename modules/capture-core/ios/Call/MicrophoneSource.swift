@@ -21,6 +21,9 @@ final class MicrophoneSource {
     tap.onEngineStopped = { [weak self] in
       Task { @MainActor in self?.engineStopped() }
     }
+    tap.onEngineStarting = { [weak self] recording in
+      Task { @MainActor in self?.engineStarting(recording: recording) }
+    }
   }
 
   func start(_ audio: CaptureConfig.Audio) throws {
@@ -35,6 +38,11 @@ final class MicrophoneSource {
     do {
       try manager.set(microphoneMuteMode: .inputMixer)
       try manager.startLocalRecording(audioProcessingOptions: options)
+      if !tap.isInstalled {
+        log.info("audio", "Engine records without the microphone tap, restarting it")
+        try manager.stopLocalRecording()
+        try manager.startLocalRecording(audioProcessingOptions: options)
+      }
     } catch {
       throw Failure(code: .micUnavailable, message: error.localizedDescription)
     }
@@ -49,7 +57,7 @@ final class MicrophoneSource {
     do {
       try AudioManager.shared.stopLocalRecording()
     } catch {
-      log.warning("audio", "stopLocalRecording failed", ["error": error.localizedDescription])
+      log.info("audio", "stopLocalRecording failed", ["error": error.localizedDescription])
     }
     log.info("audio", "Microphone stopped")
   }
@@ -59,6 +67,16 @@ final class MicrophoneSource {
       "processing": String(describing: AudioManager.shared.audioProcessingState),
       "platform": String(describing: AudioManager.shared.platformVoiceProcessingState),
     ]
+  }
+
+  private func engineStarting(recording: Bool) {
+    guard recording, !isRunning else { return }
+    log.info("audio", "Engine came back recording while the microphone is off, stopping it")
+    do {
+      try AudioManager.shared.stopLocalRecording()
+    } catch {
+      log.warning("audio", "stopLocalRecording failed", ["error": error.localizedDescription])
+    }
   }
 
   private func engineStopped() {

@@ -5,6 +5,8 @@ import type { SessionSnapshot } from '@modules/capture-core';
 import { Button } from '@ui/button';
 import { ErrorNotice, WarningNotice } from '@ui/notice';
 
+import { ERROR_TITLE } from '../session-labels';
+
 export function RecordNotices({
   snapshot,
   commandError,
@@ -18,7 +20,7 @@ export function RecordNotices({
   const callDown = phase === 'recording' && call.state !== 'connected';
   if (!error && !commandError && !callDown && warnings.length === 0) return null;
   const notice = error
-    ? { title: error.code, message: error.message }
+    ? { title: ERROR_TITLE[error.code], message: error.message }
     : commandError && { title: 'Command failed', message: commandError };
   return (
     <View className="gap-2 px-4 pt-2">

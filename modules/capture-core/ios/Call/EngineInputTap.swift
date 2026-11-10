@@ -20,6 +20,7 @@ final class EngineInputTap: AudioEngineObserver, @unchecked Sendable {
     var next: (any AudioEngineObserver)?
     var tapped: AVAudioNode?
     var onEngineStopped: (@Sendable () -> Void)?
+    var onEngineStarting: (@Sendable (_ recording: Bool) -> Void)?
     var buffersSinceInstall = 0
   }
 
@@ -28,9 +29,16 @@ final class EngineInputTap: AudioEngineObserver, @unchecked Sendable {
     set { state.withLock { $0.next = newValue } }
   }
 
+  var isInstalled: Bool { state.withLock { $0.tapped != nil } }
+
   var onEngineStopped: (@Sendable () -> Void)? {
     get { state.withLock { $0.onEngineStopped } }
     set { state.withLock { $0.onEngineStopped = newValue } }
+  }
+
+  var onEngineStarting: (@Sendable (_ recording: Bool) -> Void)? {
+    get { state.withLock { $0.onEngineStarting } }
+    set { state.withLock { $0.onEngineStarting = newValue } }
   }
 
   init(pipeline: MediaPipeline, log: EventLog) {
@@ -48,6 +56,7 @@ final class EngineInputTap: AudioEngineObserver, @unchecked Sendable {
 
   func engineWillStart(_ engine: AVAudioEngine, isPlayoutEnabled: Bool, isRecordingEnabled: Bool) -> Int {
     logLifecycle("Audio engine starting", isPlayoutEnabled: isPlayoutEnabled, isRecordingEnabled: isRecordingEnabled)
+    onEngineStarting?(isRecordingEnabled)
     return next?.engineWillStart(engine, isPlayoutEnabled: isPlayoutEnabled, isRecordingEnabled: isRecordingEnabled) ?? 0
   }
 

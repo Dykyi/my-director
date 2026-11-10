@@ -306,6 +306,12 @@ struct SessionMachineTests {
     #expect(run.lastEffects == [.abortStart])
   }
 
+  @Test func callDuringStartSaysWhatToDo() {
+    var run = ready()
+    run.send(.startRequested(sessionId: Self.sessionId), .interruptionBegan(.audioSession, .phoneCall))
+    #expect(run.state.error?.message == "A call or another app took the microphone, so recording did not start. Press Start when it ends.")
+  }
+
   @Test func failedStartReturnsToReady() {
     var run = ready()
     run.send(.startRequested(sessionId: Self.sessionId), .startFailed(Failure(code: .callConnectFailed, message: "timeout")))
