@@ -3,13 +3,10 @@ import { View } from 'react-native';
 import type { SessionSnapshot } from '@modules/capture-core';
 
 import { plural } from '@shared/format';
+import { Button } from '@ui/button';
 
 import { PHASE_PROGRESS } from '../session-labels';
 import type { CaptureSessionActions } from '../use-capture-session';
-import { ActionButton } from './action-button';
-import { colors, gutter } from './theme';
-
-const ROW = { flexDirection: 'row', gap: 10 } as const;
 
 function PhaseButtons({
   snapshot,
@@ -21,53 +18,57 @@ function PhaseButtons({
   const { phase } = snapshot;
   switch (phase) {
     case 'idle':
-      return <ActionButton title="Retry camera" icon="camera" onPress={() => actions.prepare()} />;
+      return (
+        <Button title="Retry camera" size="large" icon="camera" onPress={() => actions.prepare()} />
+      );
     case 'ready':
       return (
-        <ActionButton
+        <Button
           title="Start recording"
           variant="record"
-          icon="circle.fill"
+          size="large"
+          icon="dot"
           onPress={actions.start}
         />
       );
     case 'recording':
       return (
-        <View style={ROW}>
-          <ActionButton
+        <View className="flex-row gap-2.5">
+          <Button
             title="Pause"
-            icon="pause.fill"
+            size="large"
+            icon="pause"
             onPress={actions.pause}
-            style={{ flex: 1 }}
+            className="flex-1"
           />
-          <ActionButton
+          <Button
             title="Stop"
             variant="primary"
-            icon="stop.fill"
+            size="large"
+            icon="stop"
             onPress={actions.stop}
-            style={{ flex: 1 }}
+            className="flex-1"
           />
         </View>
       );
     case 'paused':
       return (
         <>
-          <ActionButton
+          <Button
             title="Resume"
             variant="resume"
             size="large"
-            icon="play.fill"
+            icon="play"
             onPress={actions.resume}
           />
-          <ActionButton
+          <Button
             title={`Stop and keep ${plural(snapshot.segmentIndex, 'segment')}`}
-            size="compact"
             onPress={actions.stop}
           />
         </>
       );
     default:
-      return <ActionButton title={PHASE_PROGRESS[phase] ?? phase} disabled />;
+      return <Button title={PHASE_PROGRESS[phase] ?? phase} size="large" disabled />;
   }
 }
 
@@ -82,22 +83,14 @@ export function Controls({
   const canReconnect =
     (phase === 'recording' || phase === 'paused') && call.state === 'disconnected';
   return (
-    <View
-      style={{
-        paddingHorizontal: gutter,
-        paddingVertical: 14,
-        gap: 10,
-        borderBottomWidth: 1,
-        borderColor: colors.border,
-      }}
-    >
+    <View className="gap-2.5 border-t border-border px-4 pb-4 pt-3">
       <PhaseButtons snapshot={snapshot} actions={actions} />
       {canReconnect && (
-        <ActionButton
+        <Button
           title="Reconnect call"
           variant="notice"
           size="compact"
-          icon="arrow.clockwise"
+          icon="rotate"
           onPress={actions.reconnectCall}
         />
       )}

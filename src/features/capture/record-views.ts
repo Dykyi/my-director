@@ -9,9 +9,10 @@ import type {
 } from '@modules/capture-core';
 
 import { formatBytes, formatTimer } from '@shared/format';
+import type { ChipTone } from '@ui/tone';
 
-import { QUALITY_LOOK, type ChipTone, type QualityLook } from './call-labels';
-import { participantNames, PAUSE_REASON, PHASE_PILL } from './session-labels';
+import { QUALITY_LOOK, type QualityLook } from './call-labels';
+import { litBars, participantNames, PAUSE_REASON, PHASE_PILL } from './session-labels';
 
 export type CallRowView = {
   title: string;
@@ -127,10 +128,17 @@ export function previewCaption({ position, width, height, fps }: CaptureConfig['
   return `${CAMERA_NAME[position]} camera · ${width}×${height} · ${fps} fps`;
 }
 
+export const recChipText = ({ file }: HealthSnapshot) => `REC ${file.fps.toFixed(0)} fps`;
+
+export const micChip = ({ audio }: HealthSnapshot) => ({
+  lit: litBars(audio.levelDb),
+  level: `${Math.round(audio.levelDb)} dB`,
+});
+
 export function pausedView(reason: PauseReason, segmentIndex: number) {
-  const { symbol, title, detail } = PAUSE_REASON[reason];
+  const { icon, title, detail } = PAUSE_REASON[reason];
   return {
-    symbol,
+    icon,
     title,
     text: `${detail} Segment ${segmentIndex} is closed and safe on disk. Resume starts segment ${segmentIndex + 1} in the same room.`,
   };

@@ -5,12 +5,14 @@ import type {
   TrackStatus,
 } from '@modules/capture-core';
 
-import { mbps, QUALITY_LOOK, type ChipTone, type QualityLook } from '@features/capture/call-labels';
+import { mbps, QUALITY_LOOK, type QualityLook } from '@features/capture/call-labels';
 import { formatClock, plural } from '@shared/format';
+import type { IconName } from '@ui/icons';
+import type { ChipTone } from '@ui/tone';
 
 export type RoomView = 'notJoined' | 'empty' | 'occupied';
 export type TrackKind = 'mic' | 'camera';
-export type TrackChipView = { label: string; tone: ChipTone; icon: string; speaking: boolean };
+export type TrackChipView = { label: string; tone: ChipTone; icon: IconName; speaking: boolean };
 export type ParticipantView = {
   name: string;
   initials: string;
@@ -28,9 +30,9 @@ export type ConnectionView = {
 };
 
 const TRACK_NAME: Record<TrackKind, string> = { mic: 'Mic', camera: 'Camera' };
-const TRACK_ICON: Record<TrackKind, Record<'on' | 'off', string>> = {
-  mic: { on: 'mic.fill', off: 'mic.slash.fill' },
-  camera: { on: 'video.fill', off: 'video.slash.fill' },
+const TRACK_ICON: Record<TrackKind, Record<'on' | 'off', IconName>> = {
+  mic: { on: 'mic', off: 'mic-off' },
+  camera: { on: 'video', off: 'video-off' },
 };
 const INITIALS_LENGTH = 2;
 const WORD = /[\p{L}\d]+/gu;

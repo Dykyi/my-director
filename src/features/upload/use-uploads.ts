@@ -5,7 +5,7 @@ import { BackgroundUpload, type UploadSnapshot } from '@modules/background-uploa
 import type { RecordingSummary, SegmentState, SegmentSummary } from '@modules/capture-core';
 
 import { uploadApi } from '@config/env';
-import { describeError } from '@features/capture/use-capture-session';
+import { describeError } from '@shared/describe-error';
 
 import { ACTIVE_UPLOAD, needsUpload, segmentObjectKey } from './upload-format';
 

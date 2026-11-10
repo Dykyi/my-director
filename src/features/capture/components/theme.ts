@@ -1,6 +1,6 @@
 import type { TextStyle } from 'react-native';
 
-import type { Tone } from '../session-labels';
+import type { TextTone } from '@ui/tone';
 
 export const colors = {
   ground: '#0B0D10',
@@ -35,7 +35,7 @@ export const colors = {
   badge: 'rgba(11, 13, 16, 0.75)',
 } as const;
 
-export const toneColor: Record<Tone, string> = {
+export const toneColor: Record<TextTone, string> = {
   normal: colors.text,
   secondary: colors.secondary,
   muted: colors.muted,

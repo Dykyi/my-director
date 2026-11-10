@@ -1,30 +1,27 @@
-import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
+import '../global.css';
 
-import { colors } from '@features/capture/components/theme';
+import { Stack } from 'expo-router';
+
 import { RootProviders } from '@features/shell/root-providers';
+import { useThemeColors } from '@theme/use-theme-colors';
 
 export default function RootLayout() {
+  const { background } = useThemeColors();
   return (
     <RootProviders>
-      <ThemeProvider value={DarkTheme}>
-        <StatusBar style="light" />
-        <Stack
-          screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.ground } }}
-        >
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="verification/[sessionId]" options={{ presentation: 'pageSheet' }} />
-          <Stack.Screen name="player" options={{ presentation: 'pageSheet' }} />
-          <Stack.Screen
-            name="recovery"
-            options={{
-              presentation: 'transparentModal',
-              animation: 'fade',
-              contentStyle: { backgroundColor: 'transparent' },
-            }}
-          />
-        </Stack>
-      </ThemeProvider>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: background } }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="verification/[sessionId]" options={{ presentation: 'pageSheet' }} />
+        <Stack.Screen name="player" options={{ presentation: 'pageSheet' }} />
+        <Stack.Screen
+          name="recovery"
+          options={{
+            presentation: 'transparentModal',
+            animation: 'fade',
+            contentStyle: { backgroundColor: 'transparent' },
+          }}
+        />
+      </Stack>
     </RootProviders>
   );
 }

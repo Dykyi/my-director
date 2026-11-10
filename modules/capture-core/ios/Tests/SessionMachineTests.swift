@@ -112,6 +112,24 @@ struct SessionMachineTests {
     #expect(run.state.phase == .resuming)
   }
 
+  @Test func resumeRetriesAnAudioInterruptionThatNeverEnded() {
+    var run = paused(by: .audioSession, reason: .audioInterrupted)
+    run.send(.resumeRequested)
+    #expect(run.state.phase == .resuming)
+    #expect(run.lastEffects == [.runResumeSequence])
+  }
+
+  @Test func micStallBeforeTheAudioInterruptionTakesTheInterruptionAsReason() {
+    var run = recording()
+    run.send(
+      .failure(Failure(code: .audioStalled, message: "No microphone audio for 500 ms"), pauseReason: .micStalled),
+      .interruptionBegan(.audioSession, .audioInterrupted),
+      .segmentClosed(index: 1, failure: nil)
+    )
+    #expect(run.state.pauseReason == .audioInterrupted)
+    #expect(run.state.error == nil)
+  }
+
   @Test func automaticResumeAfterPhoneCall() {
     var run = paused(by: .audioSession, reason: .phoneCall, policy: .automatic)
     run.send(.interruptionEnded(.audioSession))

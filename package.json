@@ -5,6 +5,7 @@
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo-google-fonts/jetbrains-mono": "^0.4.1",
+    "class-variance-authority": "^0.7.1",
     "expo": "~57.0.32",
     "expo-application": "~57.0.3",
     "expo-build-properties": "~57.0.23",
@@ -22,6 +23,7 @@
     "expo-status-bar": "~57.0.1",
     "expo-system-ui": "~57.0.4",
     "expo-video": "~57.0.5",
+    "lucide-react-native": "^1.70.0",
     "react": "19.2.3",
     "react-native": "0.86.3",
     "react-native-gesture-handler": "~2.32.0",
@@ -30,6 +32,7 @@
     "react-native-screens": "~4.26.0",
     "react-native-svg": "15.15.4",
     "react-native-worklets": "0.10.1",
+    "tailwind-merge": "^3.7.0",
     "tailwindcss": "^4.3.5",
     "uniwind": "^1.13.2",
     "zod": "^4.6.7"
@@ -63,6 +66,7 @@
     "token": "node --env-file=.env.local tools/livekit-token/token.mjs",
     "interviewer": "tools/interviewer/demo.sh",
     "icons": "python3 tools/icons/make-icons.py",
+    "tokens": "node --import tsx tools/design-tokens/generate.ts",
     "pull": "tools/device/pull-recordings.sh",
     "stand": "tools/device/stand.sh",
     "test": "jest",

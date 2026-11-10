@@ -4,7 +4,15 @@ import type { CaptureConfig, HealthSnapshot, SessionSnapshot } from '@modules/ca
 
 import { inRoom, noCall, participant } from '@test/call-fixtures';
 
-import { callRowView, headerFact, pausedView, previewCaption, recStripView } from './record-views';
+import {
+  callRowView,
+  headerFact,
+  micChip,
+  pausedView,
+  previewCaption,
+  recChipText,
+  recStripView,
+} from './record-views';
 
 const GB = 1_024 ** 3;
 const MB = 1_024 ** 2;
@@ -108,7 +116,7 @@ describe('previewCaption', () => {
 describe('pausedView', () => {
   it('explains a phone call', () =>
     expect(pausedView('phoneCall', 2)).toEqual({
-      symbol: 'phone.fill',
+      icon: 'phone',
       title: 'Paused for a phone call',
       text: 'iOS took the microphone for the call. Segment 2 is closed and safe on disk. Resume starts segment 3 in the same room.',
     }));
@@ -128,5 +136,15 @@ describe('recStripView', () => {
       label: 'PAUSED',
       time: '05:12',
       detail: '· seg 2 saved',
+    }));
+});
+
+describe('preview chips', () => {
+  it('shows the file frame rate', () =>
+    expect(recChipText({ file: { fps: 29.97 } } as HealthSnapshot)).toBe('REC 30 fps'));
+  it('lights the mic bars and rounds the level', () =>
+    expect(micChip({ audio: { levelDb: -23.4 } } as HealthSnapshot)).toEqual({
+      lit: 4,
+      level: '-23 dB',
     }));
 });

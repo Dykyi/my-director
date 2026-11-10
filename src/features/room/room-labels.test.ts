@@ -28,8 +28,8 @@ describe('participantView', () => {
       initials: 'IN',
       joined: `joined ${formatClock('2026-11-10T09:17:40.000Z')} · speaking`,
       tracks: [
-        { label: 'Mic live', tone: 'success', icon: 'mic.fill', speaking: true },
-        { label: 'No camera', tone: 'neutral', icon: 'video.fill', speaking: false },
+        { label: 'Mic live', tone: 'success', icon: 'mic', speaking: true },
+        { label: 'No camera', tone: 'neutral', icon: 'video', speaking: false },
       ],
     }));
 
@@ -37,7 +37,7 @@ describe('participantView', () => {
     expect(participantView(participant('producer', { camera: 'muted' })).tracks[1]).toEqual({
       label: 'Camera muted',
       tone: 'paused',
-      icon: 'video.slash.fill',
+      icon: 'video-off',
       speaking: false,
     }));
 });

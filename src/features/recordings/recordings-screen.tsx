@@ -1,13 +1,13 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useSession } from '@features/capture/capture-session-context';
-import { colors } from '@features/capture/components/theme';
+import { TabScreen } from '@features/shell/tab-screen';
 import { SegmentUpload } from '@features/upload/components/segment-upload';
 import { UploadButton } from '@features/upload/components/upload-button';
 import { segmentObjectKey } from '@features/upload/upload-format';
 import { useUploadsState } from '@features/upload/uploads-context';
+import { formatBytes } from '@shared/format';
 
 import { RecordingsView } from './components/recordings-view';
 import { useRecordingsState } from './recordings-context';
@@ -19,13 +19,14 @@ export function RecordingsScreen() {
   const { refresh } = actions;
   useFocusEffect(useCallback(() => void refresh(), [refresh]));
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.ground }} edges={['top']}>
+    <TabScreen
+      title="Recordings"
+      fact={health ? `${formatBytes(health.diskFreeBytes)} free` : undefined}
+    >
       <RecordingsView
         recordings={recordings}
         activeSessionId={snapshot.sessionId}
-        diskFreeBytes={health?.diskFreeBytes}
         error={error ?? uploads.error}
-        onBack={() => router.navigate('/')}
         onSimulateCrash={__DEV__ ? session.simulateCrash : undefined}
         onPlay={(uri) => router.navigate({ pathname: '/player', params: { uri } })}
         onShare={actions.share}
@@ -44,6 +45,6 @@ export function RecordingsScreen() {
           />
         )}
       />
-    </SafeAreaView>
+    </TabScreen>
   );
 }

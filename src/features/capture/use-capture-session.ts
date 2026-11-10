@@ -3,7 +3,6 @@ import { AppState } from 'react-native';
 
 import {
   CaptureCore,
-  isCaptureError,
   type CaptureConfig,
   type CaptureConfigInput,
   type HealthSnapshot,
@@ -13,12 +12,9 @@ import {
 } from '@modules/capture-core';
 
 import { callCredentials } from '@config/env';
+import { describeError } from '@shared/describe-error';
 
 const LOG_LIMIT = 200;
-
-export function describeError(error: unknown): string {
-  return isCaptureError(error) ? `${error.code}: ${error.message}` : String(error);
-}
 
 function allGranted(permissions: PermissionsState): boolean {
   return permissions.camera === 'granted' && permissions.microphone === 'granted';

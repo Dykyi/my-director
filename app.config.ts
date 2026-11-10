@@ -2,6 +2,10 @@ import 'tsx/cjs';
 
 import type { ConfigContext, ExpoConfig } from 'expo/config';
 
+import { THEME_COLORS } from './src/theme/colors';
+
+const LAUNCH_BACKGROUND = THEME_COLORS.dark.background;
+
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'MyDirector',
@@ -9,7 +13,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   version: '0.1.0',
   scheme: 'com.dykyi.mydirector.capturepoc',
   orientation: 'portrait',
-  userInterfaceStyle: 'dark',
+  userInterfaceStyle: 'automatic',
+  backgroundColor: LAUNCH_BACKGROUND,
   icon: './assets/icon.png',
   ios: {
     appleTeamId: process.env.APPLE_TEAM_ID,
@@ -44,7 +49,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-dev-client',
     [
       'expo-splash-screen',
-      { image: './assets/splash-icon.png', imageWidth: 160, backgroundColor: '#0b0d10' },
+      { image: './assets/splash-icon.png', imageWidth: 160, backgroundColor: LAUNCH_BACKGROUND },
     ],
     ['expo-build-properties', { ios: { enableSceneSupport: true } }],
     './plugins/with-livekit-podspecs.ts',

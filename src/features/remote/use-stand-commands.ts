@@ -4,6 +4,7 @@ import { useChangeCamera, useSession } from '@features/capture/capture-session-c
 import { useRecordingsState } from '@features/recordings/recordings-context';
 import { useUploadsState } from '@features/upload/uploads-context';
 import { hookContext } from '@shared/hook-context';
+import { appearance } from '@theme/appearance';
 
 import { STAND_ROUTES } from './stand-routes';
 import { useRemoteControl } from './use-remote-control';
@@ -38,6 +39,9 @@ function useStandCommands() {
     'camera-front': () => changeCamera('front'),
     'camera-back': () => changeCamera('back'),
     'camera-default': () => changeCamera(undefined),
+    'theme-system': () => appearance.set('system'),
+    'theme-light': () => appearance.set('light'),
+    'theme-dark': () => appearance.set('dark'),
   });
 }
 

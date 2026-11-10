@@ -5,7 +5,9 @@ import { formatTimer } from '@shared/format';
 export type IssueSeverity = 'warning' | 'error';
 export type SessionIssue = { severity: IssueSeverity; text: string; at: string };
 export type HealthLineView =
-  { tone: 'ok' | 'paused'; text: string } | { tone: IssueSeverity; text: string; detail?: string };
+  | { tone: 'ok'; text: string }
+  | { tone: 'paused'; text: string }
+  | { tone: IssueSeverity; text: string; detail?: string };
 export type IssueBadge = { count: number; severity: IssueSeverity };
 
 const MS_PER_SEC = 1_000;

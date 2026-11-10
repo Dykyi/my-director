@@ -133,8 +133,12 @@ struct SessionMachine: Sendable {
       state.pauseReason = reason
       return [.cancelResumeSequence]
 
-    case (_, .interruptionBegan(let source, _)):
+    case (_, .interruptionBegan(let source, let reason)):
       noteInterruption(source)
+      if source == .audioSession, state.pauseReason == .micStalled {
+        state.pauseReason = reason
+        if state.error?.code == .audioStalled { state.error = nil }
+      }
       return []
 
     case (_, .interruptionEnded(let source)):
@@ -151,6 +155,7 @@ struct SessionMachine: Sendable {
       return []
 
     case (.paused, .resumeRequested):
+      if state.appActive { state.interruptions.remove(.audioSession) }
       guard state.interruptions.isEmpty else {
         let sources = state.interruptions.sorted().map(\.rawValue).joined(separator: ", ")
         state.error = CaptureError(Failure(code: .resumeBlocked, message: "Can't resume while interrupted: \(sources)"), at: now)

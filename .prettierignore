@@ -10,3 +10,8 @@ evidence
 pulled
 tools/upload-api/.wrangler
 *.md
+# Generated: yarn tokens writes the theme files (the theme test compares them byte for byte), Metro writes the Uniwind types.
+src/theme/colors.ts
+src/theme/type-styles.ts
+src/theme/theme.css
+src/uniwind-types.d.ts

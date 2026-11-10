@@ -1,6 +1,7 @@
 import type { CallQuality, HealthSnapshot } from '@modules/capture-core';
 
-export type ChipTone = 'neutral' | 'recording' | 'paused' | 'accent' | 'success' | 'danger';
+import type { ChipTone } from '@ui/tone';
+
 export type QualityLook = { label: string; tone: ChipTone; lit: number };
 
 const KBPS_PER_MBPS = 1_000;

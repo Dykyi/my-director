@@ -1,7 +1,8 @@
 import type { CallStatus, PauseReason, SessionPhase } from '@modules/capture-core';
 
-export type Tone = 'normal' | 'secondary' | 'muted' | 'accent' | 'warning' | 'error';
-export type PillTone = 'neutral' | 'recording' | 'paused';
+import type { IconName } from '@ui/icons';
+import type { PillTone } from '@ui/status-pill';
+import type { TextTone } from '@ui/tone';
 
 export const PHASE_PILL: Record<SessionPhase, { label: string; tone: PillTone }> = {
   idle: { label: 'CAMERA OFF', tone: 'neutral' },
@@ -25,89 +26,89 @@ export const PHASE_PROGRESS: Partial<Record<SessionPhase, string>> = {
 
 export const PAUSE_REASON: Record<
   PauseReason,
-  { label: string; title: string; symbol: string; detail: string; isFault: boolean }
+  { label: string; title: string; icon: IconName; detail: string; isFault: boolean }
 > = {
   user: {
     label: 'by you',
     title: 'Paused by you',
-    symbol: 'pause.circle',
+    icon: 'pause-circle',
     detail: 'You paused the recording.',
     isFault: false,
   },
   phoneCall: {
     label: 'phone call',
     title: 'Paused for a phone call',
-    symbol: 'phone.fill',
+    icon: 'phone',
     detail: 'iOS took the microphone for the call.',
     isFault: false,
   },
   audioInterrupted: {
     label: 'audio taken',
     title: 'Paused: another app took the audio',
-    symbol: 'speaker.slash.fill',
+    icon: 'volume-off',
     detail: 'Another app took the audio.',
     isFault: false,
   },
   appBackground: {
     label: 'in background',
     title: 'Paused in the background',
-    symbol: 'house.fill',
+    icon: 'home',
     detail: 'The app went to the background, where iOS stops the camera.',
     isFault: false,
   },
   screenLocked: {
     label: 'screen locked',
     title: 'Paused: the screen locked',
-    symbol: 'lock.fill',
+    icon: 'lock',
     detail: 'The screen locked, and iOS stopped the camera.',
     isFault: false,
   },
   cameraInterrupted: {
     label: 'camera taken',
     title: 'Paused: the camera was taken',
-    symbol: 'video.slash.fill',
+    icon: 'video-off',
     detail: 'iOS gave the camera to something else.',
     isFault: false,
   },
   cameraError: {
     label: 'camera error',
     title: 'Paused: camera error',
-    symbol: 'exclamationmark.triangle.fill',
+    icon: 'warning',
     detail: 'The camera reported an error.',
     isFault: true,
   },
   cameraStalled: {
     label: 'camera stopped',
     title: 'Paused: the camera stopped',
-    symbol: 'video.slash.fill',
+    icon: 'video-off',
     detail: 'The camera stopped delivering frames.',
     isFault: true,
   },
   micStalled: {
     label: 'mic stopped',
     title: 'Paused: the microphone stopped',
-    symbol: 'mic.slash.fill',
+    icon: 'mic-off',
     detail: 'The microphone stopped delivering audio.',
     isFault: true,
   },
   fileError: {
     label: 'file error',
     title: 'Paused: the file failed',
-    symbol: 'externaldrive.badge.exclamationmark',
+    icon: 'disk',
     detail: 'Writing the file failed.',
     isFault: true,
   },
   diskFull: {
     label: 'disk full',
     title: 'Paused: the phone is full',
-    symbol: 'externaldrive.fill',
+    icon: 'disk',
     detail: 'The phone ran out of space.',
     isFault: true,
   },
   mediaServicesReset: {
     label: 'media reset',
     title: 'Paused: iOS reset its media',
-    symbol: 'arrow.clockwise.circle',
+    icon: 'rotate',
     detail: 'iOS restarted its media services.',
     isFault: true,
   },
@@ -117,7 +118,10 @@ export function participantNames({ participants }: CallStatus): string[] {
   return participants.map((participant) => participant.identity);
 }
 
-export function describeCall(call: CallStatus, inSession: boolean): { text: string; tone: Tone } {
+export function describeCall(
+  call: CallStatus,
+  inSession: boolean,
+): { text: string; tone: TextTone } {
   switch (call.state) {
     case 'connected': {
       const names = participantNames(call);

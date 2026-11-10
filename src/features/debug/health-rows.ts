@@ -6,10 +6,11 @@ import type {
 } from '@modules/capture-core';
 
 import { sendingText } from '@features/capture/call-labels';
-import { litBars, participantNames, type Tone } from '@features/capture/session-labels';
+import { litBars, participantNames } from '@features/capture/session-labels';
 import { formatBytes } from '@shared/format';
+import type { TextTone } from '@ui/tone';
 
-export type HealthRow = { label: string; value: string; tone: Tone; meterBars?: number };
+export type HealthRow = { label: string; value: string; tone: TextTone; meterBars?: number };
 
 const MIC_SILENT_AFTER_MS = 1_000;
 const MS_PER_SEC = 1_000;
@@ -75,7 +76,7 @@ function roomRow(call: CallStatus): HealthRow {
     : { label: 'Room', value: `${call.room} · nobody else yet`, tone: 'warning' };
 }
 
-const routeTone = (port: string): Tone => (port.includes(BLUETOOTH_PORT) ? 'accent' : 'normal');
+const routeTone = (port: string): TextTone => (port.includes(BLUETOOTH_PORT) ? 'accent' : 'normal');
 
 export function healthRows(
   health: HealthSnapshot,
