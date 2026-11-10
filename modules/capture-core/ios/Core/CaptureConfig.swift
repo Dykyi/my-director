@@ -145,7 +145,7 @@ struct CaptureConfig: Codable, Equatable, Sendable {
     ),
     audio: Audio(noiseSuppression: true, autoGainControl: true, resyncThresholdMs: 40),
     session: Session(resumePolicy: .manual, heartbeatIntervalSec: 0.5, resumeTimeoutMs: 3000),
-    health: Health(videoStallMs: 1000, audioStallMs: 500, fileStallMs: 5000, micRestartGraceMs: 3000),
+    health: Health(videoStallMs: 1000, audioStallMs: 1000, fileStallMs: 5000, micRestartGraceMs: 3000),
     storage: Storage(minFreeSpaceToStartMB: 2048, lowSpaceWarningMB: 1024, criticalFreeSpaceMB: 300)
   )
 }

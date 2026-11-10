@@ -5,6 +5,7 @@ final class AudioRouteMonitor {
   private let log: EventLog
   private var observer: NSObjectProtocol?
   private(set) var current = AudioRoute.unknown
+  private(set) var lastInputChangeAt: Double?
 
   nonisolated init(log: EventLog) {
     self.log = log
@@ -27,6 +28,7 @@ final class AudioRouteMonitor {
     let previous = notification.userInfo?[AVAudioSessionRouteChangePreviousRouteKey] as? AVAudioSessionRouteDescription
     let from = previous.map { AudioRoute($0) } ?? current
     current = AudioRoute(AVAudioSession.sharedInstance().currentRoute)
+    if from.input != current.input { lastInputChangeAt = HostClock.now() }
     log.info("audio", "Audio route changed", [
       "reason": rawReason.flatMap { AVAudioSession.RouteChangeReason(rawValue: $0) }.map(\.logName) ?? "missing",
       "fromInput": from.input,

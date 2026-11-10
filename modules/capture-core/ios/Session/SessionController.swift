@@ -488,7 +488,8 @@ final class SessionController {
   private func healthTick() {
     let now = HostClock.now()
     let stats = pipeline.statsSnapshot
-    let restartedAt = microphone.lastEngineStopAt.map { [Pipeline.microphone: $0] } ?? [:]
+    let micRestart = [microphone.lastEngineStopAt, routeMonitor.lastInputChangeAt].compactMap { $0 }.max()
+    let restartedAt = micRestart.map { [Pipeline.microphone: $0] } ?? [:]
     for edge in healthMonitor.evaluate(now: now, lastBeats: pipeline.heartbeats.snapshot(), watched: watched, restartedAt: restartedAt) {
       handle(edge)
     }

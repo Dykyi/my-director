@@ -48,8 +48,8 @@ struct HealthMonitorTests {
   @Test func eachPipelineUsesItsThreshold() {
     var monitor = HealthMonitor(health: health)
     let edges = monitor.evaluate(
-      now: 10.6,
-      lastBeats: [.camera: 10, .microphone: 10, .fileBytes: 10],
+      now: 11.1,
+      lastBeats: [.camera: 10.5, .microphone: 10, .fileBytes: 10],
       watched: [.camera: 0, .microphone: 0, .fileBytes: 0]
     )
     #expect(edges == [HealthEdge(pipeline: .microphone, stalled: true)])
@@ -62,6 +62,18 @@ struct HealthMonitorTests {
       let now = Double(step) * Self.tick
       let lastBeat = now < 5 || now >= 6.5 ? now : 4.9
       edges += monitor.evaluate(now: now, lastBeats: [.microphone: lastBeat], watched: [.microphone: 0], restartedAt: [.microphone: 5])
+    }
+    #expect(edges.isEmpty)
+  }
+
+  @Test func bluetoothRouteSwitchIsNotAStall() {
+    var monitor = HealthMonitor(health: health)
+    var edges: [HealthEdge] = []
+    for step in 0..<40 {
+      let now = Double(step) * Self.tick
+      let lastBeat = now < 5 || now >= 7.1 ? now : 4.9
+      let routeChanged: [Pipeline: Double] = now >= 5.6 ? [.microphone: 5.6] : [:]
+      edges += monitor.evaluate(now: now, lastBeats: [.microphone: lastBeat], watched: [.microphone: 0], restartedAt: routeChanged)
     }
     #expect(edges.isEmpty)
   }
@@ -79,14 +91,14 @@ struct HealthMonitorTests {
     var monitor = HealthMonitor(health: health)
     let restart: [Pipeline: Double] = [.microphone: 5]
     #expect(monitor.evaluate(now: 6.4, lastBeats: [.microphone: 6.2], watched: [.microphone: 0], restartedAt: restart).isEmpty)
-    #expect(monitor.evaluate(now: 6.8, lastBeats: [.microphone: 6.2], watched: [.microphone: 0], restartedAt: restart)
+    #expect(monitor.evaluate(now: 7.3, lastBeats: [.microphone: 6.2], watched: [.microphone: 0], restartedAt: restart)
       == [HealthEdge(pipeline: .microphone, stalled: true)])
   }
 
   @Test func restartCoversOnlyThePipelinesItNames() {
     var monitor = HealthMonitor(health: health)
     let edges = monitor.evaluate(
-      now: 5.8,
+      now: 6.0,
       lastBeats: [.microphone: 4.9, .fileAudio: 4.9],
       watched: [.microphone: 0, .fileAudio: 0],
       restartedAt: [.microphone: 5]
