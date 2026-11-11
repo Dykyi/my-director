@@ -25,7 +25,9 @@ def packet_times(path: Path, stream: str = "v:0") -> list[float]:
 
 
 def decode_errors(path: Path) -> list[str]:
-    command = ["ffmpeg", "-v", "error", "-i", str(path), "-f", "null", "-"]
+    # The null output keeps the file's time base: on its default 1/fps grid two frames
+    # that came closer than one frame apart share a timestamp and read as an error.
+    command = ["ffmpeg", "-v", "error", "-i", str(path), "-enc_time_base:v", "demux", "-f", "null", "-"]
     result = subprocess.run(command, capture_output=True, text=True)
     errors = [line for line in result.stderr.splitlines() if line.strip()]
     if result.returncode != 0:
