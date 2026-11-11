@@ -21,6 +21,8 @@
     "interviewer": "yarn workspace @mydirector/interviewer start",
     "mobile": "yarn workspace @mydirector/mobile",
     "upload-api": "yarn workspace @mydirector/upload-api",
+    "deploy:api": "yarn workspace @mydirector/upload-api deploy",
+    "tail:api": "yarn workspace @mydirector/upload-api tail",
     "test": "yarn workspaces foreach --all --exclude mydirector --verbose run test",
     "typecheck": "yarn workspaces foreach --all --exclude mydirector --verbose run typecheck",
     "test:verify": "tools/verify/.venv/bin/pytest tools/verify/tests",

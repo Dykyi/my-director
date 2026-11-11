@@ -5,7 +5,9 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "deploy": "wrangler deploy",
+    "deploy": "wrangler deploy --env-file ../../.env.local",
+    "dev": "wrangler dev --env-file ../../.env.local",
+    "tail": "wrangler tail --env-file ../../.env.local",
     "types": "wrangler types",
     "presign": "node --env-file=../../.env.local scripts/presign-get.mjs",
     "watch-parts": "node --env-file=../../apps/mobile/.env.local scripts/watch-parts.mjs",
