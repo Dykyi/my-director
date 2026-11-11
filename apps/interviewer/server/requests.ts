@@ -3,7 +3,7 @@ import type { VoiceCatalog } from './voice-catalog.ts';
 const MAX_NAME_LENGTH = 64;
 /** Room and participant names LiveKit accepts and a URL never needs escaping for. */
 const NAME = new RegExp(`^[A-Za-z0-9_-]{1,${MAX_NAME_LENGTH}}$`);
-const MAX_SPEECH_CHARS = 500;
+export const MAX_SPEECH_CHARS = 500;
 
 export class RequestError extends Error {}
 

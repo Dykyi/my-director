@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { formatClock, pauseTitle, qualityOf, statsLine } from './labels.ts';
+import { formatClock, formatMinutes, pauseTitle, qualityOf, statsLine } from './labels.ts';
 
 describe('labels', () => {
   it('says why the phone paused, and just that it paused for an unknown reason', () => {
@@ -29,4 +29,9 @@ describe('labels', () => {
   });
 
   it('formats clocks', () => assert.equal(formatClock(252.9), '4:12'));
+
+  it('formats the reading time with two-digit minutes', () => {
+    assert.equal(formatMinutes(192.5), '03:12');
+    assert.equal(formatMinutes(600), '10:00');
+  });
 });

@@ -1,30 +1,54 @@
 import { byId, setDisabled, setHidden } from './dom.ts';
-import { parseScript } from './question-run.ts';
+
+export interface ScriptEditorIds {
+  list: string;
+  editor: string;
+  text: string;
+  edit: string;
+  save: string;
+  cancel: string;
+  reset: string;
+}
+
+export interface ScriptFormat {
+  parse(text: string): string[];
+  separator: string;
+}
 
 export class ScriptEditor {
-  questions: readonly string[] = [];
-  readonly #text = byId<HTMLTextAreaElement>('scriptText');
+  items: readonly string[] = [];
+  readonly #ids: ScriptEditorIds;
+  readonly #format: ScriptFormat;
+  readonly #text: HTMLTextAreaElement;
 
-  constructor(defaultScript: string, save: (text: string) => void) {
-    byId('editScriptButton').onclick = () => this.#show(true);
-    byId('cancelScriptButton').onclick = () => this.#show(false);
-    byId('defaultScriptButton').onclick = () => {
-      this.#text.value = defaultScript.trim();
-      setDisabled('saveScriptButton', false);
+  constructor(
+    ids: ScriptEditorIds,
+    format: ScriptFormat,
+    defaultText: string,
+    save: (text: string) => void,
+  ) {
+    this.#ids = ids;
+    this.#format = format;
+    this.#text = byId<HTMLTextAreaElement>(ids.text);
+    byId(ids.edit).onclick = () => this.#show(true);
+    byId(ids.cancel).onclick = () => this.#show(false);
+    byId(ids.reset).onclick = () => {
+      this.#text.value = defaultText.trim();
+      setDisabled(ids.save, false);
     };
-    this.#text.oninput = () =>
-      setDisabled('saveScriptButton', parseScript(this.#text.value).length === 0);
-    byId('saveScriptButton').onclick = () => {
+    this.#text.oninput = () => setDisabled(ids.save, format.parse(this.#text.value).length === 0);
+    byId(ids.save).onclick = () => {
       save(this.#text.value);
       this.#show(false);
     };
   }
 
   #show(open: boolean): void {
-    setHidden('scriptEditor', !open);
-    setHidden('questionList', open);
-    setHidden('editScriptButton', open);
-    if (open) this.#text.value = this.questions.join('\n');
-    setDisabled('saveScriptButton', false);
+    const ids = this.#ids;
+    setHidden(ids.editor, !open);
+    setHidden(ids.list, open);
+    setHidden(ids.edit, open);
+    if (open) this.#text.value = this.items.join(this.#format.separator);
+    setDisabled(ids.save, false);
   }
 }

@@ -86,14 +86,14 @@
             </svg>
             <span id="pausedTitle" class="paused-title"></span>
             <span class="paused-text">
-              Its camera and microphone are muted, and its recording is safe. Questions wait until
-              the phone resumes.
+              Its camera and microphone are muted, and its recording is safe. The questions or the
+              reading wait until the phone resumes.
             </span>
             <span id="pausedMeta" class="mono muted"></span>
           </div>
         </section>
 
-        <section class="prompter" aria-label="Question">
+        <section id="questionPrompter" class="prompter" aria-label="Question">
           <div class="prompter-head">
             <span id="questionLabel" class="eyebrow"></span>
             <span id="questionState" class="muted small"></span>
@@ -123,11 +123,31 @@
             <span id="voiceLabel" class="voice-label"></span>
           </div>
         </section>
+
+        <section id="readingPrompter" class="prompter" aria-label="Reading" hidden>
+          <div class="prompter-head">
+            <span class="eyebrow">READING</span>
+            <span id="readingLabel" class="muted small"></span>
+            <span id="readingState" class="muted small"></span>
+            <span id="readingClock" class="prompter-quiet"></span>
+          </div>
+          <div id="readingText" class="reading-text"></div>
+          <div class="progress"><div id="readingProgress"></div></div>
+          <div class="prompter-actions">
+            <button id="readButton" class="button button-primary" type="button">
+              <svg class="icon icon-filled" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 4.5v15l12-7.5z" />
+              </svg>
+              <span id="readLabel">Start</span>
+            </button>
+            <span id="readingVoiceLabel" class="voice-label"></span>
+          </div>
+        </section>
       </main>
 
       <aside class="side">
         <nav class="tabs" role="tablist">
-          <button role="tab" type="button" data-tab="questions" aria-selected="true">
+          <button id="scriptTab" role="tab" type="button" data-tab="questions" aria-selected="true">
             Questions
           </button>
           <button role="tab" type="button" data-tab="session" aria-selected="false">Session</button>
@@ -135,27 +155,59 @@
         </nav>
 
         <section id="panel-questions" class="panel" role="tabpanel">
-          <div class="panel-head">
-            <span id="questionsSummary" class="muted small"></span>
-            <button id="editScriptButton" class="link" type="button">
-              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 20h4L19 9l-4-4L4 16z" />
-              </svg>
-              Edit script
-            </button>
+          <div id="questionsPane" class="pane">
+            <div class="panel-head">
+              <span id="questionsSummary" class="muted small"></span>
+              <button id="editScriptButton" class="link" type="button">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 20h4L19 9l-4-4L4 16z" />
+                </svg>
+                Edit script
+              </button>
+            </div>
+            <ol id="questionList" class="question-list"></ol>
+            <div id="scriptEditor" class="script-editor" hidden>
+              <textarea id="scriptText" aria-label="Script, one question per line"></textarea>
+              <span class="hint">One question per line. Saving starts the questions over.</span>
+              <div class="row">
+                <button id="saveScriptButton" class="button button-primary" type="button">
+                  Save
+                </button>
+                <button id="cancelScriptButton" class="button button-ghost" type="button">
+                  Cancel
+                </button>
+                <button id="defaultScriptButton" class="link" type="button">Default script</button>
+              </div>
+            </div>
           </div>
-          <ol id="questionList" class="question-list"></ol>
-          <div id="scriptEditor" class="script-editor" hidden>
-            <textarea id="scriptText" aria-label="Script, one question per line"></textarea>
-            <span class="hint">One question per line. Saving starts the questions over.</span>
-            <div class="row">
-              <button id="saveScriptButton" class="button button-primary" type="button">
-                Save
+          <div id="readingPane" class="pane" hidden>
+            <div class="panel-head">
+              <span id="readingSummary" class="muted small"></span>
+              <button id="editReadingButton" class="link" type="button">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 20h4L19 9l-4-4L4 16z" />
+                </svg>
+                Edit text
               </button>
-              <button id="cancelScriptButton" class="button button-ghost" type="button">
-                Cancel
-              </button>
-              <button id="defaultScriptButton" class="link" type="button">Default script</button>
+            </div>
+            <ol id="paragraphList" class="question-list paragraph-list"></ol>
+            <div id="readingEditor" class="script-editor" hidden>
+              <textarea
+                id="readingScript"
+                aria-label="Text to read, a blank line between paragraphs"
+              ></textarea>
+              <span class="hint"
+                >A blank line starts a new paragraph. Saving starts the reading over.</span
+              >
+              <div class="row">
+                <button id="saveReadingButton" class="button button-primary" type="button">
+                  Save
+                </button>
+                <button id="cancelReadingButton" class="button button-ghost" type="button">
+                  Cancel
+                </button>
+                <button id="defaultReadingButton" class="link" type="button">Default text</button>
+              </div>
             </div>
           </div>
         </section>
@@ -213,8 +265,8 @@
             <span>Room</span>
             <input name="room" class="mono" autocomplete="off" />
             <span class="hint"
-              >The phone joins the room set in its build. A new room or name applies on the next
-              Join.</span
+              >The phone joins the room the upload Worker names (LIVEKIT_ROOM). A new room or name
+              applies on the next Join.</span
             >
           </label>
           <div class="pair">
@@ -228,7 +280,17 @@
           </div>
         </section>
         <section class="settings-section">
-          <h3 class="eyebrow">QUESTIONS</h3>
+          <h3 class="eyebrow">QUESTIONS OR READING</h3>
+          <div class="field">
+            <span>Mode</span>
+            <div class="segmented">
+              <label><input type="radio" name="mode" value="questions" />Questions</label>
+              <label><input type="radio" name="mode" value="reading" />Reading</label>
+            </div>
+            <span class="hint"
+              >Reading reads a text aloud, paragraph after paragraph, for the set time.</span
+            >
+          </div>
           <div class="field">
             <span>Who asks</span>
             <div class="segmented">
@@ -243,12 +305,18 @@
               >Any voice installed on this Mac; each question is spoken once and kept.</span
             >
           </label>
-          <label class="field">
-            <span>Next question after quiet, seconds</span>
-            <input name="quietSec" class="mono" type="number" />
-          </label>
+          <div class="pair">
+            <label class="field">
+              <span>Next question after quiet, s</span>
+              <input name="quietSec" class="mono" type="number" />
+            </label>
+            <label class="field">
+              <span>Reading length, min</span>
+              <input name="readingMinutes" class="mono" type="number" />
+            </label>
+          </div>
           <label class="toggle-row">
-            <span class="toggle-label">Start the questions when the phone joins</span>
+            <span class="toggle-label">Start when the phone joins</span>
             <input name="startOnJoin" class="switch" type="checkbox" />
           </label>
           <label class="toggle-row">

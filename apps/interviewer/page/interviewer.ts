@@ -6,8 +6,10 @@ import { CallRecorder } from './call-recorder.ts';
 import { InterviewerView, type ViewActions } from './interviewer-view.ts';
 import { errorText } from './labels.ts';
 import { PhoneFeed } from './phone-feed.ts';
-import { QuestionFlow } from './question-flow.ts';
+import { QuestionFlow, type QuestionFlowHost } from './question-flow.ts';
 import { parseScript } from './question-run.ts';
+import { ReadingFlow } from './reading-flow.ts';
+import { parseParagraphs } from './reading-run.ts';
 import { RoomSession, type RoomListener, type RoomNames } from './room-session.ts';
 import { fetchDefaultScript, fetchRoomAccess, fetchVoices } from './server-api.ts';
 import { SettingsStore, type Settings } from './settings-store.ts';
@@ -17,6 +19,11 @@ import { buildViewState } from './view-state.ts';
 const REDRAW_MS = 100;
 const STATS_INTERVAL_MS = 1000;
 const SAMPLE_RATE = 48000;
+
+type PhoneFlow = Pick<
+  QuestionFlow,
+  'phoneReady' | 'phonePaused' | 'phoneResumed' | 'phoneLeft' | 'prefetchCurrent' | 'holdAutoStart'
+>;
 
 export class Interviewer {
   readonly #store = new SettingsStore(localStorage);
@@ -29,26 +36,31 @@ export class Interviewer {
   readonly #view: InterviewerView;
   readonly #asker: Asker;
   readonly #phone: PhoneFeed;
-  readonly #flow: QuestionFlow;
+  readonly #questions: QuestionFlow;
+  readonly #reading: ReadingFlow;
   #settings: Settings;
   #session: RoomSession | undefined;
   #joining = false;
 
-  private constructor(voices: readonly Voice[], defaultScript: string) {
+  private constructor(voices: readonly Voice[], defaultScript: string, defaultReading: string) {
     this.#settings = this.#store.load();
-    this.#view = new InterviewerView(this.#actions(), voices, defaultScript);
-    this.#asker = new Asker(this.#audioContext, this.#view.speech, () =>
-      this.#flow.questionSpoken(),
-    );
+    this.#view = new InterviewerView(this.#actions(), voices, {
+      script: defaultScript,
+      reading: defaultReading,
+    });
+    this.#asker = new Asker(this.#audioContext, this.#view.speech, () => this.#spoken());
     this.#phone = new PhoneFeed(this.#audioContext, this.#view.videoHost);
-    const questions = parseScript(this.#store.loadScript() ?? defaultScript);
-    this.#flow = new QuestionFlow(questions, this.#asker, {
+    const host: QuestionFlowHost = {
       settings: () => this.#settings,
       guest: Boolean(this.#guestName),
       phone: this.#phone,
       log: (message) => this.#log(message),
       changed: () => this.#render(),
-    });
+    };
+    const questions = parseScript(this.#store.loadScript() ?? defaultScript);
+    this.#questions = new QuestionFlow(questions, this.#asker, host);
+    const paragraphs = parseParagraphs(this.#store.loadReading() ?? defaultReading);
+    this.#reading = new ReadingFlow(paragraphs, this.#asker, host);
     this.#view.fillSettings(this.#settings);
     this.#render();
     setInterval(() => this.#tick(), REDRAW_MS);
@@ -58,9 +70,9 @@ export class Interviewer {
     );
   }
 
-  static async start(): Promise<Interviewer> {
+  static async start(defaultReading: string): Promise<Interviewer> {
     const [voices, defaultScript] = await Promise.all([fetchVoices(), fetchDefaultScript()]);
-    return new Interviewer(voices, defaultScript);
+    return new Interviewer(voices, defaultScript, defaultReading);
   }
 
   get #names(): RoomNames {
@@ -72,18 +84,30 @@ export class Interviewer {
     return this.#session !== undefined;
   }
 
+  get #flow(): PhoneFlow {
+    return this.#settings.mode === 'reading' ? this.#reading : this.#questions;
+  }
+
+  // A mode switch stops the voice, so the voice that ended belongs to the current mode.
+  #spoken(): void {
+    if (this.#settings.mode === 'reading') this.#reading.paragraphSpoken();
+    else this.#questions.questionSpoken();
+  }
+
   #actions(): ViewActions {
     return {
       toggleJoin: () => void (this.#session ? this.#leave() : this.#join()),
       join: () => void this.#join(),
-      ask: () => this.#flow.toggleAsk(),
-      previous: () => this.#flow.previous(),
-      next: () => this.#flow.next(),
-      select: (index) => this.#flow.select(index),
+      ask: () => this.#questions.toggleAsk(),
+      previous: () => this.#questions.previous(),
+      next: () => this.#questions.next(),
+      select: (index) => this.#questions.select(index),
+      read: () => this.#reading.toggle(),
       toggleRecording: () => this.#toggleRecording(),
       hear: (on) => this.#setHearPhone(on),
       settingsEdited: () => this.#settingsEdited(),
       saveScript: (text) => this.#saveScript(text),
+      saveReading: (text) => this.#saveReading(text),
       downloadCsv: () => this.#stats.download(),
       reset: () => {
         this.#store.reset();
@@ -191,9 +215,17 @@ export class Interviewer {
 
   #saveScript(text: string): void {
     const questions = parseScript(text);
-    this.#flow.replaceScript(questions);
+    this.#questions.replaceScript(questions);
     this.#store.saveScript(questions.join('\n'));
     this.#log(`Script saved: ${questions.length} questions`);
+    this.#render();
+  }
+
+  #saveReading(text: string): void {
+    const paragraphs = parseParagraphs(text);
+    this.#reading.replaceText(paragraphs);
+    this.#store.saveReading(paragraphs.join('\n\n'));
+    this.#log(`Text saved: ${paragraphs.length} paragraphs`);
     this.#render();
   }
 
@@ -224,8 +256,14 @@ export class Interviewer {
     this.#view.fillSettings(this.#settings);
     this.#store.save(this.#settings);
     if (this.#settings.asker !== before.asker) {
-      this.#flow.stop();
+      this.#questions.stop();
       void this.#syncMicrophone();
+    }
+    if (this.#settings.mode !== before.mode) {
+      this.#questions.stop();
+      this.#reading.stop();
+      // The phone joined before this mode began, so it starts on Ask or Start, not on a resume.
+      if (this.#phone.ready || this.#phone.paused) this.#flow.holdAutoStart();
     }
     this.#flow.prefetchCurrent();
     this.#render();
@@ -241,7 +279,7 @@ export class Interviewer {
 
   #tick(): void {
     const now = performance.now();
-    this.#flow.tick(this.#phone.measure(), now);
+    this.#questions.tick(this.#phone.measure(), now);
     this.#render();
   }
 
@@ -259,8 +297,9 @@ export class Interviewer {
       session: this.#session,
       settings: this.#settings,
       phone: this.#phone,
-      run: this.#flow.run,
-      quiet: this.#flow.quiet,
+      run: this.#questions.run,
+      quiet: this.#questions.quiet,
+      reading: this.#reading,
       asker: this.#asker,
       recorder: this.#recorder,
       stats: this.#stats,

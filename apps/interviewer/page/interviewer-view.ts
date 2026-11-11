@@ -2,7 +2,9 @@ import type { Voice } from '../server/voice-catalog.ts';
 import { litBars } from './audio-level.ts';
 import { byId, ContentKey, setClass, setDisabled, setHidden, setText, writeText } from './dom.ts';
 import { qualityOf } from './labels.ts';
-import { ScriptEditor } from './script-editor.ts';
+import { parseScript } from './question-run.ts';
+import { parseParagraphs } from './reading-run.ts';
+import { ScriptEditor, type ScriptEditorIds, type ScriptFormat } from './script-editor.ts';
 import { SettingsForm } from './settings-form.ts';
 import type { Settings } from './settings-store.ts';
 import {
@@ -14,6 +16,27 @@ import {
 
 const METER_BARS = 12;
 const PERCENT = 100;
+
+const SCRIPT_EDITOR: ScriptEditorIds = {
+  list: 'questionList',
+  editor: 'scriptEditor',
+  text: 'scriptText',
+  edit: 'editScriptButton',
+  save: 'saveScriptButton',
+  cancel: 'cancelScriptButton',
+  reset: 'defaultScriptButton',
+};
+const READING_EDITOR: ScriptEditorIds = {
+  list: 'paragraphList',
+  editor: 'readingEditor',
+  text: 'readingScript',
+  edit: 'editReadingButton',
+  save: 'saveReadingButton',
+  cancel: 'cancelReadingButton',
+  reset: 'defaultReadingButton',
+};
+const ONE_PER_LINE: ScriptFormat = { parse: parseScript, separator: '\n' };
+const BLANK_LINE_BETWEEN: ScriptFormat = { parse: parseParagraphs, separator: '\n\n' };
 
 const CONNECTION_CHIP: Record<ConnectionTone, string> = {
   idle: 'chip',
@@ -28,17 +51,25 @@ export interface ViewActions {
   previous(): void;
   next(): void;
   select(index: number): void;
+  read(): void;
   toggleRecording(): void;
   hear(on: boolean): void;
   settingsEdited(): void;
   saveScript(text: string): void;
+  saveReading(text: string): void;
   downloadCsv(): void;
   reset(): void;
 }
 
 const code = (text: string) => Object.assign(document.createElement('code'), { textContent: text });
-const chip = (text: string) =>
-  Object.assign(document.createElement('span'), { className: 'chip', textContent: text });
+const span = (className: string, text: string) =>
+  Object.assign(document.createElement('span'), { className, textContent: text });
+const chip = (text: string) => span('chip', text);
+
+export interface DefaultTexts {
+  script: string;
+  reading: string;
+}
 
 export class InterviewerView {
   readonly speech = byId<HTMLAudioElement>('speech');
@@ -47,16 +78,26 @@ export class InterviewerView {
   readonly #meterBars = Array.from({ length: METER_BARS }, () => document.createElement('i'));
   readonly #sessionCells: Record<SessionRow, HTMLTableCellElement>;
   readonly #scriptEditor: ScriptEditor;
+  readonly #readingEditor: ScriptEditor;
   readonly #emptyContent = new ContentKey();
   readonly #listContent = new ContentKey();
+  readonly #paragraphContent = new ContentKey();
 
-  constructor(actions: ViewActions, voices: readonly Voice[], defaultScript: string) {
+  constructor(actions: ViewActions, voices: readonly Voice[], defaults: DefaultTexts) {
     byId('meterBars').replaceChildren(...this.#meterBars);
     this.#sessionCells = this.#buildSessionTable();
     this.#settingsForm = new SettingsForm(byId('settingsForm'), voices, () =>
       actions.settingsEdited(),
     );
-    this.#scriptEditor = new ScriptEditor(defaultScript, (text) => actions.saveScript(text));
+    this.#scriptEditor = new ScriptEditor(SCRIPT_EDITOR, ONE_PER_LINE, defaults.script, (text) =>
+      actions.saveScript(text),
+    );
+    this.#readingEditor = new ScriptEditor(
+      READING_EDITOR,
+      BLANK_LINE_BETWEEN,
+      defaults.reading,
+      (text) => actions.saveReading(text),
+    );
     this.#bind(actions);
   }
 
@@ -77,8 +118,10 @@ export class InterviewerView {
   render(state: ViewState): void {
     this.#renderHeader(state);
     this.#renderStage(state);
+    this.#renderMode(state);
     this.#renderPrompter(state);
     this.#renderQuestions(state);
+    this.#renderReading(state);
     this.#renderSessionPanel(state);
   }
 
@@ -140,6 +183,15 @@ export class InterviewerView {
     byId('emptyChips').replaceChildren(...(inRoom ? autoStartChips.map(chip) : []));
   }
 
+  #renderMode({ mode }: ViewState): void {
+    const reading = mode === 'reading';
+    setHidden('questionPrompter', reading);
+    setHidden('questionsPane', reading);
+    setHidden('readingPrompter', !reading);
+    setHidden('readingPane', !reading);
+    setText('scriptTab', reading ? 'Text' : 'Questions');
+  }
+
   #renderPrompter({ prompter }: ViewState): void {
     setText('questionLabel', prompter.label);
     setText('questionText', prompter.text);
@@ -155,7 +207,7 @@ export class InterviewerView {
 
   /** Rebuilt only when the script, the current question or the marks change, so a click is never lost. */
   #renderQuestions({ questions }: ViewState): void {
-    this.#scriptEditor.questions = questions.list;
+    this.#scriptEditor.items = questions.list;
     if (!this.#listContent.changed([questions.list, questions.current, [...questions.asked]]))
       return;
     setText('questionsSummary', `${questions.asked.size} of ${questions.list.length} asked`);
@@ -171,6 +223,28 @@ export class InterviewerView {
         });
         item.append(mark, text);
         item.dataset.index = String(index);
+        return item;
+      }),
+    );
+  }
+
+  #renderReading({ reading }: ViewState): void {
+    setText('readingLabel', reading.label);
+    setText('readingState', reading.state);
+    setText('readingClock', reading.clock);
+    setText('readingText', reading.text);
+    byId('readingProgress').style.width = `${reading.progress * PERCENT}%`;
+    setText('readLabel', reading.startLabel);
+    setDisabled('readButton', !reading.canStart);
+    setText('readingVoiceLabel', reading.voice);
+    setText('readingSummary', reading.label);
+    this.#readingEditor.items = reading.paragraphs;
+    if (!this.#paragraphContent.changed([reading.paragraphs, reading.current])) return;
+    byId('paragraphList').replaceChildren(
+      ...reading.paragraphs.map((text, index) => {
+        const item = document.createElement('li');
+        item.classList.toggle('is-current', index === reading.current);
+        item.append(span('mark', String(index + 1)), span('line', text));
         return item;
       }),
     );
@@ -198,6 +272,7 @@ export class InterviewerView {
       const index = (event.target as HTMLElement).closest('li')?.dataset.index;
       if (index !== undefined) actions.select(Number(index));
     };
+    byId('readButton').onclick = () => actions.read();
     byId('recordButton').onclick = () => actions.toggleRecording();
     byId<HTMLInputElement>('hearToggle').onchange = (event) =>
       actions.hear((event.target as HTMLInputElement).checked);

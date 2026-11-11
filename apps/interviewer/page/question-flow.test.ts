@@ -64,6 +64,17 @@ describe('QuestionFlow', () => {
     assert.deepEqual(guest.asker.spoken, []);
   });
 
+  it('does not start by itself when it takes over with the phone already here', () => {
+    const { flow, asker, phone } = setUp();
+    flow.holdAutoStart();
+    phone.paused = true;
+    flow.phonePaused();
+    phone.paused = false;
+    flow.phoneResumed();
+    flow.phoneReady();
+    assert.deepEqual(asker.spoken, []);
+  });
+
   it('moves to the next question after quiet from the phone', async () => {
     const { flow, asker, finishSpeaking } = setUp();
     flow.phoneReady();

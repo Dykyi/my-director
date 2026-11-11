@@ -484,6 +484,11 @@ code,
   font: var(--text-prompter);
 }
 
+.reading-text {
+  min-height: 64px;
+  font: var(--text-body);
+}
+
 .progress {
   height: 4px;
   border-radius: var(--radius-bar);
@@ -616,6 +621,27 @@ code,
 .is-asked .mark {
   background: var(--color-success-soft);
   color: var(--color-success);
+}
+
+.paragraph-list li {
+  cursor: default;
+}
+
+.paragraph-list li:hover {
+  background: none;
+}
+
+.paragraph-list .line {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
 }
 
 .script-editor {

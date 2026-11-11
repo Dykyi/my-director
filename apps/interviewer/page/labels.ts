@@ -52,5 +52,10 @@ export function formatClock(totalSec: number): string {
   return `${Math.floor(sec / SECONDS_PER_MINUTE)}:${seconds}`;
 }
 
+const MINUTES_CLOCK_LENGTH = 'mm:ss'.length;
+
+export const formatMinutes = (totalSec: number): string =>
+  formatClock(totalSec).padStart(MINUTES_CLOCK_LENGTH, '0');
+
 export const errorText = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);

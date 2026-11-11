@@ -10,6 +10,7 @@ import {
 } from 'livekit-client';
 
 import type { RoomAccess } from '../server/token-service.ts';
+import { displayName, isPhoneIdentity } from './phone-identity.ts';
 
 /** Set by the phone before it mutes (CallPublisher.swift). */
 const PAUSE_REASON = 'pauseReason';
@@ -34,6 +35,7 @@ export interface RoomListener {
 export class RoomSession {
   readonly names: RoomNames;
   readonly #room: Room;
+  #followed: RemoteParticipant | undefined;
   #reconnecting = false;
 
   private constructor(room: Room, names: RoomNames, listener: RoomListener) {
@@ -47,8 +49,8 @@ export class RoomSession {
     names: RoomNames,
     sent: MediaStream,
     listener: RoomListener,
+    room = new Room({ adaptiveStream: false, dynacast: false }),
   ): Promise<RoomSession> {
-    const room = new Room({ adaptiveStream: false, dynacast: false });
     const session = new RoomSession(room, names, listener);
     try {
       await room.connect(access.url, access.token);
@@ -73,6 +75,11 @@ export class RoomSession {
     return this.#phone?.connectionQuality ?? ConnectionQuality.Unknown;
   }
 
+  get phoneName(): string | undefined {
+    const phone = this.#phone;
+    return phone && displayName(phone);
+  }
+
   get pauseReason(): string {
     return this.#phone?.attributes[PAUSE_REASON] ?? '';
   }
@@ -87,12 +94,21 @@ export class RoomSession {
     return this.#room.disconnect();
   }
 
+  // The first phone by join order, kept until its own leave event: LiveKit drops
+  // a leaving participant from the room before it sends that participant's last events.
   get #phone(): RemoteParticipant | undefined {
-    return this.#room.remoteParticipants.get(this.names.phone);
+    this.#followed ??= [...this.#room.remoteParticipants.values()].find((participant) =>
+      this.#hasPhoneIdentity(participant),
+    );
+    return this.#followed;
+  }
+
+  #hasPhoneIdentity(participant: Participant): boolean {
+    return isPhoneIdentity(participant.identity, this.names.phone);
   }
 
   #isPhone(participant: Participant): boolean {
-    return participant.identity === this.names.phone;
+    return participant === this.#phone;
   }
 
   #isPhoneVideo(publication: TrackPublication, participant: Participant): boolean {
@@ -118,18 +134,39 @@ export class RoomSession {
         this.#followPauseWithoutVideo(participant, listener);
         listener.changed();
       })
+      .on(RoomEvent.ParticipantNameChanged, (name, participant) => {
+        if (!this.#isPhone(participant)) return;
+        listener.log(`The phone is now named ${name}`);
+        listener.changed();
+      })
       .on(RoomEvent.ConnectionQualityChanged, () => listener.changed())
       .on(RoomEvent.ParticipantConnected, (participant) => {
-        listener.log(`${participant.identity} joined`);
+        if (this.#hasPhoneIdentity(participant) && !this.#isPhone(participant)) {
+          const name = `${displayName(participant)} (${participant.identity})`;
+          listener.log(`Another phone joined: ${name}, following the first`);
+        } else listener.log(`${participant.identity} joined`);
         this.#followPauseWithoutVideo(participant, listener);
       })
       .on(RoomEvent.ParticipantDisconnected, (participant) => {
         listener.log(`${participant.identity} left`);
-        if (this.#isPhone(participant)) listener.phoneLeft();
+        if (!this.#isPhone(participant)) return;
+        this.#followed = undefined;
+        listener.phoneLeft();
+        this.#followNext(listener);
       })
       .on(RoomEvent.Reconnecting, () => this.#setReconnecting(true, listener))
       .on(RoomEvent.Reconnected, () => this.#setReconnecting(false, listener))
       .on(RoomEvent.Disconnected, () => listener.left());
+  }
+
+  // A phone already in the room sent its tracks while another one was followed.
+  #followNext(listener: RoomListener): void {
+    const phone = this.#phone;
+    if (!phone) return;
+    listener.log(`Now following ${displayName(phone)} (${phone.identity})`);
+    for (const { track, isMuted } of phone.trackPublications.values())
+      if (track) listener.phoneTrack(track, isMuted);
+    this.#followPauseWithoutVideo(phone, listener);
   }
 
   #followPauseWithoutVideo(participant: Participant, listener: RoomListener): void {

@@ -1,10 +1,11 @@
 import { levelDb } from './audio-level.ts';
-import { formatClock, orDash, pauseTitle, qualityOf, statsLine } from './labels.ts';
+import { formatClock, formatMinutes, orDash, pauseTitle, qualityOf, statsLine } from './labels.ts';
 import type { PauseClock } from './pause-clock.ts';
 import type { QuestionRun } from './question-run.ts';
 import type { QuietTimer } from './quiet-timer.ts';
+import { readingLimitMs, type ReadingRun } from './reading-run.ts';
 import type { RoomNames } from './room-session.ts';
-import type { Settings } from './settings-store.ts';
+import type { FlowMode, Settings } from './settings-store.ts';
 import type { PhoneStats } from './stats-collector.ts';
 
 const MS_PER_SECOND = 1000;
@@ -53,6 +54,19 @@ export interface ViewState {
     voice: string;
   };
   questions: { list: readonly string[]; current: number; asked: ReadonlySet<number> };
+  mode: FlowMode;
+  reading: {
+    label: string;
+    text: string;
+    clock: string;
+    state: string;
+    progress: number;
+    startLabel: string;
+    canStart: boolean;
+    voice: string;
+    paragraphs: readonly string[];
+    current: number;
+  };
   recording: { clock: string | undefined; label: string; enabled: boolean };
   session: Record<SessionRow, string>;
   canDownloadCsv: boolean;
@@ -62,7 +76,9 @@ export interface PageSnapshot {
   names: RoomNames;
   guest: boolean;
   joining: boolean;
-  session: { reconnecting: boolean; quality: string; pauseReason: string } | undefined;
+  session:
+    | { reconnecting: boolean; quality: string; pauseReason: string; phoneName: string | undefined }
+    | undefined;
   settings: Settings;
   phone: {
     video: unknown;
@@ -73,6 +89,7 @@ export interface PageSnapshot {
   };
   run: QuestionRun;
   quiet: QuietTimer;
+  reading: { run: ReadingRun; running: boolean };
   asker: { speaking: boolean; progress: { atSec: number; lengthSec: number } };
   recorder: { startedAt: number | undefined };
   stats: { latest: PhoneStats; rowCount: number };
@@ -86,20 +103,25 @@ export interface Clocks {
 
 const clockSince = (at: number, now: number) => formatClock((now - at) / MS_PER_SECOND);
 
+// The phone's own name once it is in the room, the phone setting before that.
+const phoneName = ({ session, names }: PageSnapshot): string => session?.phoneName ?? names.phone;
+
 function connection(page: PageSnapshot): ViewState['connection'] {
-  const { joining, session, phone, names } = page;
+  const { joining, session, phone } = page;
+  const name = phoneName(page);
   if (joining) return { text: 'Joining…', tone: 'idle' };
   if (!session) return { text: 'Not in the room', tone: 'idle' };
   if (session.reconnecting) return { text: 'Reconnecting', tone: 'paused' };
-  if (phone.pauses.paused) return { text: `${names.phone} paused`, tone: 'paused' };
-  if (!phone.video) return { text: `Connected · waiting for ${names.phone}`, tone: 'live' };
-  return { text: `Live with ${names.phone}`, tone: 'live' };
+  if (phone.pauses.paused) return { text: `${name} paused`, tone: 'paused' };
+  if (!phone.video) return { text: `Connected · waiting for ${name}`, tone: 'live' };
+  return { text: `Live with ${name}`, tone: 'live' };
 }
 
 function autoStartChips({ guest, settings }: PageSnapshot): string[] {
   if (guest) return [];
   const chips = [];
-  if (settings.startOnJoin) chips.push('Questions start on join');
+  if (settings.startOnJoin)
+    chips.push(settings.mode === 'reading' ? 'Reading starts on join' : 'Questions start on join');
   if (settings.recordOnJoin) chips.push('Auto record on join');
   return chips;
 }
@@ -131,6 +153,33 @@ function prompter(page: PageSnapshot, now: Clocks): ViewState['prompter'] {
   };
 }
 
+function readingState({ reading, phone }: PageSnapshot): string {
+  if (!reading.running) return '';
+  if (phone.pauses.paused) return 'Waits for the phone to resume';
+  return phone.video && phone.audio ? '' : 'Waits for the phone';
+}
+
+function reading(page: PageSnapshot, now: Clocks): ViewState['reading'] {
+  const { run, running } = page.reading;
+  const { phone } = page;
+  const phoneRecords = Boolean(phone.video && phone.audio) && !phone.pauses.paused;
+  const limitMs = readingLimitMs(page.settings.readingMinutes);
+  const elapsedMs = run.elapsedMs(now.monotonicMs);
+  const minutes = (ms: number) => formatMinutes(ms / MS_PER_SECOND);
+  return {
+    label: `Paragraph ${run.current + 1} of ${run.paragraphs.length}`,
+    text: run.text,
+    clock: `${minutes(elapsedMs)} of ${minutes(limitMs)}`,
+    state: readingState(page),
+    progress: Math.min(1, elapsedMs / limitMs),
+    startLabel: running ? 'Stop' : 'Start',
+    canStart: running || phoneRecords,
+    voice: `${page.settings.voice}, reading`,
+    paragraphs: run.paragraphs,
+    current: run.current,
+  };
+}
+
 function recording(page: PageSnapshot, now: Clocks): ViewState['recording'] {
   const { startedAt } = page.recorder;
   if (startedAt !== undefined) {
@@ -147,12 +196,12 @@ function recording(page: PageSnapshot, now: Clocks): ViewState['recording'] {
 }
 
 function sessionRows(page: PageSnapshot, quality: string, now: Clocks): Record<SessionRow, string> {
-  const { phone, run, stats, recorder, names } = page;
+  const { phone, run, stats, recorder } = page;
   const { latest } = stats;
   const { joinedAt, pauses } = phone;
   return {
     phone:
-      phone.video || pauses.paused ? `${names.phone}, ${qualityOf(quality).label}` : 'not here',
+      phone.video || pauses.paused ? `${phoneName(page)}, ${qualityOf(quality).label}` : 'not here',
     inRoom: joinedAt === undefined ? '-' : clockSince(joinedAt, now.wallMs),
     picture: `${orDash(latest.frameWidth)}×${orDash(latest.frameHeight)} · ${orDash(latest.framesPerSecond)} fps`,
     freezes: `${orDash(latest.freezeCount)} · ${(latest.totalFreezesDuration ?? 0).toFixed(1)} s`,
@@ -177,7 +226,7 @@ export function buildViewState(page: PageSnapshot, now: Clocks): ViewState {
     joining: page.joining,
     autoStartChips: autoStartChips(page),
     phone: {
-      name: names.phone,
+      name: phoneName(page),
       video: Boolean(phone.video),
       audio: Boolean(phone.audio),
       quality,
@@ -193,6 +242,8 @@ export function buildViewState(page: PageSnapshot, now: Clocks): ViewState {
     statsLine: settings.statsOverlay ? statsLine(stats.latest) : undefined,
     prompter: prompter(page, now),
     questions: { list: run.questions, current: run.current, asked: run.asked },
+    mode: settings.mode,
+    reading: reading(page, now),
     recording: recording(page, now),
     session: sessionRows(page, quality, now),
     canDownloadCsv: stats.rowCount > 0,

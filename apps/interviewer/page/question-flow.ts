@@ -20,6 +20,7 @@ export class QuestionFlow {
   readonly #host: QuestionFlowHost;
   #run: QuestionRun;
   #reaskOnResume = false;
+  #autoStartHeld = false;
 
   constructor(questions: readonly string[], asker: Speaker, host: QuestionFlowHost) {
     this.#run = new QuestionRun(questions);
@@ -45,7 +46,16 @@ export class QuestionFlow {
   }
 
   get #autoStartPending(): boolean {
-    return this.#settings.startOnJoin && !this.#host.guest && this.#run.asked.size === 0;
+    return (
+      this.#settings.startOnJoin &&
+      !this.#host.guest &&
+      !this.#autoStartHeld &&
+      this.#run.asked.size === 0
+    );
+  }
+
+  holdAutoStart(): void {
+    this.#autoStartHeld = true;
   }
 
   toggleAsk(): void {
