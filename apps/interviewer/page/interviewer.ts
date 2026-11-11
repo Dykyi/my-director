@@ -106,6 +106,7 @@ export class Interviewer {
         this.#roomListener(),
       );
       this.#log(`Joined ${names.room} as ${names.identity}`);
+      if (this.#session.phonePausedWithoutVideo) this.#phonePaused();
       await this.#syncMicrophone();
       this.#flow.prefetchCurrent();
     } catch (error) {
@@ -146,7 +147,11 @@ export class Interviewer {
     this.#phone.add(track, this.#settings.hearPhone);
     this.#log(`The phone's ${track.kind} arrived`);
     if (track.kind === Track.Kind.Video && muted) this.#phonePaused();
-    if (this.#phone.ready) this.#phoneReady();
+    if (this.#phone.ready) {
+      // A phone paused without a picture publishes live tracks only on Resume.
+      if (!this.#phone.video?.isMuted) this.#phoneResumed();
+      this.#phoneReady();
+    }
     this.#render();
   }
 

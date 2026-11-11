@@ -95,8 +95,9 @@ export class InterviewerView {
 
   #renderStage(state: ViewState): void {
     const { phone } = state;
-    byId('stage').classList.toggle('is-empty', !phone.video);
-    setHidden('emptyState', phone.video);
+    const waiting = !phone.video && !phone.pause;
+    byId('stage').classList.toggle('is-empty', waiting);
+    setHidden('emptyState', !waiting);
     setHidden('video', !phone.video);
     setHidden('stageJoinButton', state.inRoom);
     setText('emptyTitle', state.inRoom ? 'Waiting for the phone' : 'Not in the room yet');

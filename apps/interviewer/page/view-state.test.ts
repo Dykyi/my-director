@@ -159,6 +159,19 @@ describe('buildViewState', () => {
     assert.equal(state.session.pauses, '1 · 0:05');
   });
 
+  it('shows a phone that rejoined on pause without a picture as paused', () => {
+    const pauses = new PauseClock();
+    pauses.pause(now.wallMs - 5_000);
+    const phone = { ...snapshot().phone, pauses };
+    const state = buildViewState(
+      snapshot({ session: { ...session, pauseReason: 'user' }, phone }),
+      now,
+    );
+    assert.deepEqual(state.connection, { text: 'iphone paused', tone: 'paused' });
+    assert.equal(state.phone.pause?.title, 'The phone paused: Pause was pressed on it');
+    assert.equal(state.session.phone, 'iphone, excellent');
+  });
+
   it('follows the settings for the asker and the stats line', () => {
     const settings = { ...DEFAULT_SETTINGS, asker: 'microphone' as const, statsOverlay: false };
     const state = buildViewState(snapshot({ settings }), now);

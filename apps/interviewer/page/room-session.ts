@@ -77,6 +77,12 @@ export class RoomSession {
     return this.#phone?.attributes[PAUSE_REASON] ?? '';
   }
 
+  /** A phone that rejoins on pause shares why but publishes nothing until Resume (CallPublisher.swift). */
+  get phonePausedWithoutVideo(): boolean {
+    const phone = this.#phone;
+    return Boolean(phone?.attributes[PAUSE_REASON]) && phone?.videoTrackPublications.size === 0;
+  }
+
   leave(): Promise<void> {
     return this.#room.disconnect();
   }
@@ -108,11 +114,15 @@ export class RoomSession {
       .on(RoomEvent.TrackUnmuted, (publication, participant) => {
         if (this.#isPhoneVideo(publication, participant)) listener.phoneResumed();
       })
-      .on(RoomEvent.ParticipantAttributesChanged, () => listener.changed())
+      .on(RoomEvent.ParticipantAttributesChanged, (_changed, participant) => {
+        this.#followPauseWithoutVideo(participant, listener);
+        listener.changed();
+      })
       .on(RoomEvent.ConnectionQualityChanged, () => listener.changed())
-      .on(RoomEvent.ParticipantConnected, (participant) =>
-        listener.log(`${participant.identity} joined`),
-      )
+      .on(RoomEvent.ParticipantConnected, (participant) => {
+        listener.log(`${participant.identity} joined`);
+        this.#followPauseWithoutVideo(participant, listener);
+      })
       .on(RoomEvent.ParticipantDisconnected, (participant) => {
         listener.log(`${participant.identity} left`);
         if (this.#isPhone(participant)) listener.phoneLeft();
@@ -120,6 +130,10 @@ export class RoomSession {
       .on(RoomEvent.Reconnecting, () => this.#setReconnecting(true, listener))
       .on(RoomEvent.Reconnected, () => this.#setReconnecting(false, listener))
       .on(RoomEvent.Disconnected, () => listener.left());
+  }
+
+  #followPauseWithoutVideo(participant: Participant, listener: RoomListener): void {
+    if (this.#isPhone(participant) && this.phonePausedWithoutVideo) listener.phonePaused();
   }
 
   #setReconnecting(reconnecting: boolean, listener: RoomListener): void {

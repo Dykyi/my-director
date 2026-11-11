@@ -91,8 +91,8 @@ function connection(page: PageSnapshot): ViewState['connection'] {
   if (joining) return { text: 'Joining…', tone: 'idle' };
   if (!session) return { text: 'Not in the room', tone: 'idle' };
   if (session.reconnecting) return { text: 'Reconnecting', tone: 'paused' };
-  if (!phone.video) return { text: `Connected · waiting for ${names.phone}`, tone: 'live' };
   if (phone.pauses.paused) return { text: `${names.phone} paused`, tone: 'paused' };
+  if (!phone.video) return { text: `Connected · waiting for ${names.phone}`, tone: 'live' };
   return { text: `Live with ${names.phone}`, tone: 'live' };
 }
 
@@ -151,7 +151,8 @@ function sessionRows(page: PageSnapshot, quality: string, now: Clocks): Record<S
   const { latest } = stats;
   const { joinedAt, pauses } = phone;
   return {
-    phone: phone.video ? `${names.phone}, ${qualityOf(quality).label}` : 'not here',
+    phone:
+      phone.video || pauses.paused ? `${names.phone}, ${qualityOf(quality).label}` : 'not here',
     inRoom: joinedAt === undefined ? '-' : clockSince(joinedAt, now.wallMs),
     picture: `${orDash(latest.frameWidth)}×${orDash(latest.frameHeight)} · ${orDash(latest.framesPerSecond)} fps`,
     freezes: `${orDash(latest.freezeCount)} · ${(latest.totalFreezesDuration ?? 0).toFixed(1)} s`,
