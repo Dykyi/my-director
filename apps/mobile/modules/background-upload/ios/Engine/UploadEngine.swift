@@ -116,26 +116,31 @@ final class UploadEngine: BackgroundTransferDelegate {
     }
   }
 
-  func transfer(_ tag: TaskTag, finishedWith status: Int?, etag: String?, body: Data, error: Error?) {
+  func transfer(_ tag: TaskTag, taskId: Int?, finishedWith status: Int?, etag: String?, body: Data, error: Error?) {
     // Our own cancellations and iOS cancelling on force quit: reconcile restarts whatever is still needed.
-    if error?.isCancelledTask == true {
-      log.append(tag.jobId, "task.cancelled", ["task": tag.taskDescription])
+    if let error, error.isCancelledTask {
+      log.append(tag.jobId, "task.cancelled", [
+        "task": tag.taskDescription, "taskId": taskId.map(String.init) ?? "none", "reason": error.backgroundCancelReason,
+      ])
       return
     }
     guard let job = jobs[tag.jobId] else { return }
     let reason = error?.localizedDescription
     let statusText = status.map(String.init) ?? "none"
+    let taskText = taskId.map(String.init) ?? "none"
     guard job.isCurrent(tag) else {
-      log.append(job.id, "task.stale", ["task": tag.taskDescription])
+      log.append(job.id, "task.stale", ["task": tag.taskDescription, "taskId": taskText])
       return
     }
     switch tag.kind {
     case .part(let number, let attempt):
-      log.append(job.id, "part.finished", ["part": "\(number)", "attempt": "\(attempt)", "status": statusText, "error": reason ?? "none"])
+      log.append(job.id, "part.finished", [
+        "part": "\(number)", "attempt": "\(attempt)", "taskId": taskText, "status": statusText, "error": reason ?? "none",
+      ])
       apply(.partFinished(number: number, status: status, etag: etag, error: reason), to: job.id)
     case .complete:
       let text = String(decoding: body.prefix(Self.loggedBodyLimit), as: UTF8.self)
-      log.append(job.id, "complete.finished", ["status": statusText, "body": text, "error": reason ?? "none"])
+      log.append(job.id, "complete.finished", ["taskId": taskText, "status": statusText, "body": text, "error": reason ?? "none"])
       let response = try? JSONDecoder().decode(CompleteUploadResponse.self, from: body)
       apply(.completeFinished(status: status, response: response, error: reason), to: job.id)
     }
@@ -188,10 +193,10 @@ final class UploadEngine: BackgroundTransferDelegate {
       request.httpMethod = "PUT"
       part.headers.forEach { request.setValue($1, forHTTPHeaderField: $0) }
       let tag = TaskTag(jobId: job.id, kind: .part(number: number, attempt: part.attempt))
-      transfers.upload(request, fromFile: store.partURL(jobId: job.id, number: number), tag: tag, delaySec: delaySec)
-      if part.attempt > 0 {
-        log.append(job.id, "part.retry", ["part": "\(number)", "attempt": "\(part.attempt)", "delaySec": "\(delaySec)"])
-      }
+      let taskId = transfers.upload(request, fromFile: store.partURL(jobId: job.id, number: number), tag: tag, delaySec: delaySec)
+      log.append(job.id, part.attempt > 0 ? "part.retry" : "part.started", [
+        "part": "\(number)", "attempt": "\(part.attempt)", "delaySec": "\(delaySec)", "taskId": "\(taskId)",
+      ])
 
     case .checkDigest(let number):
       let file = store.partURL(jobId: job.id, number: number)

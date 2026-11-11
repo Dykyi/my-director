@@ -2,7 +2,7 @@ import UIKit
 
 @MainActor
 protocol BackgroundTransferDelegate: AnyObject {
-  func transfer(_ tag: TaskTag, finishedWith status: Int?, etag: String?, body: Data, error: Error?)
+  func transfer(_ tag: TaskTag, taskId: Int?, finishedWith status: Int?, etag: String?, body: Data, error: Error?)
   func transferRestartedBySystem(_ tag: TaskTag)
   func transfersDrained()
 }
@@ -41,7 +41,9 @@ final class BackgroundTransferSession: NSObject, URLSessionDataDelegate {
     _ = session
   }
 
-  func upload(_ request: URLRequest, fromFile file: URL, tag: TaskTag, delaySec: Double) {
+  /// Returns the session's task identifier, which tells a task apart from an earlier one with the same tag.
+  @discardableResult
+  func upload(_ request: URLRequest, fromFile file: URL, tag: TaskTag, delaySec: Double) -> Int {
     let task = session.uploadTask(with: request, fromFile: file)
     task.taskDescription = tag.taskDescription
     if delaySec > 0 {
@@ -49,6 +51,7 @@ final class BackgroundTransferSession: NSObject, URLSessionDataDelegate {
       task.earliestBeginDate = .now.addingTimeInterval(delaySec)
     }
     task.resume()
+    return task.taskIdentifier
   }
 
   /// iOS holds a background-session task created in the background until it sees fit, often until the app is opened.
@@ -69,7 +72,7 @@ final class BackgroundTransferSession: NSObject, URLSessionDataDelegate {
     let task = Task {
       let (status, body, error) = await Self.send(request, fromFile: file)
       guard endPromptRequest(name) != nil else { return }
-      delegate?.transfer(tag, finishedWith: status, etag: nil, body: body, error: error)
+      delegate?.transfer(tag, taskId: nil, finishedWith: status, etag: nil, body: body, error: error)
     }
     promptRequests[name] = PromptRequest(task: task, backgroundTask: backgroundTask)
     return true
@@ -137,6 +140,7 @@ final class BackgroundTransferSession: NSObject, URLSessionDataDelegate {
       let response = task.response as? HTTPURLResponse
       delegate?.transfer(
         tag,
+        taskId: task.taskIdentifier,
         finishedWith: error == nil ? response?.statusCode : nil,
         etag: response?.value(forHTTPHeaderField: "ETag"),
         body: body,
@@ -154,4 +158,15 @@ final class BackgroundTransferSession: NSObject, URLSessionDataDelegate {
 
 extension Error {
   var isCancelledTask: Bool { (self as? URLError)?.code == .cancelled }
+
+  /// Why iOS cancelled a background task, when it did: a force quit, Background App Refresh off, or low resources.
+  var backgroundCancelReason: String {
+    switch (self as NSError).userInfo[NSURLErrorBackgroundTaskCancelledReasonKey] as? Int {
+    case NSURLErrorCancelledReasonUserForceQuitApplication: "forceQuit"
+    case NSURLErrorCancelledReasonBackgroundUpdatesDisabled: "backgroundUpdatesDisabled"
+    case NSURLErrorCancelledReasonInsufficientSystemResources: "insufficientResources"
+    case .some(let other): "\(other)"
+    case nil: "none"
+    }
+  }
 }
