@@ -31,6 +31,8 @@ function useStandCommands() {
     reconnect: actions.reconnectCall,
     dismiss: actions.dismissError,
     verify: () => latest && router.navigate(`/verification/${latest.sessionId}`),
+    play: () =>
+      latest && router.navigate({ pathname: '/player', params: { sessionId: latest.sessionId } }),
     upload: () => latest && uploads.actions.startRecording(latest),
     'close-sheet': () => router.canDismiss() && router.dismissAll(),
     'dismiss-recovery': () =>
