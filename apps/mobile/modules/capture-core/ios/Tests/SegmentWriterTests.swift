@@ -17,7 +17,7 @@ final class SegmentWriterTests {
     try? FileManager.default.removeItem(at: directory)
   }
 
-  private func makeWriter() throws -> SegmentWriter {
+  private func makeWriter(mixesCall: Bool = false) throws -> SegmentWriter {
     var camera = CaptureConfig.defaults.camera
     camera.width = 320
     camera.height = 240
@@ -25,7 +25,9 @@ final class SegmentWriterTests {
     var recording = CaptureConfig.defaults.recording
     recording.codec = .h264
     let audio = AudioTimeline.Configuration(sampleRate: Self.sampleRate, captureLatency: 0, resyncThreshold: 0.04)
-    return try SegmentWriter(settings: .init(url: url, camera: camera, recording: recording, rotationAngle: 90, audio: audio))
+    let callMix = mixesCall ? CallAudioMix(sampleRate: Self.sampleRate, resyncThreshold: 0.04, gainDb: 0) : nil
+    return try SegmentWriter(
+      settings: .init(url: url, camera: camera, recording: recording, rotationAngle: 90, audio: audio, callMix: callMix))
   }
 
   private func frame(at index: Int) throws -> CMSampleBuffer {
@@ -64,6 +66,65 @@ final class SegmentWriterTests {
     for index in 0..<Int(seconds * 10) {
       chunk.withUnsafeBufferPointer { _ = writer.appendAudio($0, firstFrameCaptureTime: Double(index) / 10) }
     }
+  }
+
+  /// A 1 kHz tone in the call's 10 ms chunks; 480 samples hold whole cycles, so the chunks join cleanly.
+  private func appendCallTone(playing times: Range<Double>, into writer: SegmentWriter) {
+    let chunk = (0..<480).map { Int16(8_000 * sin(2 * .pi * 1_000 * Double($0) / Self.sampleRate)) }
+    for start in stride(from: times.lowerBound, to: times.upperBound, by: 0.01) {
+      chunk.withUnsafeBufferPointer { _ = writer.appendCallAudio($0, playsAt: start) }
+    }
+  }
+
+  private func decodedAudio() async throws -> [Int16] {
+    let asset = AVURLAsset(url: url)
+    let track = try #require(try await asset.loadTracks(withMediaType: .audio).first)
+    let reader = try AVAssetReader(asset: asset)
+    let output = AVAssetReaderTrackOutput(track: track, outputSettings: [
+      AVFormatIDKey: kAudioFormatLinearPCM,
+      AVLinearPCMBitDepthKey: 16,
+      AVLinearPCMIsFloatKey: false,
+      AVLinearPCMIsBigEndianKey: false,
+      AVLinearPCMIsNonInterleaved: false,
+      AVSampleRateKey: Self.sampleRate,
+      AVNumberOfChannelsKey: 1,
+    ])
+    reader.add(output)
+    reader.startReading()
+    var samples: [Int16] = []
+    while let buffer = output.copyNextSampleBuffer(), let block = CMSampleBufferGetDataBuffer(buffer) {
+      let length = CMBlockBufferGetDataLength(block)
+      var chunk = [Int16](repeating: 0, count: length / MemoryLayout<Int16>.size)
+      chunk.withUnsafeMutableBytes { _ = CMBlockBufferCopyDataBytes(block, atOffset: 0, dataLength: length, destination: $0.baseAddress!) }
+      samples += chunk
+    }
+    return samples
+  }
+
+  private func levelDb(_ samples: [Int16], from: Double, to: Double) -> Double {
+    Array(samples[Int(from * Self.sampleRate)..<Int(to * Self.sampleRate)]).withUnsafeBufferPointer(AudioLevel.rmsDb)
+  }
+
+  private func recordCallTone(mixesCall: Bool) async throws -> [Int16] {
+    let writer = try makeWriter(mixesCall: mixesCall)
+    try await appendFrames(30, to: writer)
+    appendCallTone(playing: 0.4..<0.6, into: writer)
+    appendSilence(seconds: 1.1, to: writer)
+    writer.stopVideo()
+    _ = await writer.finish()
+    return try await decodedAudio()
+  }
+
+  @Test func mixesTheCallIntoTheAudioTrackWhereItPlayed() async throws {
+    let audio = try await recordCallTone(mixesCall: true)
+    #expect(levelDb(audio, from: 0.45, to: 0.55) > -20)
+    #expect(levelDb(audio, from: 0.1, to: 0.3) < -60)
+    #expect(levelDb(audio, from: 0.7, to: 0.9) < -60)
+  }
+
+  @Test func leavesTheCallOutWithoutAMix() async throws {
+    let audio = try await recordCallTone(mixesCall: false)
+    #expect(levelDb(audio, from: 0.45, to: 0.55) < -60)
   }
 
   @Test func aSegmentWithoutFramesIsEmpty() async throws {

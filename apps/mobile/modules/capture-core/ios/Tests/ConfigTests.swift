@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import CaptureCoreLogic
 
@@ -19,6 +20,18 @@ struct ConfigResolverTests {
     #expect(config.call.profiles.reduced == CaptureConfig.defaults.call.profiles.reduced)
     #expect(config.session.resumePolicy == .automatic)
     #expect(config.camera == CaptureConfig.defaults.camera)
+  }
+
+  @Test func callMixCanBeTurnedOffFromJS() throws {
+    let config = try ConfigResolver.resolve(overrides: ["audio": ["mixCallAudio": false, "callAudioGainDb": -6.0]])
+    #expect(!config.audio.mixCallAudio)
+    #expect(config.audio.callAudioGainDb == -6)
+  }
+
+  @Test func audioRecordedBeforeTheCallMixReadsAsRecorded() throws {
+    let json = #"{"noiseSuppression": true, "autoGainControl": false, "resyncThresholdMs": 40}"#
+    let audio = try JSONDecoder().decode(CaptureConfig.Audio.self, from: Data(json.utf8))
+    #expect(audio == .init(noiseSuppression: true, autoGainControl: false, resyncThresholdMs: 40, mixCallAudio: false, callAudioGainDb: 0))
   }
 
   @Test func unknownKeyIsRejected() {
@@ -117,6 +130,11 @@ struct ConfigValidatorTests {
 
   @Test func storageThresholdsMustBeOrdered() {
     #expect(problems { $0.storage.criticalFreeSpaceMB = 2000 }.contains { $0.hasPrefix("storage") })
+  }
+
+  @Test func callAudioGainOutOfRange() {
+    #expect(problems { $0.audio.callAudioGainDb = -21 }.contains { $0.hasPrefix("audio.callAudioGainDb") })
+    #expect(problems { $0.audio.callAudioGainDb = 13 }.contains { $0.hasPrefix("audio.callAudioGainDb") })
   }
 
   @Test func connectTimeoutOutOfRange() {

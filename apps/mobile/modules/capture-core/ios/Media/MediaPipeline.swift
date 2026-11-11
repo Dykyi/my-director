@@ -19,10 +19,19 @@ final class MediaPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
   private var callSink: CallFrameScaler?
   private var captureClock: CMClock?
   private var holeProbe = FrameHoleProbe()
+  private var callFormat: AVAudioFormat?
+  private var callResampler: PCMResampler?
+  private var playoutLatency = 0.0
+  private var routeObserver: NSObjectProtocol?
 
   init(log: EventLog, onWriterFailure: @escaping @Sendable (Failure) -> Void) {
     self.log = log
     self.onWriterFailure = onWriterFailure
+    super.init()
+    // A Bluetooth output plays the call 150 to 200 ms later than the speaker.
+    routeObserver = NotificationCenter.default.addObserver(
+      forName: AVAudioSession.routeChangeNotification, object: nil, queue: nil
+    ) { [weak self] _ in self?.refreshPlayoutLatency() }
   }
 
   var statsSnapshot: MediaStats { stats.withLock { $0 } }
@@ -37,17 +46,22 @@ final class MediaPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
 
   func segmentSettings(url: URL, config: CaptureConfig, rotationAngle: Double) -> SegmentWriter.Settings {
     let audioSession = AVAudioSession.sharedInstance()
+    let sampleRate = PCMResampler.fileFormat.sampleRate
+    refreshPlayoutLatency()
     return SegmentWriter.Settings(
       url: url,
       camera: config.camera,
       recording: config.recording,
       rotationAngle: rotationAngle,
       audio: AudioTimeline.Configuration(
-        sampleRate: PCMResampler.fileFormat.sampleRate,
+        sampleRate: sampleRate,
         inputLatency: audioSession.inputLatency,
         ioBufferDuration: audioSession.ioBufferDuration,
         resyncThreshold: config.audio.resyncThresholdSec
-      )
+      ),
+      callMix: config.audio.mixCallAudio
+        ? CallAudioMix(sampleRate: sampleRate, resyncThreshold: config.audio.resyncThresholdSec, gainDb: config.audio.callAudioGainDb)
+        : nil
     )
   }
 
@@ -83,6 +97,7 @@ final class MediaPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
     }
     await onQueue { self.writer = nil }
     let outcome = await writer.finish()
+    if let summary = writer.callMixSummary { log.info("audio", "Call audio summary", summary.logData) }
     stats.withLock { stats in
       if case .failed = outcome { stats.writerState = .failed } else { stats.writerState = .idle }
       // The manifest takes over the closed segment's length. Left here, it would show on the timer until the next
@@ -184,6 +199,41 @@ final class MediaPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
       stats.audioDriftMs = writer.audioDriftSec * 1000
       stats.audioResyncCount = writer.audioResyncCount
     }
+  }
+
+  func handleCallAudio(_ buffer: AVAudioPCMBuffer, renderedAt: Double) {
+    queue.async { self.processCallAudio(buffer, renderedAt: renderedAt) }
+  }
+
+  private func processCallAudio(_ buffer: AVAudioPCMBuffer, renderedAt: Double) {
+    if callFormat != buffer.format {
+      callFormat = buffer.format
+      callResampler = PCMResampler(from: buffer.format)
+      if callResampler == nil { log.error("audio", "Call audio format has no converter", ["format": buffer.format.description]) }
+    }
+    guard let converted = callResampler?.convert(buffer), let channel = converted.int16ChannelData?[0] else { return }
+    let samples = UnsafeBufferPointer(start: channel, count: Int(converted.frameLength))
+    stats.withLock { stats in
+      stats.callAudioLevelDb = AudioLevel.rmsDb(samples)
+      stats.lastCallAudioHostTime = renderedAt
+    }
+    guard let writer else { return }
+    let wasSilent = !writer.hasCallAudio
+    if let correction = writer.appendCallAudio(samples, playsAt: captureClockTime(renderedAt) + playoutLatency) {
+      log.warning("audio", "Call audio clock resynced", ["correctionMs": (correction * 1000).oneDecimal])
+    }
+    guard wasSilent, writer.hasCallAudio else { return }
+    log.info("audio", "Call audio mixed in", [
+      "format": "\(Int(buffer.format.sampleRate)) Hz, \(buffer.format.channelCount) ch",
+      "frames": String(buffer.frameLength),
+      "playoutLatencyMs": (playoutLatency * 1000).oneDecimal,
+    ])
+  }
+
+  private func refreshPlayoutLatency() {
+    let session = AVAudioSession.sharedInstance()
+    let latency = session.outputLatency + session.ioBufferDuration
+    queue.async { self.playoutLatency = latency }
   }
 
   /// Audio arrives stamped with the host clock; video timestamps use the capture session's clock.

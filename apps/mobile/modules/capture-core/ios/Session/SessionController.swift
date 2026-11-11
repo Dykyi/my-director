@@ -11,10 +11,12 @@ final class SessionController {
   private let camera = CameraSource()
   private let pipeline: MediaPipeline
   private let microphone: MicrophoneSource
+  private let callAudio: CallAudioRenderer
   private let callPublisher: CallPublisher
   private let store: RecordingStore
   /// Read synchronously by `getSnapshot()` on the JS thread.
   nonisolated let snapshotCache = OSAllocatedUnfairLock(initialState: SessionSnapshot(state: SessionState(), recordedSec: 0))
+  /// Read synchronously by `getConfig()` on the JS thread.
   nonisolated let configCache = OSAllocatedUnfairLock(initialState: CaptureConfig.defaults)
 
   nonisolated var captureSession: AVCaptureSession { camera.session }
@@ -63,6 +65,7 @@ final class SessionController {
     self.writerFailures = writerFailures
     self.pipeline = pipeline
     microphone = MicrophoneSource(pipeline: pipeline, log: log)
+    callAudio = CallAudioRenderer(pipeline: pipeline, log: log)
     callPublisher = CallPublisher(log: log)
     store = .documents
     files = SessionFiles(store: store, log: log, queue: ioQueue)
@@ -333,6 +336,7 @@ final class SessionController {
     log.attachFile(at: store.eventsURL(sessionId: sessionId))
     log.info("session", "Session created", ["sessionId": sessionId])
     try await startMicrophone()
+    if config.audio.mixCallAudio { callAudio.attach() }
     try Task.checkCancellation()
     try await callPublisher.join(credentials, profile: config.call.profiles[thermalPolicy.current], rotationAngle: camera.captureRotationAngle)
     try Task.checkCancellation()
@@ -343,6 +347,7 @@ final class SessionController {
   private func abortStart(sessionId: String) {
     // Before leaving, as in Stop: the room stops the audio engine, and a mic still marked as needed would restart it.
     microphone.stop()
+    callAudio.detach()
     if manifest?.id == sessionId {
       manifest = nil
       log.attachFile(at: nil)
@@ -350,7 +355,6 @@ final class SessionController {
     }
     Task { await callPublisher.leave() }
   }
-
 
   /// Local resources first: they recover fast and decide whether rejoining the call makes sense.
   private func runResume() async throws {
@@ -381,6 +385,7 @@ final class SessionController {
     await segmentWork.enqueue { await self.closeSegment(index: self.machine.state.segmentIndex) }.value
     // Before leaving: the room stops the audio engine, and a mic still marked as needed would restart it.
     microphone.stop()
+    callAudio.detach()
     await callPublisher.leave()
     backgroundTask.end()
     send(.stopFinished)
@@ -407,6 +412,7 @@ final class SessionController {
     ])
   }
 
+  /// Always reports `segmentClosed`, so a pause can complete even when opening the segment had failed.
   private func closeSegment(index: Int) async {
     let pauseReason = machine.state.pauseReason
     guard let outcome = await pipeline.closeSegment() else {

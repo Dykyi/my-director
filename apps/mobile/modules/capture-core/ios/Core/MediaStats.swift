@@ -12,6 +12,8 @@ struct MediaStats: Sendable {
   var audioSampleRate = 0.0
   var audioDriftMs = 0.0
   var audioResyncCount = 0
+  var callAudioLevelDb = AudioLevel.floorDb
+  var lastCallAudioHostTime = 0.0
 }
 
 extension HealthSnapshot.Camera {
@@ -33,13 +35,16 @@ extension HealthSnapshot.File {
 }
 
 extension HealthSnapshot.Audio {
+  static let callLevelHoldSec = 0.5
+
   init(_ stats: MediaStats, now: Double) {
     self.init(
       levelDb: stats.audioLevelDb,
       lastBufferAgeMs: stats.lastAudioHostTime > 0 ? (now - stats.lastAudioHostTime) * 1000 : -1,
       driftMs: stats.audioDriftMs,
       resyncCount: stats.audioResyncCount,
-      sampleRate: stats.audioSampleRate
+      sampleRate: stats.audioSampleRate,
+      callLevelDb: now - stats.lastCallAudioHostTime < Self.callLevelHoldSec ? stats.callAudioLevelDb : AudioLevel.floorDb
     )
   }
 }

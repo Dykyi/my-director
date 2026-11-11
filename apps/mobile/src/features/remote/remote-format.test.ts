@@ -16,6 +16,7 @@ const health: HealthSnapshot = {
     driftMs: 2.4,
     resyncCount: 1,
     sampleRate: 48_000,
+    callLevelDb: -31.7,
   },
   call: {
     sentWidth: 720,
@@ -35,7 +36,7 @@ describe('formatHealthLine', () => {
   it('puts every pipeline on one line', () =>
     expect(formatHealthLine(health)).toBe(
       'camera 30.0 fps 1920x1080 | file 30.0 fps writing 460.0 MB dropped 0 | ' +
-        'audio -24 dB age 41 ms drift 2 ms resync 1 | call 720x1280 30 fps 1480 kbps limit none | ' +
+        'audio -24 dB call -32 dB age 41 ms drift 2 ms resync 1 | call 720x1280 30 fps 1480 kbps limit none | ' +
         'route AirPods Pro (BluetoothHFP) -> AirPods Pro (BluetoothHFP) | thermal nominal disk 41.2 GB',
     ));
 });

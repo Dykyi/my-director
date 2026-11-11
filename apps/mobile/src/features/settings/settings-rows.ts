@@ -55,6 +55,13 @@ function processing({ noiseSuppression, autoGainControl }: CaptureConfig['audio'
     .join(' · ');
 }
 
+function interviewerVoice({ mixCallAudio, callAudioGainDb }: CaptureConfig['audio']): string {
+  if (!mixCallAudio) return 'not in the file';
+  const mixed = 'mixed in from the call';
+  if (callAudioGainDb === 0) return mixed;
+  return `${mixed} · ${callAudioGainDb > 0 ? '+' : ''}${callAudioGainDb} dB`;
+}
+
 function savedToDisk({
   fragmentIntervalSec,
   initialFragmentIntervalSec,
@@ -107,6 +114,7 @@ export function settingsGroups(
           label: 'Audio',
           value: `${AUDIO_FORMAT} · ${recording.audioBitrate / BITS_PER_KBIT} kbit/s`,
         },
+        { label: 'Interviewer', value: interviewerVoice(audio) },
         { label: 'Saved to disk', value: savedToDisk(recording) },
         {
           label: 'Free space',

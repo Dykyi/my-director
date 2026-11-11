@@ -92,6 +92,8 @@ struct CaptureConfig: Codable, Equatable, Sendable {
     var noiseSuppression: Bool
     var autoGainControl: Bool
     var resyncThresholdMs: Double
+    var mixCallAudio: Bool
+    var callAudioGainDb: Double
 
     var resyncThresholdSec: Double { resyncThresholdMs / 1000 }
   }
@@ -155,9 +157,21 @@ struct CaptureConfig: Codable, Equatable, Sendable {
       thermalRecoveryDelaySec: 60,
       connectTimeoutSec: 15
     ),
-    audio: Audio(noiseSuppression: true, autoGainControl: true, resyncThresholdMs: 40),
+    audio: Audio(noiseSuppression: true, autoGainControl: true, resyncThresholdMs: 40, mixCallAudio: true, callAudioGainDb: 0),
     session: Session(resumePolicy: .manual, heartbeatIntervalSec: 0.5, resumeTimeoutMs: 3000),
     health: Health(videoStallMs: 1000, audioStallMs: 1000, fileStallMs: 5000, micRestartGraceMs: 3000),
     storage: Storage(minFreeSpaceToStartMB: 2048, lowSpaceWarningMB: 1024, criticalFreeSpaceMB: 300)
   )
+}
+
+extension CaptureConfig.Audio {
+  /// Manifests written without the call mix lack both keys; they load with the mix off.
+  init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    noiseSuppression = try container.decode(Bool.self, forKey: .noiseSuppression)
+    autoGainControl = try container.decode(Bool.self, forKey: .autoGainControl)
+    resyncThresholdMs = try container.decode(Double.self, forKey: .resyncThresholdMs)
+    mixCallAudio = try container.decodeIfPresent(Bool.self, forKey: .mixCallAudio) ?? false
+    callAudioGainDb = try container.decodeIfPresent(Double.self, forKey: .callAudioGainDb) ?? 0
+  }
 }

@@ -35,7 +35,7 @@ function audioRow({ audio }: HealthSnapshot, phase: SessionPhase): HealthRow {
   if (silent) return { label: 'Audio', value: 'mic off', tone: 'muted' };
   return {
     label: 'Audio',
-    value: `${audio.levelDb.toFixed(0)} dB  drift ${formatSigned(audio.driftMs)} ms${audio.resyncCount > 0 ? `  resync ${audio.resyncCount}` : ''}`,
+    value: `${audio.levelDb.toFixed(0)} dB  call ${audio.callLevelDb.toFixed(0)} dB  drift ${formatSigned(audio.driftMs)} ms${audio.resyncCount > 0 ? `  resync ${audio.resyncCount}` : ''}`,
     tone: 'foreground',
     meterBars: litBars(audio.levelDb),
   };

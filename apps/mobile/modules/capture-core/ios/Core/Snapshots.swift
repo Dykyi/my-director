@@ -77,6 +77,7 @@ struct HealthSnapshot: Codable, Equatable, Sendable {
     var driftMs: Double
     var resyncCount: Int
     var sampleRate: Double
+    var callLevelDb: Double
   }
 
   enum QualityLimitation: String, Codable, Sendable { case none, cpu, bandwidth, other }

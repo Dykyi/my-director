@@ -24,4 +24,12 @@ struct MediaStatsTests {
     #expect(audio.driftMs == -8)
     #expect(audio.sampleRate == 48_000)
   }
+
+  @Test func callLevelFallsSilentOnceTheCallStops() {
+    var stats = MediaStats()
+    stats.callAudioLevelDb = -32
+    stats.lastCallAudioHostTime = 99.8
+    #expect(HealthSnapshot.Audio(stats, now: 100).callLevelDb == -32)
+    #expect(HealthSnapshot.Audio(stats, now: 101).callLevelDb == AudioLevel.floorDb)
+  }
 }

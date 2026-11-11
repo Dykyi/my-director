@@ -22,7 +22,12 @@ describe('healthRows', () => {
     expect(healthRows(health(), session('recording'))).toEqual([
       { label: 'Camera', value: '30.0 fps 1920×1080', tone: 'foreground' },
       { label: 'File', value: '30.0 fps  212.0 MB  drops 0', tone: 'foreground' },
-      { label: 'Audio', value: '-18 dB  drift +3 ms', tone: 'foreground', meterBars: 4 },
+      {
+        label: 'Audio',
+        value: '-18 dB  call -32 dB  drift +3 ms',
+        tone: 'foreground',
+        meterBars: 4,
+      },
       { label: 'Input', value: 'AirPods Pro (BluetoothHFP)', tone: 'accent' },
       { label: 'Output', value: 'AirPods Pro (BluetoothHFP)', tone: 'accent' },
       { label: 'Call', value: '720×1280 30 fps 1.6 Mbps', tone: 'foreground' },

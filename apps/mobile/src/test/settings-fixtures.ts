@@ -30,7 +30,13 @@ export const sampleConfig: CaptureConfig = {
     thermalRecoveryDelaySec: 60,
     connectTimeoutSec: 15,
   },
-  audio: { noiseSuppression: true, autoGainControl: true, resyncThresholdMs: 40 },
+  audio: {
+    noiseSuppression: true,
+    autoGainControl: true,
+    resyncThresholdMs: 40,
+    mixCallAudio: true,
+    callAudioGainDb: 0,
+  },
   session: { resumePolicy: 'manual', heartbeatIntervalSec: 0.5, resumeTimeoutMs: 3_000 },
   health: {
     videoStallMs: 1_000,

@@ -37,7 +37,14 @@ export const sampleHealth = (overrides: Partial<HealthSnapshot> = {}): HealthSna
   at: '2026-11-10T09:00:00.000Z',
   camera: { fps: 30, width: 1920, height: 1080 },
   file: { fps: 29.97, droppedFrames: 0, bytes: 222_298_112, segmentSec: 312, writer: 'writing' },
-  audio: { levelDb: -18.2, lastBufferAgeMs: 40, driftMs: 3.2, resyncCount: 0, sampleRate: 48_000 },
+  audio: {
+    levelDb: -18.2,
+    lastBufferAgeMs: 40,
+    driftMs: 3.2,
+    resyncCount: 0,
+    sampleRate: 48_000,
+    callLevelDb: -32.4,
+  },
   call: {
     sentWidth: 720,
     sentHeight: 1280,

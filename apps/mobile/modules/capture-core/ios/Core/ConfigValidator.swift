@@ -7,6 +7,7 @@ enum ConfigValidator {
   static let minFragmentIntervalSec = 1.0
   static let connectTimeoutRange = 5.0...60.0
   static let resyncThresholdRange = 20.0...200.0
+  static let callAudioGainRange = -20.0...12.0
   static let heartbeatRange = 0.5...5.0
   static let resumeTimeoutRange = 1_000.0...10_000.0
   static let minVideoStallMs = 200.0
@@ -44,6 +45,7 @@ enum ConfigValidator {
     require(connectTimeoutRange.contains(config.call.connectTimeoutSec), "call.connectTimeoutSec must be in \(connectTimeoutRange)")
 
     require(resyncThresholdRange.contains(config.audio.resyncThresholdMs), "audio.resyncThresholdMs must be in \(resyncThresholdRange)")
+    require(callAudioGainRange.contains(config.audio.callAudioGainDb), "audio.callAudioGainDb must be in \(callAudioGainRange)")
     require(heartbeatRange.contains(config.session.heartbeatIntervalSec), "session.heartbeatIntervalSec must be in \(heartbeatRange)")
     require(resumeTimeoutRange.contains(config.session.resumeTimeoutMs), "session.resumeTimeoutMs must be in \(resumeTimeoutRange)")
 

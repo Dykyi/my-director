@@ -25,6 +25,7 @@ describe('settingsGroups', () => {
       ['Video', 'HEVC · 6 Mbit/s'],
       ['Keyframe', 'every 1 s'],
       ['Audio', 'AAC 48 kHz mono · 128 kbit/s'],
+      ['Interviewer', 'mixed in from the call'],
       ['Saved to disk', 'every 1 s'],
       ['Free space', '2 GB to start · warn at 1 GB'],
     ]));
@@ -77,6 +78,21 @@ describe('settingsGroups', () => {
         }),
       ).toBe('update 0195b3c4 · production'));
   });
+});
+
+describe('interviewer in the file', () => {
+  const interviewer = (audio: Partial<typeof config.audio>) =>
+    settingsGroups({ ...config, audio: { ...config.audio, ...audio } }, about, call)
+      .find((group) => group.id === 'file')
+      ?.rows.find((row) => row.label === 'Interviewer')?.value;
+
+  it('names the gain when it is not zero', () => {
+    expect(interviewer({ callAudioGainDb: -6 })).toBe('mixed in from the call · -6 dB');
+    expect(interviewer({ callAudioGainDb: 3 })).toBe('mixed in from the call · +3 dB');
+  });
+
+  it('says when the file holds only the phone', () =>
+    expect(interviewer({ mixCallAudio: false })).toBe('not in the file'));
 });
 
 describe('saved to disk', () => {

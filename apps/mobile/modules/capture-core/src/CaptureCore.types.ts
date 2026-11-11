@@ -35,7 +35,13 @@ export type CaptureConfig = {
     thermalRecoveryDelaySec: number;
     connectTimeoutSec: number;
   };
-  audio: { noiseSuppression: boolean; autoGainControl: boolean; resyncThresholdMs: number };
+  audio: {
+    noiseSuppression: boolean;
+    autoGainControl: boolean;
+    resyncThresholdMs: number;
+    mixCallAudio: boolean;
+    callAudioGainDb: number;
+  };
   session: { resumePolicy: ResumePolicy; heartbeatIntervalSec: number; resumeTimeoutMs: number };
   health: {
     videoStallMs: number;
@@ -171,6 +177,7 @@ export type HealthSnapshot = {
     driftMs: number;
     resyncCount: number;
     sampleRate: number;
+    callLevelDb: number;
   };
   call: {
     sentWidth: number;

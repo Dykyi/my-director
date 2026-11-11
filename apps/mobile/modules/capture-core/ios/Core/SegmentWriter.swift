@@ -8,6 +8,7 @@ final class SegmentWriter: @unchecked Sendable {
     var recording: CaptureConfig.Recording
     var rotationAngle: Double
     var audio: AudioTimeline.Configuration
+    var callMix: CallAudioMix?
   }
 
   enum AppendResult: Equatable {
@@ -32,6 +33,7 @@ final class SegmentWriter: @unchecked Sendable {
   private let audioFactory: AudioSampleBufferFactory
   private let fps: Int
   private var timeline: AudioTimeline
+  private var callMix: CallAudioMix?
   private var state = State.awaitingFirstFrame
   private var span: VideoSpan?
   private var pendingCorrection: Double?
@@ -51,12 +53,15 @@ final class SegmentWriter: @unchecked Sendable {
 
   var audioDriftSec: Double { timeline.smoothedDrift }
   var audioResyncCount: Int { timeline.resyncCount }
+  var hasCallAudio: Bool { callMix?.hasAudio ?? false }
+  var callMixSummary: CallAudioMix.Summary? { callMix?.summary }
 
   init(settings: Settings) throws {
     url = settings.url
     audioSampleRate = settings.audio.sampleRate
     fps = settings.camera.fps
     timeline = AudioTimeline(configuration: settings.audio)
+    callMix = settings.callMix
     audioFactory = try AudioSampleBufferFactory(sampleRate: settings.audio.sampleRate)
     do {
       writer = try AVAssetWriter(outputURL: settings.url, fileType: .mov)
@@ -129,12 +134,17 @@ final class SegmentWriter: @unchecked Sendable {
       let end = placement.presentationTime + Double(kept.count) / audioSampleRate
       // The writer trims audio that starts before the segment; buffers that end before it are skipped.
       guard !kept.isEmpty, let start = span?.start, end > start.seconds else { return .skipped }
-      let result = append(audio: try audioFactory.makeBuffer(samples: kept, presentationTime: placement.presentationTime))
+      let result = append(audio: try makeAudioBuffer(kept, at: placement.presentationTime))
       if case .appended = result { audioEnd = end }
       return result
     } catch {
       return .failed(markFailed("Audio sample buffer: \(error)"))
     }
+  }
+
+  func appendCallAudio(_ samples: UnsafeBufferPointer<Int16>, playsAt: Double) -> Double? {
+    guard case .writing = state else { return nil }
+    return callMix?.add(samples, playsAt: playsAt) ?? nil
   }
 
   func takeCorrection() -> Double? {
@@ -178,6 +188,13 @@ final class SegmentWriter: @unchecked Sendable {
     let frames = AudioTail.silenceFrames(audioEnd: audioEnd, videoEnd: videoEnd, segmentStart: segmentStart, sampleRate: audioSampleRate)
     guard frames > 0, let silence = try? audioFactory.makeSilence(frameCount: frames, presentationTime: audioEnd) else { return }
     if case .appended = append(audio: silence) { audioEnd = videoEnd }
+  }
+
+  private func makeAudioBuffer(_ mic: UnsafeBufferPointer<Int16>, at time: Double) throws -> CMSampleBuffer {
+    guard let mixed = callMix?.mix(mic, at: time) else {
+      return try audioFactory.makeBuffer(samples: mic, presentationTime: time)
+    }
+    return try mixed.withUnsafeBufferPointer { try audioFactory.makeBuffer(samples: $0, presentationTime: time) }
   }
 
   private func append(audio buffer: CMSampleBuffer) -> AppendResult {
