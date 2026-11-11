@@ -28,6 +28,7 @@ describe('SettingsStore', () => {
     assert.deepEqual(store.load(), DEFAULT_SETTINGS);
     assert.equal(DEFAULT_SETTINGS.mode, 'questions');
     assert.equal(DEFAULT_SETTINGS.readingMinutes, 10);
+    assert.equal(DEFAULT_SETTINGS.hearVoice, false);
     store.save({ ...DEFAULT_SETTINGS, quietSec: 12, mode: 'reading', readingMinutes: 15 });
     assert.deepEqual(store.load(), {
       ...DEFAULT_SETTINGS,

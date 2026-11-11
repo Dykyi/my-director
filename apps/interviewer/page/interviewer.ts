@@ -49,6 +49,7 @@ export class Interviewer {
       reading: defaultReading,
     });
     this.#asker = new Asker(this.#audioContext, this.#view.speech, () => this.#spoken());
+    this.#asker.hear(this.#settings.hearVoice);
     this.#phone = new PhoneFeed(this.#audioContext, this.#view.videoHost);
     const host: QuestionFlowHost = {
       settings: () => this.#settings,
@@ -105,6 +106,7 @@ export class Interviewer {
       read: () => this.#reading.toggle(),
       toggleRecording: () => this.#toggleRecording(),
       hear: (on) => this.#setHearPhone(on),
+      hearVoice: (on) => this.#setHearVoice(on),
       settingsEdited: () => this.#settingsEdited(),
       saveScript: (text) => this.#saveScript(text),
       saveReading: (text) => this.#saveReading(text),
@@ -248,6 +250,12 @@ export class Interviewer {
     this.#settings = { ...this.#settings, hearPhone: on };
     this.#store.save(this.#settings);
     this.#phone.hear(on);
+  }
+
+  #setHearVoice(on: boolean): void {
+    this.#settings = { ...this.#settings, hearVoice: on };
+    this.#store.save(this.#settings);
+    this.#asker.hear(on);
   }
 
   #settingsEdited(): void {

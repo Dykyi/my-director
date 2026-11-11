@@ -18,6 +18,7 @@ export interface Settings {
   statsCsv: boolean;
   statsOverlay: boolean;
   hearPhone: boolean;
+  hearVoice: boolean;
 }
 
 export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
@@ -35,6 +36,7 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
   statsCsv: true,
   statsOverlay: true,
   hearPhone: false,
+  hearVoice: false,
 });
 
 export const MIN_QUIET_SEC = 3;

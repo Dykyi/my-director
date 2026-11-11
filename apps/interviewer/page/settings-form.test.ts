@@ -21,13 +21,11 @@ const values: FormValues = {
 };
 
 describe('mergeFormValues', () => {
-  it('takes what the form holds and keeps the side switch', () =>
-    assert.deepEqual(mergeFormValues(values, { ...DEFAULT_SETTINGS, hearPhone: true }), {
-      ...values,
-      quietSec: 30,
-      readingMinutes: 15,
-      hearPhone: true,
-    }));
+  it('takes what the form holds and keeps the side switches', () =>
+    assert.deepEqual(
+      mergeFormValues(values, { ...DEFAULT_SETTINGS, hearPhone: true, hearVoice: true }),
+      { ...values, quietSec: 30, readingMinutes: 15, hearPhone: true, hearVoice: true },
+    ));
 
   it('keeps the old name when a field is left empty', () => {
     const merged = mergeFormValues({ ...values, room: '  ', identity: ' bob ' }, DEFAULT_SETTINGS);

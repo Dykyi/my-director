@@ -54,6 +54,7 @@ export interface ViewActions {
   read(): void;
   toggleRecording(): void;
   hear(on: boolean): void;
+  hearVoice(on: boolean): void;
   settingsEdited(): void;
   saveScript(text: string): void;
   saveReading(text: string): void;
@@ -109,6 +110,7 @@ export class InterviewerView {
   fillSettings(settings: Settings): void {
     this.#settingsForm.fill(settings);
     byId<HTMLInputElement>('hearToggle').checked = settings.hearPhone;
+    byId<HTMLInputElement>('voiceToggle').checked = settings.hearVoice;
   }
 
   readSettings(current: Settings): Settings {
@@ -276,6 +278,8 @@ export class InterviewerView {
     byId('recordButton').onclick = () => actions.toggleRecording();
     byId<HTMLInputElement>('hearToggle').onchange = (event) =>
       actions.hear((event.target as HTMLInputElement).checked);
+    byId<HTMLInputElement>('voiceToggle').onchange = (event) =>
+      actions.hearVoice((event.target as HTMLInputElement).checked);
     byId('csvButton').onclick = () => actions.downloadCsv();
     byId('resetButton').onclick = () => actions.reset();
 

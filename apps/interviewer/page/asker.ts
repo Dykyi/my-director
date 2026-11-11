@@ -12,12 +12,15 @@ export class Asker {
   #ticket = 0;
   #microphoneRequest = 0;
   #speaking = false;
+  readonly #voice: MediaElementAudioSourceNode;
+  #heard = false;
 
   constructor(context: AudioContext, speech: HTMLAudioElement, onSpoken: () => void) {
     this.#context = context;
     this.#speech = speech;
     this.#bus = context.createMediaStreamDestination();
-    context.createMediaElementSource(speech).connect(this.#bus);
+    this.#voice = context.createMediaElementSource(speech);
+    this.#voice.connect(this.#bus);
     speech.addEventListener('ended', () => {
       this.#speaking = false;
       onSpoken();
@@ -51,6 +54,14 @@ export class Asker {
       this.#speaking = false;
       throw error;
     }
+  }
+
+  // An element routed into the graph is silent here until it also reaches the speakers.
+  hear(on: boolean): void {
+    if (on === this.#heard) return;
+    if (on) this.#voice.connect(this.#context.destination);
+    else this.#voice.disconnect(this.#context.destination);
+    this.#heard = on;
   }
 
   stop(): void {

@@ -46,6 +46,28 @@ afterEach(() => {
   Reflect.deleteProperty(navigator, 'mediaDevices');
 });
 
+describe('Asker voice on this Mac', () => {
+  it('plays the voice here once and stops only that, keeping it in the call', () => {
+    const output = { name: 'speakers' };
+    const calls: string[] = [];
+    const voice = {
+      connect: (to: unknown) => calls.push(to === output ? 'speakers on' : 'call on'),
+      disconnect: (from: unknown) => calls.push(from === output ? 'speakers off' : 'call off'),
+    };
+    const context = {
+      destination: output,
+      createMediaStreamDestination: () => ({ stream: {} }),
+      createMediaElementSource: () => voice,
+    } as unknown as AudioContext;
+    const asker = new Asker(context, speech, () => {});
+    asker.hear(true);
+    asker.hear(true);
+    asker.hear(false);
+    asker.hear(false);
+    assert.deepEqual(calls, ['call on', 'speakers on', 'speakers off']);
+  });
+});
+
 describe('Asker microphone', () => {
   it('stays closed when it is turned off before the browser opens it', async () => {
     const { context, bus } = fakeContext();
