@@ -1,27 +1,17 @@
 import type { Asker } from './asker.ts';
-import { errorText, formatMinutes } from './labels.ts';
+import { errorText, firstWords } from './labels.ts';
 import type { QuestionFlowHost } from './question-flow.ts';
-import { readingLimitMs, ReadingRun } from './reading-run.ts';
+import { ReadingRun } from './reading-run.ts';
 import type { Settings } from './settings-store.ts';
-
-const MS_PER_SECOND = 1000;
-const LOGGED_WORDS = 6;
+import { TalkLifecycle, type TalkSteps } from './talk-lifecycle.ts';
 
 type Speaker = Pick<Asker, 'speak' | 'stop' | 'prefetch'>;
-
-function firstWords(text: string): string {
-  const words = text.split(' ');
-  return words.length > LOGGED_WORDS ? `${words.slice(0, LOGGED_WORDS).join(' ')}…` : text;
-}
 
 export class ReadingFlow {
   readonly #asker: Speaker;
   readonly #host: QuestionFlowHost;
-  readonly #now: () => number;
+  readonly #talk: TalkLifecycle;
   #run: ReadingRun;
-  #running = false;
-  #autoStartDone = false;
-  #waitsForPhone = false;
 
   constructor(
     paragraphs: readonly string[],
@@ -32,7 +22,7 @@ export class ReadingFlow {
     this.#run = new ReadingRun(paragraphs);
     this.#asker = asker;
     this.#host = host;
-    this.#now = now;
+    this.#talk = new TalkLifecycle(host, this.#steps(), now);
   }
 
   get run(): ReadingRun {
@@ -40,26 +30,15 @@ export class ReadingFlow {
   }
 
   get running(): boolean {
-    return this.#running;
+    return this.#talk.running;
   }
 
   get #settings(): Settings {
     return this.#host.settings();
   }
 
-  get #isLive(): boolean {
-    const { phone } = this.#host;
-    return phone.ready && !phone.paused;
-  }
-
-  get #autoStartPending(): boolean {
-    return this.#settings.startOnJoin && !this.#host.guest && !this.#autoStartDone;
-  }
-
   toggle(): void {
-    if (this.#running) this.stop();
-    else if (this.#isLive) this.#start();
-    this.#host.changed();
+    this.#talk.toggle();
   }
 
   replaceText(paragraphs: readonly string[]): void {
@@ -68,7 +47,7 @@ export class ReadingFlow {
   }
 
   holdAutoStart(): void {
-    this.#autoStartDone = true;
+    this.#talk.holdAutoStart();
   }
 
   prefetchCurrent(): void {
@@ -76,67 +55,45 @@ export class ReadingFlow {
   }
 
   paragraphSpoken(): void {
-    if (!this.#running) return;
-    const now = this.#now();
-    if (!this.#run.isDone(now, readingLimitMs(this.#settings.readingMinutes))) {
-      this.#run.advance();
-      void this.#read();
+    if (!this.#talk.running) return;
+    if (this.#talk.timeUp) {
+      this.#talk.finish('Reading');
       return;
     }
-    this.stop();
-    const elapsed = formatMinutes(this.#run.elapsedMs(now) / MS_PER_SECOND);
-    this.#host.log(`Reading finished after ${elapsed}`);
-    this.#host.changed();
+    this.#run.advance();
+    void this.#read();
   }
 
   stop(): void {
-    this.#asker.stop();
-    this.#running = false;
-    this.#waitsForPhone = false;
-    this.#syncClock();
+    this.#talk.stop();
   }
 
   phoneReady(): void {
-    if (this.#autoStartPending && this.#isLive) this.#start();
-    else this.#goOn();
+    this.#talk.phoneReady();
   }
 
   phonePaused(): void {
-    this.#asker.stop();
-    this.#waitsForPhone = this.#running;
-    this.#syncClock();
+    this.#talk.phonePaused();
   }
 
   phoneResumed(): void {
-    this.phoneReady();
+    this.#talk.phoneResumed();
   }
 
-  // A phone that leaves mid-reading usually comes back, so the reading waits as for a pause.
   phoneLeft(): void {
-    this.phonePaused();
+    this.#talk.phoneLeft();
   }
 
-  #start(): void {
-    this.#run = new ReadingRun(this.#run.paragraphs);
-    this.#running = true;
-    this.#autoStartDone = true;
-    this.#syncClock();
-    void this.#read();
-  }
-
-  // The paragraph cut off by a pause or a leave is read again from its start.
-  #goOn(): void {
-    this.#syncClock();
-    if (!this.#waitsForPhone || !this.#isLive) return;
-    this.#waitsForPhone = false;
-    void this.#read();
-  }
-
-  // The time runs only while the reading is on and the phone records it.
-  #syncClock(): void {
-    const now = this.#now();
-    if (this.#running && this.#isLive) this.#run.resume(now);
-    else this.#run.pause(now);
+  // A new run starts over with its own clock, so the reading clock lives in the run.
+  #steps(): TalkSteps {
+    return {
+      clock: () => this.#run,
+      restart: () => {
+        this.#run = new ReadingRun(this.#run.paragraphs);
+      },
+      say: () => void this.#read(),
+      silence: () => this.#asker.stop(),
+    };
   }
 
   async #read(): Promise<void> {

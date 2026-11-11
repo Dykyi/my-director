@@ -1,7 +1,15 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { formatClock, formatMinutes, pauseTitle, qualityOf, statsLine } from './labels.ts';
+import {
+  firstWords,
+  formatClock,
+  formatMinutes,
+  formatTimeOfDay,
+  pauseTitle,
+  qualityOf,
+  statsLine,
+} from './labels.ts';
 
 describe('labels', () => {
   it('says why the phone paused, and just that it paused for an unknown reason', () => {
@@ -33,5 +41,15 @@ describe('labels', () => {
   it('formats the reading time with two-digit minutes', () => {
     assert.equal(formatMinutes(192.5), '03:12');
     assert.equal(formatMinutes(600), '10:00');
+  });
+
+  it('logs the first six words of a long line', () => {
+    assert.equal(firstWords('I opened the shop in a garage.'), 'I opened the shop in a…');
+    assert.equal(firstWords('Why bikes?'), 'Why bikes?');
+  });
+
+  it('shows the local time of day with tenths of a second', () => {
+    assert.equal(formatTimeOfDay(new Date(2026, 10, 11, 14, 52, 7, 345).getTime()), '14:52:07.3');
+    assert.equal(formatTimeOfDay(new Date(2026, 10, 11, 9, 5, 3, 999).getTime()), '09:05:03.9');
   });
 });

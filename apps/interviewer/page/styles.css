@@ -638,6 +638,10 @@ code,
   overflow: hidden;
 }
 
+.demo-list li.is-guest {
+  margin-left: var(--space-6);
+}
+
 .pane {
   display: flex;
   flex-direction: column;
@@ -730,6 +734,11 @@ code,
 
 .toggle-label {
   flex-grow: 1;
+}
+
+.toggle-row:has(.switch:disabled) {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .settings .toggle-label {
@@ -910,4 +919,65 @@ code,
 
 .settings-foot .button {
   margin-left: auto;
+}
+
+.scene {
+  position: fixed;
+  inset: 0;
+  background: var(--color-backdrop);
+  color: var(--color-foreground);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: none;
+}
+
+/* A 9:16 column like the phone's frame, scaled by the keys; sizes inside follow its width. */
+.scene-column {
+  width: calc(var(--scene-scale) * min(100vw, 56.25vh));
+  height: calc(var(--scene-scale) * 100%);
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  /* The 9:16 edge to line the phone up with: the frame should just fill its picture. */
+  border: 2px solid var(--color-muted);
+}
+
+.scene-clock {
+  margin-top: 10cqw;
+  font-family: var(--font-mono);
+  font-size: 14cqw;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.scene-speaker {
+  margin-top: 8cqw;
+  font-size: 5cqw;
+  line-height: 1.2;
+}
+
+.scene-text {
+  width: 90cqw;
+  margin-top: 3cqw;
+  font-size: 5cqw;
+  line-height: 1.3;
+}
+
+.scene-hint {
+  width: 90cqw;
+  margin-top: 4cqw;
+  font-size: 3.2cqw;
+  line-height: 1.3;
+  color: var(--color-muted);
+}
+
+.scene-status {
+  width: 90cqw;
+  margin: auto 0 6cqw;
+  font-size: 3.4cqw;
+  line-height: 1.3;
+  color: var(--color-muted);
 }

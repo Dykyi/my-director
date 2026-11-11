@@ -1,4 +1,4 @@
-import { fetchSpeech } from './server-api.ts';
+import { SpeechPlayer } from './speech-player.ts';
 
 // The voice and the microphone share one bus, so switching keeps the published track and the recording.
 const stopTrack = (track: MediaStreamTrack) => track.stop();
@@ -6,25 +6,18 @@ const stopTrack = (track: MediaStreamTrack) => track.stop();
 export class Asker {
   readonly #context: AudioContext;
   readonly #bus: MediaStreamAudioDestinationNode;
-  readonly #speech: HTMLAudioElement;
-  readonly #urls = new Map<string, Promise<string>>();
+  readonly #player: SpeechPlayer;
   #microphone: MediaStreamAudioSourceNode | undefined;
-  #ticket = 0;
   #microphoneRequest = 0;
-  #speaking = false;
   readonly #voice: MediaElementAudioSourceNode;
   #heard = false;
 
   constructor(context: AudioContext, speech: HTMLAudioElement, onSpoken: () => void) {
     this.#context = context;
-    this.#speech = speech;
+    this.#player = new SpeechPlayer(speech, onSpoken);
     this.#bus = context.createMediaStreamDestination();
     this.#voice = context.createMediaElementSource(speech);
     this.#voice.connect(this.#bus);
-    speech.addEventListener('ended', () => {
-      this.#speaking = false;
-      onSpoken();
-    });
   }
 
   get stream(): MediaStream {
@@ -32,28 +25,19 @@ export class Asker {
   }
 
   get speaking(): boolean {
-    return this.#speaking;
+    return this.#player.speaking;
+  }
+
+  get sounding(): boolean {
+    return this.#player.sounding;
   }
 
   get progress(): { atSec: number; lengthSec: number } {
-    return { atSec: this.#speech.currentTime, lengthSec: this.#speech.duration || 0 };
+    return this.#player.progress;
   }
 
-  async speak(text: string, voice: string): Promise<boolean> {
-    this.stop();
-    const ticket = this.#ticket;
-    this.#speaking = true;
-    try {
-      const url = await this.#speechUrl(text, voice);
-      if (ticket !== this.#ticket) return false;
-      this.#speech.src = url;
-      await this.#speech.play();
-      return true;
-    } catch (error) {
-      if (ticket !== this.#ticket) return false;
-      this.#speaking = false;
-      throw error;
-    }
+  speak(text: string, voice: string): Promise<boolean> {
+    return this.#player.speak(text, voice);
   }
 
   // An element routed into the graph is silent here until it also reaches the speakers.
@@ -65,13 +49,11 @@ export class Asker {
   }
 
   stop(): void {
-    this.#ticket += 1;
-    this.#speech.pause();
-    this.#speaking = false;
+    this.#player.stop();
   }
 
   prefetch(text: string, voice: string): void {
-    this.#speechUrl(text, voice).catch(() => {});
+    this.#player.prefetch(text, voice);
   }
 
   async useMicrophone(on: boolean): Promise<void> {
@@ -90,16 +72,5 @@ export class Asker {
     }
     this.#microphone = this.#context.createMediaStreamSource(stream);
     this.#microphone.connect(this.#bus);
-  }
-
-  #speechUrl(text: string, voice: string): Promise<string> {
-    const key = `${voice}\n${text}`;
-    let url = this.#urls.get(key);
-    if (!url) {
-      url = fetchSpeech(text, voice).then((blob) => URL.createObjectURL(blob));
-      url.catch(() => this.#urls.delete(key));
-      this.#urls.set(key, url);
-    }
-    return url;
   }
 }

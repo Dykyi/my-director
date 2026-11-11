@@ -3,6 +3,8 @@ import { Track, type RemoteTrack } from 'livekit-client';
 import type { Voice } from '../server/voice-catalog.ts';
 import { Asker } from './asker.ts';
 import { CallRecorder } from './call-recorder.ts';
+import { DemoFlow } from './demo-flow.ts';
+import { parseDemoScript } from './demo-script.ts';
 import { InterviewerView, type ViewActions } from './interviewer-view.ts';
 import { errorText } from './labels.ts';
 import { PhoneFeed } from './phone-feed.ts';
@@ -12,7 +14,16 @@ import { ReadingFlow } from './reading-flow.ts';
 import { parseParagraphs } from './reading-run.ts';
 import { RoomSession, type RoomListener, type RoomNames } from './room-session.ts';
 import { fetchDefaultScript, fetchRoomAccess, fetchVoices } from './server-api.ts';
-import { SettingsStore, type Settings } from './settings-store.ts';
+import {
+  hearsOnMac,
+  SettingsStore,
+  stepSceneScale,
+  usesMicrophone,
+  type FlowMode,
+  type ScaleDirection,
+  type Settings,
+} from './settings-store.ts';
+import { SpeechPlayer } from './speech-player.ts';
 import { StatsCollector } from './stats-collector.ts';
 import { buildViewState } from './view-state.ts';
 
@@ -22,7 +33,13 @@ const SAMPLE_RATE = 48000;
 
 type PhoneFlow = Pick<
   QuestionFlow,
-  'phoneReady' | 'phonePaused' | 'phoneResumed' | 'phoneLeft' | 'prefetchCurrent' | 'holdAutoStart'
+  | 'phoneReady'
+  | 'phonePaused'
+  | 'phoneResumed'
+  | 'phoneLeft'
+  | 'prefetchCurrent'
+  | 'holdAutoStart'
+  | 'stop'
 >;
 
 export class Interviewer {
@@ -35,22 +52,32 @@ export class Interviewer {
   readonly #guestName = new URLSearchParams(location.search).get('as') ?? undefined;
   readonly #view: InterviewerView;
   readonly #asker: Asker;
+  /** The guest's answers in Demo play straight on this Mac's speakers, outside the call. */
+  readonly #guestPlayer: SpeechPlayer;
   readonly #phone: PhoneFeed;
   readonly #questions: QuestionFlow;
   readonly #reading: ReadingFlow;
+  readonly #demo: DemoFlow;
+  readonly #flows: Record<FlowMode, PhoneFlow>;
   #settings: Settings;
   #session: RoomSession | undefined;
   #joining = false;
 
-  private constructor(voices: readonly Voice[], defaultScript: string, defaultReading: string) {
+  private constructor(
+    voices: readonly Voice[],
+    defaultScript: string,
+    defaultReading: string,
+    demoScript: string,
+  ) {
     this.#settings = this.#store.load();
     this.#view = new InterviewerView(this.#actions(), voices, {
       script: defaultScript,
       reading: defaultReading,
     });
     this.#asker = new Asker(this.#audioContext, this.#view.speech, () => this.#spoken());
-    this.#asker.hear(this.#settings.hearVoice);
+    this.#guestPlayer = new SpeechPlayer(this.#view.guestSpeech, () => this.#demo.lineSpoken());
     this.#phone = new PhoneFeed(this.#audioContext, this.#view.videoHost);
+    this.#applyHearing();
     const host: QuestionFlowHost = {
       settings: () => this.#settings,
       guest: Boolean(this.#guestName),
@@ -62,6 +89,9 @@ export class Interviewer {
     this.#questions = new QuestionFlow(questions, this.#asker, host);
     const paragraphs = parseParagraphs(this.#store.loadReading() ?? defaultReading);
     this.#reading = new ReadingFlow(paragraphs, this.#asker, host);
+    const players = { interviewer: this.#asker, guest: this.#guestPlayer };
+    this.#demo = new DemoFlow(parseDemoScript(demoScript), players, host);
+    this.#flows = { questions: this.#questions, reading: this.#reading, demo: this.#demo };
     this.#view.fillSettings(this.#settings);
     this.#render();
     setInterval(() => this.#tick(), REDRAW_MS);
@@ -71,9 +101,9 @@ export class Interviewer {
     );
   }
 
-  static async start(defaultReading: string): Promise<Interviewer> {
+  static async start(defaultReading: string, demoScript: string): Promise<Interviewer> {
     const [voices, defaultScript] = await Promise.all([fetchVoices(), fetchDefaultScript()]);
-    return new Interviewer(voices, defaultScript, defaultReading);
+    return new Interviewer(voices, defaultScript, defaultReading, demoScript);
   }
 
   get #names(): RoomNames {
@@ -86,12 +116,14 @@ export class Interviewer {
   }
 
   get #flow(): PhoneFlow {
-    return this.#settings.mode === 'reading' ? this.#reading : this.#questions;
+    return this.#flows[this.#settings.mode];
   }
 
   // A mode switch stops the voice, so the voice that ended belongs to the current mode.
   #spoken(): void {
-    if (this.#settings.mode === 'reading') this.#reading.paragraphSpoken();
+    const { mode } = this.#settings;
+    if (mode === 'demo') this.#demo.lineSpoken();
+    else if (mode === 'reading') this.#reading.paragraphSpoken();
     else this.#questions.questionSpoken();
   }
 
@@ -104,6 +136,8 @@ export class Interviewer {
       next: () => this.#questions.next(),
       select: (index) => this.#questions.select(index),
       read: () => this.#reading.toggle(),
+      demo: () => this.#demo.toggle(),
+      scaleScene: (direction) => this.#scaleScene(direction),
       toggleRecording: () => this.#toggleRecording(),
       hear: (on) => this.#setHearPhone(on),
       hearVoice: (on) => this.#setHearVoice(on),
@@ -170,7 +204,7 @@ export class Interviewer {
   }
 
   #phoneTrack(track: RemoteTrack, muted: boolean): void {
-    this.#phone.add(track, this.#settings.hearPhone);
+    this.#phone.add(track, hearsOnMac(this.#settings, this.#settings.hearPhone));
     this.#log(`The phone's ${track.kind} arrived`);
     if (track.kind === Track.Kind.Video && muted) this.#phonePaused();
     if (this.#phone.ready) {
@@ -249,13 +283,26 @@ export class Interviewer {
   #setHearPhone(on: boolean): void {
     this.#settings = { ...this.#settings, hearPhone: on };
     this.#store.save(this.#settings);
-    this.#phone.hear(on);
+    this.#applyHearing();
   }
 
   #setHearVoice(on: boolean): void {
     this.#settings = { ...this.#settings, hearVoice: on };
     this.#store.save(this.#settings);
-    this.#asker.hear(on);
+    this.#applyHearing();
+  }
+
+  #scaleScene(direction: ScaleDirection): void {
+    const sceneScale = stepSceneScale(this.#settings.sceneScale, direction);
+    this.#settings = { ...this.#settings, sceneScale };
+    this.#store.save(this.#settings);
+    this.#render();
+  }
+
+  #applyHearing(): void {
+    const settings = this.#settings;
+    this.#asker.hear(hearsOnMac(settings, settings.hearVoice));
+    this.#phone.hear(hearsOnMac(settings, settings.hearPhone));
   }
 
   #settingsEdited(): void {
@@ -263,23 +310,21 @@ export class Interviewer {
     this.#settings = this.#view.readSettings(before);
     this.#view.fillSettings(this.#settings);
     this.#store.save(this.#settings);
-    if (this.#settings.asker !== before.asker) {
-      this.#questions.stop();
-      void this.#syncMicrophone();
-    }
+    if (this.#settings.asker !== before.asker) this.#questions.stop();
+    if (usesMicrophone(this.#settings) !== usesMicrophone(before)) void this.#syncMicrophone();
     if (this.#settings.mode !== before.mode) {
-      this.#questions.stop();
-      this.#reading.stop();
+      for (const flow of Object.values(this.#flows)) flow.stop();
       // The phone joined before this mode began, so it starts on Ask or Start, not on a resume.
       if (this.#phone.ready || this.#phone.paused) this.#flow.holdAutoStart();
     }
+    this.#applyHearing();
     this.#flow.prefetchCurrent();
     this.#render();
   }
 
   async #syncMicrophone(): Promise<void> {
     try {
-      await this.#asker.useMicrophone(this.#inRoom && this.#settings.asker === 'microphone');
+      await this.#asker.useMicrophone(this.#inRoom && usesMicrophone(this.#settings));
     } catch (error) {
       this.#log(`Microphone unavailable: ${errorText(error)}`);
     }
@@ -308,6 +353,7 @@ export class Interviewer {
       run: this.#questions.run,
       quiet: this.#questions.quiet,
       reading: this.#reading,
+      demo: this.#demo,
       asker: this.#asker,
       recorder: this.#recorder,
       stats: this.#stats,

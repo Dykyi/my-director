@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { describe, it } from 'node:test';
 
 import { MAX_SPEECH_CHARS } from '../server/requests.ts';
-import { parseParagraphs, readingLimitMs, ReadingRun, speechParts } from './reading-run.ts';
+import { parseParagraphs, ReadingRun, speechParts } from './reading-run.ts';
 
 describe('parseParagraphs', () => {
   it('splits on blank lines and joins wrapped lines', () =>
@@ -40,10 +40,6 @@ describe('speechParts', () => {
 
   it('falls back to the last space inside one long sentence', () =>
     assert.deepEqual(speechParts('aaa bbb ccc ddd eee', 10), ['aaa bbb', 'ccc ddd', 'eee']));
-});
-
-describe('readingLimitMs', () => {
-  it('turns minutes into milliseconds', () => assert.equal(readingLimitMs(10), 600_000));
 });
 
 describe('ReadingRun', () => {

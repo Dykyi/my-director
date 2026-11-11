@@ -1,10 +1,8 @@
 import { MAX_SPEECH_CHARS } from '../server/requests.ts';
+import { TalkClock } from './talk-clock.ts';
 
-const MS_PER_MINUTE = 60_000;
 // The mark stays with its sentence and the space after it starts the next part.
 const SENTENCE_END = /[.!?](?= )/g;
-
-export const readingLimitMs = (minutes: number): number => minutes * MS_PER_MINUTE;
 
 function cutIndex(head: string, max: number): number {
   const sentenceEnd = [...head.matchAll(SENTENCE_END)].at(-1)?.index;
@@ -34,9 +32,8 @@ export const parseParagraphs = (text: string): string[] =>
 
 export class ReadingRun {
   readonly paragraphs: readonly string[];
+  readonly #clock = new TalkClock();
   #current = 0;
-  #readMs = 0;
-  #since: number | undefined;
 
   constructor(paragraphs: readonly string[]) {
     this.paragraphs = paragraphs;
@@ -59,21 +56,19 @@ export class ReadingRun {
   }
 
   resume(now: number): void {
-    this.#since ??= now;
+    this.#clock.resume(now);
   }
 
   pause(now: number): void {
-    if (this.#since === undefined) return;
-    this.#readMs += now - this.#since;
-    this.#since = undefined;
+    this.#clock.pause(now);
   }
 
   elapsedMs(now: number): number {
-    return this.#readMs + (this.#since === undefined ? 0 : now - this.#since);
+    return this.#clock.elapsedMs(now);
   }
 
   isDone(now: number, limitMs: number): boolean {
-    return this.elapsedMs(now) >= limitMs;
+    return this.#clock.isDone(now, limitMs);
   }
 
   get #next(): number {

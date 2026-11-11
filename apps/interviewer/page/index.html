@@ -28,6 +28,12 @@
       </span>
       <span id="connChip" class="chip"><span class="dot"></span><span id="connText"></span></span>
       <span class="topbar-actions">
+        <button id="sceneButton" class="button" type="button">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" />
+          </svg>
+          Scene
+        </button>
         <button id="settingsButton" class="button" type="button">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M4 7h9M18 7h2M4 17h2M11 17h9" />
@@ -86,8 +92,8 @@
             </svg>
             <span id="pausedTitle" class="paused-title"></span>
             <span class="paused-text">
-              Its camera and microphone are muted, and its recording is safe. The questions or the
-              reading wait until the phone resumes.
+              Its camera and microphone are muted, and its recording is safe. The questions, the
+              reading or the demo wait until the phone resumes.
             </span>
             <span id="pausedMeta" class="mono muted"></span>
           </div>
@@ -141,6 +147,27 @@
               <span id="readLabel">Start</span>
             </button>
             <span id="readingVoiceLabel" class="voice-label"></span>
+          </div>
+        </section>
+
+        <section id="demoPrompter" class="prompter" aria-label="Demo" hidden>
+          <div class="prompter-head">
+            <span class="eyebrow">DEMO</span>
+            <span id="demoLabel" class="muted small"></span>
+            <span id="demoSpeaker" class="muted small"></span>
+            <span id="demoState" class="muted small"></span>
+            <span id="demoClock" class="prompter-quiet"></span>
+          </div>
+          <div id="demoText" class="reading-text"></div>
+          <div class="progress"><div id="demoProgress"></div></div>
+          <div class="prompter-actions">
+            <button id="demoButton" class="button button-primary" type="button">
+              <svg class="icon icon-filled" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 4.5v15l12-7.5z" />
+              </svg>
+              <span id="demoButtonLabel">Start</span>
+            </button>
+            <span id="demoVoicesLabel" class="voice-label"></span>
           </div>
         </section>
       </main>
@@ -210,6 +237,12 @@
               </div>
             </div>
           </div>
+          <div id="demoPane" class="pane" hidden>
+            <div class="panel-head">
+              <span id="demoSummary" class="muted small"></span>
+            </div>
+            <ol id="demoLines" class="question-list paragraph-list demo-list"></ol>
+          </div>
         </section>
 
         <section id="panel-session" class="panel" role="tabpanel" hidden>
@@ -252,6 +285,7 @@
             <span class="toggle-label">Hear the voice on this Mac</span>
             <input id="voiceToggle" class="switch" type="checkbox" />
           </label>
+          <span id="hearHint" class="hint" hidden>Off in Demo: the phone listens to this Mac.</span>
         </footer>
       </aside>
     </div>
@@ -289,15 +323,17 @@
           </div>
         </section>
         <section class="settings-section">
-          <h3 class="eyebrow">QUESTIONS OR READING</h3>
+          <h3 class="eyebrow">QUESTIONS, READING OR DEMO</h3>
           <div class="field">
             <span>Mode</span>
             <div class="segmented">
               <label><input type="radio" name="mode" value="questions" />Questions</label>
               <label><input type="radio" name="mode" value="reading" />Reading</label>
+              <label><input type="radio" name="mode" value="demo" />Demo</label>
             </div>
             <span class="hint"
-              >Reading reads a text aloud, paragraph after paragraph, for the set time.</span
+              >Reading reads a text aloud for the set time. Demo asks and answers by itself for the
+              set time: point the phone at this screen.</span
             >
           </div>
           <div class="field">
@@ -314,14 +350,19 @@
               >Any voice installed on this Mac; each question is spoken once and kept.</span
             >
           </label>
+          <label class="field">
+            <span>Guest voice</span>
+            <select name="guestVoice"></select>
+            <span class="hint">Answers in Demo, played on this Mac's speakers.</span>
+          </label>
           <div class="pair">
             <label class="field">
               <span>Next question after quiet, s</span>
               <input name="quietSec" class="mono" type="number" />
             </label>
             <label class="field">
-              <span>Reading length, min</span>
-              <input name="readingMinutes" class="mono" type="number" />
+              <span>Length, min</span>
+              <input name="talkMinutes" class="mono" type="number" />
             </label>
           </div>
           <label class="toggle-row">
@@ -366,7 +407,18 @@
       </div>
     </aside>
 
+    <div id="scene" class="scene" hidden>
+      <div class="scene-column">
+        <span id="sceneClock" class="scene-clock"></span>
+        <span id="sceneSpeaker" class="eyebrow scene-speaker"></span>
+        <span id="sceneText" class="scene-text"></span>
+        <span id="sceneHint" class="scene-hint"></span>
+        <span id="sceneStatus" class="scene-status"></span>
+      </div>
+    </div>
+
     <audio id="speech" preload="auto"></audio>
+    <audio id="guestSpeech" preload="auto"></audio>
     <script type="module" src="app.js"></script>
   </body>
 </html>

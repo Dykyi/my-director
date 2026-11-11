@@ -57,5 +57,22 @@ const MINUTES_CLOCK_LENGTH = 'mm:ss'.length;
 export const formatMinutes = (totalSec: number): string =>
   formatClock(totalSec).padStart(MINUTES_CLOCK_LENGTH, '0');
 
+const MS_PER_TENTH = 100;
+const twoDigits = (value: number) => String(value).padStart(2, '0');
+
+/** Local time with tenths, so a filmed frame shows the clock moving. */
+export function formatTimeOfDay(ms: number): string {
+  const time = new Date(ms);
+  const tenths = Math.floor(time.getMilliseconds() / MS_PER_TENTH);
+  return `${twoDigits(time.getHours())}:${twoDigits(time.getMinutes())}:${twoDigits(time.getSeconds())}.${tenths}`;
+}
+
 export const errorText = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
+
+const LOGGED_WORDS = 6;
+
+export function firstWords(text: string): string {
+  const words = text.split(' ');
+  return words.length > LOGGED_WORDS ? `${words.slice(0, LOGGED_WORDS).join(' ')}…` : text;
+}

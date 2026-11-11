@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
+import type { DemoLine } from './demo-script.ts';
+import { formatTimeOfDay } from './labels.ts';
 import { PauseClock } from './pause-clock.ts';
 import { QuestionRun } from './question-run.ts';
 import { QuietTimer } from './quiet-timer.ts';
@@ -9,15 +11,42 @@ import { DEFAULT_SETTINGS } from './settings-store.ts';
 import { buildViewState, type PageSnapshot } from './view-state.ts';
 
 const now = { wallMs: 1_000_000, monotonicMs: 50_000 };
+const HINT = {
+  interviewer:
+    'The interviewer speaks in the call · the phone plays it and mixes it into the recording',
+  guest: "The guest speaks from this Mac · the phone's microphone records it",
+  gap: 'Next line in a moment',
+  paused: 'The phone is paused · nothing is recorded until it resumes',
+  waiting: 'Waiting for the phone to join the call',
+  finished: 'Demo finished · stop the recording on the phone',
+};
 const QUESTIONS = Array.from({ length: 10 }, (_, index) => `Question ${index + 1}?`);
 const PARAGRAPHS = Array.from({ length: 22 }, (_, index) => `Paragraph ${index + 1}.`);
+const LINES: DemoLine[] = Array.from({ length: 32 }, (_, index) => ({
+  speaker: index % 2 === 0 ? 'interviewer' : 'guest',
+  text: `Line ${index + 1}.`,
+}));
 const reading = { ...DEFAULT_SETTINGS, mode: 'reading' as const };
+const demoMode = { ...DEFAULT_SETTINGS, mode: 'demo' as const };
 const session = {
   reconnecting: false,
   quality: 'excellent',
   pauseReason: '',
   phoneName: undefined,
 };
+
+function demoAt(current: number, overrides: Partial<PageSnapshot['demo']> = {}) {
+  return {
+    lines: LINES,
+    current,
+    line: LINES[current] ?? { speaker: 'interviewer' as const, text: '' },
+    running: false,
+    finished: false,
+    sounding: false,
+    elapsedMs: () => 0,
+    ...overrides,
+  };
+}
 
 function snapshot(overrides: Partial<PageSnapshot> = {}): PageSnapshot {
   return {
@@ -36,7 +65,8 @@ function snapshot(overrides: Partial<PageSnapshot> = {}): PageSnapshot {
     run: new QuestionRun(QUESTIONS),
     quiet: new QuietTimer(),
     reading: { run: new ReadingRun(PARAGRAPHS), running: false },
-    asker: { speaking: false, progress: { atSec: 0, lengthSec: 0 } },
+    demo: demoAt(0),
+    asker: { speaking: false, sounding: false, progress: { atSec: 0, lengthSec: 0 } },
     recorder: { startedAt: undefined },
     stats: { latest: {}, rowCount: 0 },
     ...overrides,
@@ -141,7 +171,7 @@ describe('buildViewState', () => {
 
   it('follows the question as it is read, asked and waited on', () => {
     const run = new QuestionRun(QUESTIONS);
-    const speaking = { speaking: true, progress: { atSec: 2.4, lengthSec: 6.1 } };
+    const speaking = { speaking: true, sounding: true, progress: { atSec: 2.4, lengthSec: 6.1 } };
     const reading = buildViewState(
       snapshot({ session, phone: livePhone(), run, asker: speaking }),
       now,
@@ -257,5 +287,167 @@ describe('buildViewState', () => {
     const state = buildViewState(snapshot({ settings }), now);
     assert.equal(state.prompter.voice, 'Your microphone');
     assert.equal(state.statsLine, undefined);
+  });
+
+  it('shows where the demo is, who speaks and how long it has run', () => {
+    const elapsedMs = (at: number) => at - (now.monotonicMs - 134_000);
+    const state = buildViewState(
+      snapshot({
+        settings: demoMode,
+        session,
+        phone: livePhone(),
+        demo: demoAt(2, { running: true, elapsedMs }),
+      }),
+      now,
+    );
+    assert.equal(state.mode, 'demo');
+    assert.deepEqual(state.demo, {
+      label: 'Line 3 of 32',
+      speaker: 'Interviewer',
+      text: 'Line 3.',
+      clock: '02:14 of 10:00',
+      state: '',
+      progress: 134 / 600,
+      startLabel: 'Stop',
+      canStart: true,
+      voices: 'Samantha asks · Daniel answers on this Mac',
+      lines: LINES,
+      current: 2,
+    });
+    assert.deepEqual(buildViewState(snapshot({ settings: demoMode }), now).autoStartChips, [
+      'Demo starts on join',
+      'Auto record on join',
+    ]);
+  });
+
+  it('turns the Hear switches off only in Demo', () => {
+    assert.equal(buildViewState(snapshot({ settings: demoMode }), now).hearLocked, true);
+    assert.equal(buildViewState(snapshot({ settings: reading }), now).hearLocked, false);
+    assert.equal(buildViewState(snapshot(), now).hearLocked, false);
+  });
+
+  it('shows the subtitle on the scene only while a voice is saying it', () => {
+    const scene = (sounding: boolean) =>
+      buildViewState(
+        snapshot({
+          settings: demoMode,
+          session,
+          phone: livePhone(),
+          demo: demoAt(3, { running: true, sounding }),
+        }),
+        now,
+      ).scene;
+    assert.deepEqual(scene(false), {
+      clock: formatTimeOfDay(now.wallMs),
+      speaker: '',
+      text: '',
+      hint: HINT.gap,
+      status: 'Line 4 of 32 · Live with iphone · 00:00 of 10:00',
+      scale: 0.8,
+    });
+    assert.deepEqual(scene(true), {
+      clock: formatTimeOfDay(now.wallMs),
+      speaker: 'GUEST',
+      text: 'Line 4.',
+      hint: HINT.guest,
+      status: 'Line 4 of 32 · Live with iphone · 00:00 of 10:00',
+      scale: 0.8,
+    });
+  });
+
+  it('tells the viewer of the video what happens in Demo', () => {
+    const hint = (demo: PageSnapshot['demo']) =>
+      buildViewState(snapshot({ settings: demoMode, session, phone: livePhone(), demo }), now).scene
+        .hint;
+    assert.equal(hint(demoAt(0, { running: true, sounding: true })), HINT.interviewer);
+    assert.equal(hint(demoAt(1, { running: true, sounding: true })), HINT.guest);
+    assert.equal(hint(demoAt(1, { running: true })), HINT.gap);
+    assert.equal(hint(demoAt(1, { finished: true })), HINT.finished);
+    assert.equal(hint(demoAt(1)), '');
+  });
+
+  it('puts the pause and the wait for the phone before the voice on the scene', () => {
+    const pauses = new PauseClock();
+    pauses.pause(now.wallMs - 5_000);
+    const demo = demoAt(1, { running: true, sounding: true });
+    const hint = (overrides: Partial<PageSnapshot>) =>
+      buildViewState(snapshot({ settings: demoMode, demo, ...overrides }), now).scene.hint;
+    assert.equal(hint({ session, phone: livePhone(pauses) }), HINT.paused);
+    assert.equal(hint({}), HINT.waiting);
+    assert.equal(hint({ session }), HINT.waiting);
+  });
+
+  it('only says that the interviewer speaks in Questions and Reading', () => {
+    const asker = { speaking: true, sounding: true, progress: { atSec: 0, lengthSec: 0 } };
+    const hint = (overrides: Partial<PageSnapshot>) =>
+      buildViewState(snapshot({ session, phone: livePhone(), ...overrides }), now).scene.hint;
+    assert.equal(hint({ asker }), HINT.interviewer);
+    assert.equal(hint({ settings: reading, asker }), HINT.interviewer);
+    assert.equal(
+      hint({ settings: reading, reading: { run: new ReadingRun(PARAGRAPHS), running: true } }),
+      '',
+    );
+    assert.equal(hint({}), '');
+    assert.equal(hint({ session: undefined, asker }), HINT.waiting);
+  });
+
+  it('shrinks the scene by the saved scale', () =>
+    assert.equal(
+      buildViewState(snapshot({ settings: { ...DEFAULT_SETTINGS, sceneScale: 0.6 } }), now).scene
+        .scale,
+      0.6,
+    ));
+
+  it('keeps the question off the scene while its speech is still on the way', () => {
+    const fetching = { speaking: true, sounding: false, progress: { atSec: 0, lengthSec: 0 } };
+    const state = buildViewState(snapshot({ session, phone: livePhone(), asker: fetching }), now);
+    assert.deepEqual([state.scene.speaker, state.scene.text], ['', '']);
+    assert.equal(state.prompter.askLabel, 'Stop');
+  });
+
+  it('says why the phone paused on the scene', () => {
+    const pauses = new PauseClock();
+    pauses.pause(now.wallMs - 5_000);
+    const state = buildViewState(
+      snapshot({
+        settings: demoMode,
+        session: { ...session, pauseReason: 'phoneCall' },
+        phone: livePhone(pauses),
+        demo: demoAt(0, { running: true }),
+      }),
+      now,
+    );
+    assert.equal(
+      state.scene.status,
+      'Line 1 of 32 · The phone paused for a phone call · 00:00 of 10:00',
+    );
+  });
+
+  it('shows the asked question and the read paragraph on the scene as the interviewer', () => {
+    const speaking = { speaking: true, sounding: true, progress: { atSec: 0, lengthSec: 0 } };
+    const asking = buildViewState(
+      snapshot({ session, phone: livePhone(), asker: speaking }),
+      now,
+    ).scene;
+    assert.deepEqual(
+      [asking.speaker, asking.text, asking.status],
+      ['INTERVIEWER', 'Question 1?', 'Question 1 of 10 · Live with iphone'],
+    );
+    const run = new ReadingRun(PARAGRAPHS);
+    run.advance();
+    const readingScene = buildViewState(
+      snapshot({
+        settings: reading,
+        session,
+        phone: livePhone(),
+        reading: { run, running: true },
+        asker: speaking,
+      }),
+      now,
+    ).scene;
+    assert.deepEqual(
+      [readingScene.speaker, readingScene.text, readingScene.status],
+      ['INTERVIEWER', 'Paragraph 2.', 'Paragraph 2 of 22 · Live with iphone · 00:00 of 10:00'],
+    );
   });
 });

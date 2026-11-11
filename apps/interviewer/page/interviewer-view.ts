@@ -4,9 +4,10 @@ import { byId, ContentKey, setClass, setDisabled, setHidden, setText, writeText 
 import { qualityOf } from './labels.ts';
 import { parseScript } from './question-run.ts';
 import { parseParagraphs } from './reading-run.ts';
+import { openScene } from './scene.ts';
 import { ScriptEditor, type ScriptEditorIds, type ScriptFormat } from './script-editor.ts';
 import { SettingsForm } from './settings-form.ts';
-import type { Settings } from './settings-store.ts';
+import type { FlowMode, ScaleDirection, Settings } from './settings-store.ts';
 import {
   SESSION_ROWS,
   type ConnectionTone,
@@ -38,6 +39,15 @@ const READING_EDITOR: ScriptEditorIds = {
 const ONE_PER_LINE: ScriptFormat = { parse: parseScript, separator: '\n' };
 const BLANK_LINE_BETWEEN: ScriptFormat = { parse: parseParagraphs, separator: '\n\n' };
 
+const MODE_PARTS: Record<FlowMode, { prompter: string; pane: string; tab: string }> = {
+  questions: { prompter: 'questionPrompter', pane: 'questionsPane', tab: 'Questions' },
+  reading: { prompter: 'readingPrompter', pane: 'readingPane', tab: 'Text' },
+  demo: { prompter: 'demoPrompter', pane: 'demoPane', tab: 'Dialog' },
+};
+
+/** Keys that shrink or grow the scene while it is open; `=` is `+` without Shift. */
+const SCALE_KEYS: Record<string, ScaleDirection> = { '-': -1, '+': 1, '=': 1 };
+
 const CONNECTION_CHIP: Record<ConnectionTone, string> = {
   idle: 'chip',
   live: 'chip chip-live',
@@ -52,6 +62,8 @@ export interface ViewActions {
   next(): void;
   select(index: number): void;
   read(): void;
+  demo(): void;
+  scaleScene(direction: ScaleDirection): void;
   toggleRecording(): void;
   hear(on: boolean): void;
   hearVoice(on: boolean): void;
@@ -74,6 +86,7 @@ export interface DefaultTexts {
 
 export class InterviewerView {
   readonly speech = byId<HTMLAudioElement>('speech');
+  readonly guestSpeech = byId<HTMLAudioElement>('guestSpeech');
   readonly videoHost = byId('video');
   readonly #settingsForm: SettingsForm;
   readonly #meterBars = Array.from({ length: METER_BARS }, () => document.createElement('i'));
@@ -83,6 +96,7 @@ export class InterviewerView {
   readonly #emptyContent = new ContentKey();
   readonly #listContent = new ContentKey();
   readonly #paragraphContent = new ContentKey();
+  readonly #demoContent = new ContentKey();
 
   constructor(actions: ViewActions, voices: readonly Voice[], defaults: DefaultTexts) {
     byId('meterBars').replaceChildren(...this.#meterBars);
@@ -124,7 +138,10 @@ export class InterviewerView {
     this.#renderPrompter(state);
     this.#renderQuestions(state);
     this.#renderReading(state);
+    this.#renderDemo(state);
+    this.#renderScene(state);
     this.#renderSessionPanel(state);
+    this.#renderHearing(state);
   }
 
   #renderHeader(state: ViewState): void {
@@ -186,12 +203,11 @@ export class InterviewerView {
   }
 
   #renderMode({ mode }: ViewState): void {
-    const reading = mode === 'reading';
-    setHidden('questionPrompter', reading);
-    setHidden('questionsPane', reading);
-    setHidden('readingPrompter', !reading);
-    setHidden('readingPane', !reading);
-    setText('scriptTab', reading ? 'Text' : 'Questions');
+    for (const [each, { prompter, pane }] of Object.entries(MODE_PARTS)) {
+      setHidden(prompter, each !== mode);
+      setHidden(pane, each !== mode);
+    }
+    setText('scriptTab', MODE_PARTS[mode].tab);
   }
 
   #renderPrompter({ prompter }: ViewState): void {
@@ -252,6 +268,38 @@ export class InterviewerView {
     );
   }
 
+  #renderDemo({ demo }: ViewState): void {
+    setText('demoLabel', demo.label);
+    setText('demoSpeaker', demo.speaker);
+    setText('demoState', demo.state);
+    setText('demoClock', demo.clock);
+    setText('demoText', demo.text);
+    byId('demoProgress').style.width = `${demo.progress * PERCENT}%`;
+    setText('demoButtonLabel', demo.startLabel);
+    setDisabled('demoButton', !demo.canStart);
+    setText('demoVoicesLabel', demo.voices);
+    setText('demoSummary', demo.label);
+    if (!this.#demoContent.changed([demo.lines.length, demo.current])) return;
+    byId('demoLines').replaceChildren(
+      ...demo.lines.map(({ speaker, text }, index) => {
+        const item = document.createElement('li');
+        item.classList.toggle('is-current', index === demo.current);
+        item.classList.toggle('is-guest', speaker === 'guest');
+        item.append(span('mark', String(index + 1)), span('line', text));
+        return item;
+      }),
+    );
+  }
+
+  #renderScene({ scene }: ViewState): void {
+    byId('scene').style.setProperty('--scene-scale', String(scene.scale));
+    setText('sceneClock', scene.clock);
+    setText('sceneSpeaker', scene.speaker);
+    setText('sceneText', scene.text);
+    setText('sceneHint', scene.hint);
+    setText('sceneStatus', scene.status);
+  }
+
   #renderSessionPanel({ recording, session, canDownloadCsv }: ViewState): void {
     for (const [row, value] of Object.entries(session))
       writeText(this.#sessionCells[row as SessionRow], value);
@@ -262,6 +310,12 @@ export class InterviewerView {
       'button-record',
       recording.clock === undefined && recording.enabled,
     );
+  }
+
+  #renderHearing({ hearLocked }: ViewState): void {
+    setDisabled('hearToggle', hearLocked);
+    setDisabled('voiceToggle', hearLocked);
+    setHidden('hearHint', !hearLocked);
   }
 
   #bind(actions: ViewActions): void {
@@ -275,6 +329,8 @@ export class InterviewerView {
       if (index !== undefined) actions.select(Number(index));
     };
     byId('readButton').onclick = () => actions.read();
+    byId('demoButton').onclick = () => actions.demo();
+    byId('sceneButton').onclick = () => openScene(byId('scene'));
     byId('recordButton').onclick = () => actions.toggleRecording();
     byId<HTMLInputElement>('hearToggle').onchange = (event) =>
       actions.hear((event.target as HTMLInputElement).checked);
@@ -288,6 +344,9 @@ export class InterviewerView {
     byId('settingsBackdrop').onclick = () => this.#showSettings(false);
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') this.#showSettings(false);
+      const direction = SCALE_KEYS[event.key];
+      const browserZoom = event.metaKey || event.ctrlKey;
+      if (direction && !browserZoom && !byId('scene').hidden) actions.scaleScene(direction);
     });
 
     for (const tab of document.querySelectorAll<HTMLElement>('[data-tab]')) {
