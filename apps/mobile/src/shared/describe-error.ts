@@ -1,5 +1,5 @@
-/** Expo wraps a native rejection as "…has failed (at …) → Caused by: SomeException: reason (at File.swift:12)". */
-const NATIVE_CAUSE = /.*Caused by: \w+: (.+?) \(at [^)]*\)\s*$/s;
+/** Expo ends a native rejection with "SomeException: reason (at File.swift:12)", often after "Caused by:". */
+const NATIVE_CAUSE = /^.*(?:Caused by: \w+|\b\w+Exception): (.+?) \(at [^)]*\)\s*$/s;
 
 export function describeError(error: unknown): string {
   if (!(error instanceof Error)) return String(error);

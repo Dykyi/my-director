@@ -53,6 +53,17 @@ describe('downloadLink', () => {
 
   it('fails when the answer holds no link', async () => {
     answer(200, '{}');
-    await expect(downloadLink(api, KEY)).rejects.toThrow('no download link');
+    await expect(downloadLink(api, KEY)).rejects.toThrow('the Worker sent no link');
+  });
+
+  it('says what failed when the request never reaches the Worker', async () => {
+    global.fetch = jest.fn(async () => {
+      throw new Error(
+        'fetch failed: UnexpectedException: The Internet connection appears to be offline. (at ExpoModulesCore/Promise.swift:56)',
+      );
+    }) as unknown as typeof fetch;
+    await expect(downloadLink(api, KEY)).rejects.toThrow(
+      'Could not make a download link: The Internet connection appears to be offline.',
+    );
   });
 });
