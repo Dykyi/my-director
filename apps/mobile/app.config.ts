@@ -47,6 +47,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         'MyDirector films your interview on this iPhone in full quality and shows you to the interviewer during the call.',
       NSMicrophoneUsageDescription:
         'MyDirector records your answers on this iPhone and lets the interviewer hear you during the call.',
+      NSPhotoLibraryAddUsageDescription:
+        'MyDirector saves a recording to Photos when you choose Save Video.',
       UIBackgroundModes: ['audio'],
       UIFileSharingEnabled: true,
       LSSupportsOpeningDocumentsInPlace: true,

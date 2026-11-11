@@ -33,6 +33,7 @@ function UploadProgressStory({
     <UploadProgress
       label={`segment-001.mov 4:12 ${partsTotal * PART_MB}.0 MB`}
       actions={actions}
+      share={async () => {}}
       upload={
         uploaded
           ? {

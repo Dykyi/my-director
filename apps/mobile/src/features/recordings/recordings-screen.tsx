@@ -13,6 +13,7 @@ import { Text } from '@ui/text';
 import { RecordingCard } from './components/recording-card';
 import { recordingsFact, segmentLine } from './recording-labels';
 import { useRecordings } from './recordings-context';
+import { shareSegment } from './share-segment';
 import { useCardHandlers } from './use-card-handlers';
 
 export function RecordingsScreen() {
@@ -50,6 +51,7 @@ export function RecordingsScreen() {
                   label={segmentLine(segment)}
                   upload={uploads.uploadFor(segmentObjectKey(recording.sessionId, segment.index))}
                   actions={uploads.actions}
+                  share={() => shareSegment(segment.uri)}
                 />
               )}
             />

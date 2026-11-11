@@ -54,6 +54,7 @@ function RecordingCardStory({
           key={item.index}
           label={segmentLine(item)}
           actions={actions}
+          share={async () => {}}
           upload={
             upload === 'none'
               ? undefined

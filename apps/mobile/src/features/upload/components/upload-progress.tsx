@@ -1,5 +1,5 @@
 import { cva } from 'class-variance-authority';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import type { UploadSnapshot } from '@modules/background-upload';
 
@@ -30,12 +30,14 @@ export function UploadProgress({
   label,
   upload,
   actions,
+  share,
 }: {
   label: string;
   upload: UploadSnapshot | undefined;
   actions: UploadActions;
+  share: () => Promise<void>;
 }) {
-  const copying = useReportedErrors();
+  const row = useReportedErrors();
   const verified = upload?.phase === 'verified';
   const active = upload !== undefined && ACTIVE_UPLOAD.has(upload.phase);
   const retryable = upload?.phase === 'failed' && upload.uploadId !== undefined;
@@ -45,26 +47,33 @@ export function UploadProgress({
         <Text selectable variant="mono-value" className="shrink text-subtle">
           {label}
         </Text>
-        {verified && (
-          <>
-            <Icon name="check" className="size-3.5" tint="accent-success" />
-            <View className="ml-auto pl-2">
-              <CopyButton
-                copy={() => copying.guard(() => actions.copyLink(upload.objectKey))}
-                label="download link"
-              />
-            </View>
-          </>
-        )}
+        {verified && <Icon name="check" className="size-3.5" tint="accent-success" />}
+        <View className="ml-auto flex-row items-center gap-4 pl-2">
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Share this segment"
+            hitSlop={8}
+            onPress={() => void row.guard(share)}
+            className="active:opacity-60"
+          >
+            <Icon name="share" className="size-3.5" tint="accent-muted" />
+          </Pressable>
+          {verified && (
+            <CopyButton
+              copy={() => row.guard(() => actions.copyLink(upload.objectKey))}
+              label="download link"
+            />
+          )}
+        </View>
       </View>
       {upload && !verified && (
         <Text selectable variant="mono-value" className={phaseText({ phase: upload.phase })}>
           {describeUpload(upload)}
         </Text>
       )}
-      {copying.error && (
+      {row.error && (
         <Text selectable variant="footnote" className="text-danger">
-          {copying.error}
+          {row.error}
         </Text>
       )}
       {active && (
