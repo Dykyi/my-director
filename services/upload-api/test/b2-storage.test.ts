@@ -52,6 +52,19 @@ describe('presignPart', () => {
   });
 });
 
+describe('presignGet', () => {
+  it('signs a GET that saves the file under its key with dashes for slashes', async () => {
+    const key = '2026-11-11T11-06-06Z-E135/segment-002.mov';
+    const url = new URL(await api.presignGet(key, 600));
+    expect(url.pathname).toBe(`/${BUCKET}/${key}`);
+    expect(url.searchParams.get('X-Amz-Expires')).toBe('600');
+    expect(url.searchParams.get('response-content-disposition')).toBe(
+      'attachment; filename="2026-11-11T11-06-06Z-E135-segment-002.mov"',
+    );
+    expect(url.searchParams.get('X-Amz-Signature')).toMatch(/^[0-9a-f]{64}$/);
+  });
+});
+
 describe('createMultipartUpload', () => {
   it('posts ?uploads with the content type and returns the UploadId', async () => {
     const sent = stubB2(

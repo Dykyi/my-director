@@ -19,6 +19,8 @@ type B2Config = {
 };
 
 const B2_HOST = /^s3\.([a-z0-9-]+)\.backblazeb2\.com$/;
+/** SigV4 query signatures live at most 7 days, and B2 keeps the same limit. */
+export const DOWNLOAD_LINK_MAX_SEC = 7 * 24 * 60 * 60;
 
 export function regionOf(endpoint: string): string {
   const region = new URL(endpoint).hostname.match(B2_HOST)?.[1];
@@ -130,10 +132,14 @@ export class B2Storage implements ObjectStorage {
     }
   }
 
-  /** For the Mac only (`yarn upload-api presign`): a download link to check SHA-256 or share a sample. */
+  // Route keys pass SAFE_KEY, which has no quotes, so the name needs no escaping.
   async presignGet(key: string, expiresSec: number): Promise<string> {
     const url = this.objectUrl(key);
     url.searchParams.set('X-Amz-Expires', String(expiresSec));
+    url.searchParams.set(
+      'response-content-disposition',
+      `attachment; filename="${key.replaceAll('/', '-')}"`,
+    );
     return (await this.client.sign(new Request(url), { aws: { signQuery: true } })).url;
   }
 

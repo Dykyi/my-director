@@ -1,5 +1,5 @@
 import { isAuthorized } from './auth.ts';
-import { B2Storage } from './b2-storage.ts';
+import { B2Storage, DOWNLOAD_LINK_MAX_SEC } from './b2-storage.ts';
 import { completeUpload, createUpload, type Dependencies } from './handlers.ts';
 import { issueLiveKitToken, parseTokenRequest, type LiveKitConfig } from './livekit-token.ts';
 import { isNoSuchUpload } from './storage.ts';
@@ -54,6 +54,10 @@ export default {
       if (resource === 'objects' && request.method === 'DELETE' && rawUploadId === undefined) {
         await storage.deleteObject(parseKey(url.searchParams.get('key')));
         return noContent();
+      }
+      if (resource === 'download-link' && request.method === 'GET' && rawUploadId === undefined) {
+        const key = parseKey(url.searchParams.get('key'));
+        return json({ url: await storage.presignGet(key, DOWNLOAD_LINK_MAX_SEC) });
       }
       if (resource === 'livekit-token' && request.method === 'POST' && rawUploadId === undefined) {
         return json(

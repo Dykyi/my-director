@@ -13,6 +13,7 @@ function deps(overrides: { size?: number | null; completeError?: Error } = {}) {
     presignPart: vi.fn(
       async (_key: string, _uploadId: string, partNumber: number) => `https://signed/${partNumber}`,
     ),
+    presignGet: vi.fn(async () => 'https://signed/get'),
     completeMultipartUpload: vi.fn(async () => {
       if (overrides.completeError) throw overrides.completeError;
     }),

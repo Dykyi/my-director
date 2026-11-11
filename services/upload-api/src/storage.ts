@@ -12,6 +12,7 @@ export interface ObjectStorage {
     md5: string,
     expiresSec: number,
   ): Promise<string>;
+  presignGet(key: string, expiresSec: number): Promise<string>;
   completeMultipartUpload(key: string, uploadId: string, parts: CompletedPart[]): Promise<void>;
   headObject(key: string): Promise<StoredObject | null>;
   listParts(key: string, uploadId: string): Promise<ListedPart[]>;

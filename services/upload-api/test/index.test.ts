@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { DOWNLOAD_LINK_MAX_SEC } from '../src/b2-storage';
 import worker from '../src/index';
 
 type WorkerRequest = Parameters<typeof worker.fetch>[0];
@@ -40,6 +41,7 @@ describe('routes', () => {
     ['GET', '/uploads/u1/parts?key=../other/y'],
     ['DELETE', '/uploads/u1?key=..'],
     ['GET', '/uploads/%E0/parts?key=s/segment-001.mov'],
+    ['GET', '/download-link?key=../other/y'],
   ])('refuses %s %s as bad input', async (method, path) => {
     answerFromB2(new Response(null, { status: 500 }));
     expect((await call(method, path)).status).toBe(400);
@@ -50,6 +52,14 @@ describe('routes', () => {
     const response = await call('GET', '/uploads/u1/parts?key=s/segment-001.mov');
     expect(response.status).toBe(404);
     await expect(response.json()).resolves.toEqual({ error: 'upload not found' });
+  });
+
+  it('answers with a week-long download link for the key', async () => {
+    const response = await call('GET', '/download-link?key=s%2Fsegment-001.mov');
+    expect(response.status).toBe(200);
+    const link = new URL(((await response.json()) as { url: string }).url);
+    expect(link.pathname).toBe('/mydirector-poc-4f2a/s/segment-001.mov');
+    expect(link.searchParams.get('X-Amz-Expires')).toBe(String(DOWNLOAD_LINK_MAX_SEC));
   });
 
   it('refuses a wrong token', async () => {

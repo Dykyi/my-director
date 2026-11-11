@@ -1,12 +1,10 @@
-// Prints a presigned GET URL for a bucket object, signed by the Worker's own B2 client.
-import { B2Storage } from '../src/b2-storage.ts';
+// Prints a link that downloads a bucket object, signed by the Worker's own B2 client.
+import { B2Storage, DOWNLOAD_LINK_MAX_SEC } from '../src/b2-storage.ts';
 
 const SECONDS_PER_DAY = 86_400;
-/** SigV4 presigned URLs live at most 7 days. */
-const MAX_DAYS = 7;
 
 const [key, daysArgument = '1'] = process.argv.slice(2);
-const days = Math.min(Number(daysArgument), MAX_DAYS);
+const days = Number(daysArgument);
 const {
   B2_S3_ENDPOINT: endpoint,
   B2_BUCKET: bucket,
@@ -19,4 +17,4 @@ if (!key || !(days > 0) || !endpoint || !bucket || !accessKeyId || !secretAccess
 }
 
 const storage = new B2Storage({ endpoint, bucket, accessKeyId, secretAccessKey });
-console.log(await storage.presignGet(key, days * SECONDS_PER_DAY));
+console.log(await storage.presignGet(key, Math.min(days * SECONDS_PER_DAY, DOWNLOAD_LINK_MAX_SEC)));
