@@ -13,7 +13,7 @@ export class InputError extends Error {}
 
 type JsonObject = Record<string, unknown>;
 
-function asObject(body: unknown): JsonObject {
+export function asObject(body: unknown): JsonObject {
   if (typeof body !== 'object' || body === null) throw new InputError('body must be a JSON object');
   return body as JsonObject;
 }

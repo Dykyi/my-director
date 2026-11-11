@@ -11,6 +11,10 @@ const ENV = {
   B2_BUCKET: 'mydirector-poc-4f2a',
   B2_KEY_ID: 'B2KEYIDEXAMPLE',
   B2_APPLICATION_KEY: 'secret',
+  LIVEKIT_URL: 'wss://example.livekit.cloud',
+  LIVEKIT_ROOM: 'mydirector-poc',
+  LIVEKIT_API_KEY: 'APIkey',
+  LIVEKIT_API_SECRET: 'secret-secret-secret-secret-secret',
 } as Env;
 
 function call(method: string, path: string, init: { body?: string; token?: string } = {}) {
@@ -92,4 +96,26 @@ describe('routes', () => {
     );
     expect((await call('DELETE', '/objects?key=s/segment-001.mov')).status).toBe(204);
   });
+});
+
+describe('POST /livekit-token', () => {
+  it('needs the upload token', async () =>
+    expect(
+      (await call('POST', '/livekit-token', { body: '{"installId":"7F3A"}', token: 'wrong' }))
+        .status,
+    ).toBe(401));
+
+  it('answers with a grant for this install', async () => {
+    const body = JSON.stringify({ installId: '7F3A', name: 'Studio' });
+    const response = await call('POST', '/livekit-token', { body });
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      identity: 'iphone-7F3A',
+      room: ENV.LIVEKIT_ROOM,
+      url: ENV.LIVEKIT_URL,
+    });
+  });
+
+  it('rejects a bad install id', async () =>
+    expect((await call('POST', '/livekit-token', { body: '{"installId":"?"}' })).status).toBe(400));
 });

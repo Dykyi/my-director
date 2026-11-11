@@ -8,13 +8,14 @@
     "deploy": "wrangler deploy --env-file ../../.env.local",
     "dev": "wrangler dev --env-file ../../.env.local",
     "tail": "wrangler tail --env-file ../../.env.local",
-    "types": "wrangler types",
+    "types": "wrangler types --strict-vars=false",
     "presign": "node --env-file=../../.env.local scripts/presign-get.mjs",
     "watch-parts": "node --env-file=../../apps/mobile/.env.local scripts/watch-parts.mjs",
     "spike-s5": "scripts/spike-s5.sh"
   },
   "dependencies": {
-    "aws4fetch": "^1.0.20"
+    "aws4fetch": "^1.0.20",
+    "livekit-server-sdk": "^2.19.2"
   },
   "devDependencies": {
     "typescript": "^5.9.3",

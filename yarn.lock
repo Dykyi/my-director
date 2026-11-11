@@ -2784,6 +2784,7 @@ __metadata:
   resolution: "@mydirector/upload-api@workspace:services/upload-api"
   dependencies:
     aws4fetch: "npm:^1.0.20"
+    livekit-server-sdk: "npm:^2.19.2"
     typescript: "npm:^5.9.3"
     vite: "npm:^8.3.7"
     vitest: "npm:^5.1.0"

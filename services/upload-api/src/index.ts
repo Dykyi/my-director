@@ -1,6 +1,7 @@
 import { isAuthorized } from './auth.ts';
 import { B2Storage } from './b2-storage.ts';
 import { completeUpload, createUpload, type Dependencies } from './handlers.ts';
+import { issueLiveKitToken, parseTokenRequest, type LiveKitConfig } from './livekit-token.ts';
 import { isNoSuchUpload } from './storage.ts';
 import { InputError, parseComplete, parseCreate, parseKey } from './validation.ts';
 
@@ -35,6 +36,13 @@ function dependenciesFor(env: Env): Dependencies {
   };
 }
 
+const liveKitConfig = (env: Env): LiveKitConfig => ({
+  url: env.LIVEKIT_URL,
+  room: env.LIVEKIT_ROOM,
+  apiKey: env.LIVEKIT_API_KEY,
+  apiSecret: env.LIVEKIT_API_SECRET,
+});
+
 export default {
   async fetch(request, env): Promise<Response> {
     if (!isAuthorized(request, env.UPLOAD_API_TOKEN)) return json({ error: 'unauthorized' }, 401);
@@ -46,6 +54,11 @@ export default {
       if (resource === 'objects' && request.method === 'DELETE' && rawUploadId === undefined) {
         await storage.deleteObject(parseKey(url.searchParams.get('key')));
         return noContent();
+      }
+      if (resource === 'livekit-token' && request.method === 'POST' && rawUploadId === undefined) {
+        return json(
+          await issueLiveKitToken(parseTokenRequest(await request.json()), liveKitConfig(env)),
+        );
       }
       if (resource !== 'uploads') return notFound();
       if (request.method === 'POST' && rawUploadId === undefined) {
