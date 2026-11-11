@@ -48,6 +48,17 @@ struct VerificationRulesTests {
     #expect(failed(facts { $0.frames = FrameTimeStats(times: frameTimes(count: 1_800, droppingAfter: dropped), nominalFps: Self.fps) }).contains("gaps"))
   }
 
+  // At 29.97 fps two lost frames leave a 100.1 ms gap, shown as 100 ms against the 100 ms limit.
+  @Test func twoLostFramesInARowPass() {
+    let frames = FrameTimeStats(times: frameTimes(count: 1_800, droppingAfter: [500, 501]), nominalFps: Self.fps)
+    #expect(!failed(facts { $0.frames = frames }).contains("gaps"))
+  }
+
+  @Test func threeLostFramesInARowFail() {
+    let frames = FrameTimeStats(times: frameTimes(count: 1_800, droppingAfter: [500, 501, 502]), nominalFps: Self.fps)
+    #expect(failed(facts { $0.frames = frames }).contains("gaps"))
+  }
+
   @Test func singleLongGapFails() {
     let dropped = Array(500..<504)
     #expect(failed(facts { $0.frames = FrameTimeStats(times: frameTimes(count: 1_800, droppingAfter: dropped), nominalFps: Self.fps) }).contains("gaps"))

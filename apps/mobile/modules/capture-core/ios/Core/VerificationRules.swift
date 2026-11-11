@@ -78,6 +78,9 @@ enum VerificationRules {
   static let fpsTolerance = 0.5
   static let maxGapRatio = 0.005
   static let maxIntervalSec = 0.1
+  /// The longest gap is judged in whole milliseconds, as shown and as the Mac check reads it:
+  /// two frames lost at 29.97 fps leave 100.1 ms.
+  static let maxIntervalMs = 100
   static let audioCodec = "aac"
   static let minAudioSampleRate = 44_100.0
   static let maxDurationMismatchSec = 0.1
@@ -89,6 +92,7 @@ enum VerificationRules {
   static func evaluate(_ facts: SegmentFacts, nominalFps: Double) -> [VerificationCheck] {
     let minFps = nominalFps - fpsTolerance
     let durationMismatch = facts.audioDurationSec.map { abs(facts.videoDurationSec - $0) }
+    let longestGapMs = Int((facts.frames.longestIntervalSec * 1000).rounded())
     var checks = [
       VerificationCheck(id: "playable", label: "Plays", expected: "true", actual: String(facts.playable), pass: facts.playable),
       VerificationCheck(
@@ -105,9 +109,9 @@ enum VerificationRules {
         pass: facts.frames.fps >= minFps
       ),
       VerificationCheck(
-        id: "gaps", label: "Frame gaps", expected: "≤ \(format(maxGapRatio * 100)) %, longest ≤ \(Int(maxIntervalSec * 1000)) ms",
-        actual: "\(format(facts.frames.gapRatio * 100)) %, longest \(Int(facts.frames.longestIntervalSec * 1000)) ms",
-        pass: facts.frames.gapRatio <= maxGapRatio && facts.frames.longestIntervalSec <= maxIntervalSec
+        id: "gaps", label: "Frame gaps", expected: "≤ \(format(maxGapRatio * 100)) %, longest ≤ \(maxIntervalMs) ms",
+        actual: "\(format(facts.frames.gapRatio * 100)) %, longest \(longestGapMs) ms",
+        pass: facts.frames.gapRatio <= maxGapRatio && longestGapMs <= maxIntervalMs
       ),
       VerificationCheck(
         id: "audio", label: "Audio track", expected: "AAC, ≥ \(Int(minAudioSampleRate)) Hz",
