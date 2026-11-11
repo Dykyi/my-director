@@ -4,6 +4,8 @@ struct SessionState: Equatable, Sendable {
   var phase: SessionPhase = .idle
   var sessionId: String?
   var startedAt: Date?
+  /// When the current stretch of recording began: Start, then each Resume that went through.
+  var stretchStartedAt: Date?
   var segmentIndex = 0
   var pauseReason: PauseReason?
   var interruptions: Set<InterruptionSource> = []
@@ -100,6 +102,7 @@ struct SessionMachine: Sendable {
       state.phase = .starting
       state.sessionId = sessionId
       state.startedAt = now
+      state.stretchStartedAt = now
       state.segmentIndex = 0
       state.pauseReason = nil
       state.error = nil
@@ -178,6 +181,7 @@ struct SessionMachine: Sendable {
 
     case (.resuming, .resumeSucceeded):
       state.phase = .recording
+      state.stretchStartedAt = now
       state.segmentIndex += 1
       state.pauseReason = nil
       return [.openSegment(state.segmentIndex), .saveManifest]
@@ -199,6 +203,7 @@ struct SessionMachine: Sendable {
       state.phase = .ready
       state.sessionId = nil
       state.startedAt = nil
+      state.stretchStartedAt = nil
       state.segmentIndex = 0
       state.pauseReason = nil
       keepOnlyDeviceWarnings()
@@ -254,6 +259,7 @@ struct SessionMachine: Sendable {
     state.phase = .ready
     state.sessionId = nil
     state.startedAt = nil
+    state.stretchStartedAt = nil
     state.error = CaptureError(failure, at: now)
     keepOnlyDeviceWarnings()
     return [.abortStart(sessionId: sessionId)]

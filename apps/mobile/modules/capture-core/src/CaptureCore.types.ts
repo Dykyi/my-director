@@ -148,6 +148,8 @@ export type SessionSnapshot = {
   phase: SessionPhase;
   sessionId?: string;
   startedAt?: string;
+  /** The last Start or Resume. */
+  stretchStartedAt?: string;
   segmentIndex: number;
   recordedSec: number;
   pauseReason?: PauseReason;

@@ -12,8 +12,8 @@ struct SessionMachineTests {
     var lastEffects: [SessionEffect] = []
     var state: SessionState { machine.state }
 
-    mutating func send(_ events: SessionEvent...) {
-      for event in events { lastEffects = machine.handle(event, at: SessionMachineTests.now) }
+    mutating func send(at time: Date = SessionMachineTests.now, _ events: SessionEvent...) {
+      for event in events { lastEffects = machine.handle(event, at: time) }
     }
   }
 
@@ -41,6 +41,26 @@ struct SessionMachineTests {
     #expect(run.state.startedAt == Self.now)
     run.send(.startSucceeded(sessionId: Self.sessionId), .stopRequested, .segmentClosed(index: 1, failure: nil), .stopFinished)
     #expect(run.state.startedAt == nil)
+  }
+
+  @Test func startAndEachResumeStampTheStretchOfRecording() {
+    var run = ready()
+    run.send(.startRequested(sessionId: Self.sessionId), .startSucceeded(sessionId: Self.sessionId))
+    #expect(run.state.stretchStartedAt == Self.now)
+    let resumedAt = Self.now.addingTimeInterval(90)
+    run.send(.pauseRequested, .segmentClosed(index: 1, failure: nil))
+    run.send(at: resumedAt, .resumeRequested, .resumeSucceeded)
+    #expect(run.state.stretchStartedAt == resumedAt)
+    run.send(.stopRequested, .segmentClosed(index: 2, failure: nil), .stopFinished)
+    #expect(run.state.stretchStartedAt == nil)
+  }
+
+  @Test func aResumeThatNeverSucceedsKeepsTheStretch() {
+    var run = paused(by: .audioSession, reason: .phoneCall, policy: .automatic)
+    run.send(at: Self.now.addingTimeInterval(20), .interruptionEnded(.audioSession))
+    #expect(run.state.phase == .resuming)
+    run.send(.interruptionBegan(.audioSession, .phoneCall))
+    #expect(run.state.stretchStartedAt == Self.now)
   }
 
   @Test func abortedStartClearsTheStamp() {

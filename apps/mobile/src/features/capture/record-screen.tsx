@@ -20,7 +20,7 @@ import { PHASE_PILL } from './session-labels';
 export function RecordScreen() {
   const { snapshot, config, access, commandError, actions } = useCaptureSession();
   const health = useHealth();
-  const issues = useSessionIssues();
+  const issues = useSessionIssues('stretch');
   const line = access.ready ? healthLine(issues, snapshot) : WAITING_FOR_ACCESS;
   const room = roomName(snapshot.call, callTarget.room);
   return (

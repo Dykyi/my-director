@@ -59,8 +59,10 @@ export function useChangeCamera() {
   };
 }
 
-export function useSessionIssues(): SessionIssue[] {
+/** `stretch` drops what was logged before the last Resume, so a past pause does not hold the health line. */
+export function useSessionIssues(scope: 'session' | 'stretch' = 'session'): SessionIssue[] {
   const { snapshot } = useCaptureSession();
   const logs = useEventLog();
-  return useMemo(() => sessionIssues(snapshot, logs), [snapshot, logs]);
+  const since = scope === 'stretch' ? snapshot.stretchStartedAt : undefined;
+  return useMemo(() => sessionIssues(snapshot, logs, since), [snapshot, logs, since]);
 }

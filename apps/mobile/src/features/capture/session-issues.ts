@@ -18,12 +18,14 @@ const PAUSED_PHASES: ReadonlySet<SessionPhase> = new Set(['pausing', 'paused', '
 const isIssue = (entry: LogEntry): entry is LogEntry & { level: IssueSeverity } =>
   entry.level === 'warning' || entry.level === 'error';
 
+/** Logged issues count from `since`: Start for the Debug badge, the last Start or Resume for the health line. */
 export function sessionIssues(
   { error, warnings, startedAt }: SessionSnapshot,
   logs: LogEntry[],
+  since = startedAt,
 ): SessionIssue[] {
   const logged =
-    startedAt === undefined ? [] : logs.filter(isIssue).filter((entry) => entry.at >= startedAt);
+    since === undefined ? [] : logs.filter(isIssue).filter((entry) => entry.at >= since);
   return [
     ...(error ? [{ severity: 'error' as const, text: error.message, at: error.at }] : []),
     ...warnings.map((warning) => ({

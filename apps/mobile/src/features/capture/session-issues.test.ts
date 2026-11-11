@@ -57,6 +57,15 @@ describe('sessionIssues', () => {
       { severity: 'warning', text: '1.0 GB left', at: at(35) },
     ]));
 
+  it('takes logged issues only since the given moment, keeping the active warnings', () =>
+    expect(
+      sessionIssues(
+        snapshot({ warnings: [{ code: 'diskSpaceLow', message: '1.0 GB left', since: at(12) }] }),
+        [log('warning', 'Camera interrupted', 20), log('warning', 'Camera frames missing', 40)],
+        at(30),
+      ).map((issue) => issue.text),
+    ).toEqual(['Camera frames missing', '1.0 GB left']));
+
   it('ignores the log outside a session', () =>
     expect(
       sessionIssues(snapshot({ phase: 'ready', sessionId: undefined, startedAt: undefined }), [

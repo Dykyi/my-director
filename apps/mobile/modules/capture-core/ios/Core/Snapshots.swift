@@ -4,6 +4,7 @@ struct SessionSnapshot: Codable, Equatable, Sendable {
   var phase: SessionPhase
   var sessionId: String?
   var startedAt: Date?
+  var stretchStartedAt: Date?
   var segmentIndex: Int
   var recordedSec: Double
   var pauseReason: PauseReason?
@@ -17,6 +18,7 @@ struct SessionSnapshot: Codable, Equatable, Sendable {
     phase = state.phase
     sessionId = state.sessionId
     startedAt = state.startedAt
+    stretchStartedAt = state.stretchStartedAt
     segmentIndex = state.segmentIndex
     self.recordedSec = recordedSec
     pauseReason = state.pauseReason
