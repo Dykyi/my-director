@@ -1,3 +1,4 @@
+import * as Clipboard from 'expo-clipboard';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 
@@ -7,7 +8,7 @@ import type { RecordingSummary } from '@modules/capture-core';
 import { uploadApi } from '@config/env';
 import { useReportedErrors } from '@shared/use-reported-errors';
 
-import { deleteFromBucket } from './bucket';
+import { deleteFromBucket, downloadLink } from './bucket';
 import { segmentObjectKey } from './upload-format';
 import {
   findUpload,
@@ -84,12 +85,17 @@ export function useNativeUploads() {
       for (const key of keysInBucket(recording)) await deleteFromBucket(uploadApi, key);
     });
 
+  // Not guarded: the segment's row shows its own copy failure.
+  const copyLink = async (objectKey: string) => {
+    await Clipboard.setStringAsync(await downloadLink(uploadApi, objectKey));
+  };
+
   return {
     error,
     uploadFor,
     uploadStatus,
     keysInBucket,
-    actions: { startRecording, retry, cancel, cancelRecording, removeFromBucket },
+    actions: { startRecording, retry, cancel, cancelRecording, removeFromBucket, copyLink },
   };
 }
 

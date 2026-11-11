@@ -22,6 +22,7 @@ const actions = {
   cancel: async () => true,
   cancelRecording: async () => true,
   removeFromBucket: async () => true,
+  copyLink: async () => {},
 };
 
 type Upload = 'none' | 'uploading' | 'uploaded';

@@ -4,6 +4,7 @@ import { View } from 'react-native';
 import type { UploadSnapshot } from '@modules/background-upload';
 
 import { PERCENT } from '@shared/units';
+import { useReportedErrors } from '@shared/use-reported-errors';
 import { Button } from '@ui/button';
 import { CopyButton } from '@ui/copy-button';
 import { Icon } from '@ui/icon';
@@ -34,6 +35,7 @@ export function UploadProgress({
   upload: UploadSnapshot | undefined;
   actions: UploadActions;
 }) {
+  const copying = useReportedErrors();
   const verified = upload?.phase === 'verified';
   const active = upload !== undefined && ACTIVE_UPLOAD.has(upload.phase);
   const retryable = upload?.phase === 'failed' && upload.uploadId !== undefined;
@@ -43,16 +45,26 @@ export function UploadProgress({
         <Text selectable variant="mono-value" className="shrink text-subtle">
           {label}
         </Text>
-        {verified && <Icon name="check" className="size-3.5" tint="accent-success" />}
-        {upload && (
-          <View className="ml-auto pl-2">
-            <CopyButton value={upload.objectKey} label="object key" />
-          </View>
+        {verified && (
+          <>
+            <Icon name="check" className="size-3.5" tint="accent-success" />
+            <View className="ml-auto pl-2">
+              <CopyButton
+                copy={() => copying.guard(() => actions.copyLink(upload.objectKey))}
+                label="download link"
+              />
+            </View>
+          </>
         )}
       </View>
       {upload && !verified && (
         <Text selectable variant="mono-value" className={phaseText({ phase: upload.phase })}>
           {describeUpload(upload)}
+        </Text>
+      )}
+      {copying.error && (
+        <Text selectable variant="footnote" className="text-danger">
+          {copying.error}
         </Text>
       )}
       {active && (

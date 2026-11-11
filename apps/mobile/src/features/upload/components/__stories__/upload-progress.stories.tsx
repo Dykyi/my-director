@@ -14,6 +14,7 @@ const actions = {
   cancel: async () => true,
   cancelRecording: async () => true,
   removeFromBucket: async () => true,
+  copyLink: async () => {},
 };
 
 function UploadProgressStory({

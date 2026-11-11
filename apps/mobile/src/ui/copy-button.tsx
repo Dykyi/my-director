@@ -1,4 +1,3 @@
-import * as Clipboard from 'expo-clipboard';
 import { useState } from 'react';
 import { Pressable } from 'react-native';
 
@@ -6,10 +5,16 @@ import { Icon } from './icon';
 
 const COPIED_MS = 2_000;
 
-export function CopyButton({ value, label }: { value: string; label: string }) {
+/** `copy` resolves to whether it put something on the clipboard and reports its own failures. */
+export function CopyButton({ copy, label }: { copy: () => Promise<boolean>; label: string }) {
+  const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
-  const copy = async () => {
-    await Clipboard.setStringAsync(value);
+  const press = async () => {
+    setCopied(false);
+    setBusy(true);
+    const done = await copy();
+    setBusy(false);
+    if (!done) return;
     setCopied(true);
     setTimeout(() => setCopied(false), COPIED_MS);
   };
@@ -17,9 +22,11 @@ export function CopyButton({ value, label }: { value: string; label: string }) {
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`Copy ${label}`}
+      accessibilityState={{ busy, disabled: busy }}
+      disabled={busy}
       hitSlop={8}
-      onPress={() => void copy()}
-      className="active:opacity-60"
+      onPress={() => void press()}
+      className={busy ? 'opacity-40' : 'active:opacity-60'}
     >
       <Icon
         name={copied ? 'check' : 'copy'}
