@@ -250,6 +250,8 @@ export type SegmentVerification = {
   uri: string;
   checks: VerificationCheck[];
   pass: boolean;
+  /** Why the frames could not be read; `fps` and `gaps` then fail with it. */
+  frameReadError?: string;
 };
 export type VerificationReport = {
   sessionId: string;

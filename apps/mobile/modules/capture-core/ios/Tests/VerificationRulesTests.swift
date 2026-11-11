@@ -53,6 +53,16 @@ struct VerificationRulesTests {
     #expect(failed(facts { $0.frames = FrameTimeStats(times: frameTimes(count: 1_800, droppingAfter: dropped), nominalFps: Self.fps) }).contains("gaps"))
   }
 
+  @Test func unreadFramesFailFpsAndGapsWithTheReason() {
+    let checks = VerificationRules.evaluate(facts {
+      $0.frames = FrameTimeStats(times: [], nominalFps: Self.fps)
+      $0.frameReadError = "Operation Interrupted"
+    }, nominalFps: Self.fps)
+    let framed = checks.filter { ["fps", "gaps"].contains($0.id) }
+    #expect(framed.count == 2)
+    #expect(framed.allSatisfy { !$0.pass && $0.actual == "not read: Operation Interrupted" })
+  }
+
   @Test func audioVideoDurationMismatchFails() {
     #expect(failed(facts { $0.audioDurationSec = 59.9 }) == ["durations"])
   }

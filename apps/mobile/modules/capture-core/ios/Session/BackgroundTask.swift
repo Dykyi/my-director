@@ -2,20 +2,23 @@ import UIKit
 
 @MainActor
 final class BackgroundTask {
-  private static let name = "capture-core.finish-segment"
-
+  private let name: String
+  private let expiredMessage: String
   private let log: EventLog
   private var identifier = UIBackgroundTaskIdentifier.invalid
 
-  nonisolated init(log: EventLog) {
+  nonisolated init(name: String, expiredMessage: String, log: EventLog) {
+    self.name = name
+    self.expiredMessage = expiredMessage
     self.log = log
   }
 
   func begin() {
     guard identifier == .invalid else { return }
-    identifier = UIApplication.shared.beginBackgroundTask(withName: Self.name) { [weak self] in
-      self?.log.warning("session", "Background time expired before the segment finished")
-      self?.end()
+    identifier = UIApplication.shared.beginBackgroundTask(withName: name) { [weak self] in
+      guard let self else { return }
+      log.warning("session", expiredMessage)
+      end()
     }
   }
 

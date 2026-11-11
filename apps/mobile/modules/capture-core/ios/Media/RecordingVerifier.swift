@@ -8,7 +8,10 @@ enum RecordingVerifier {
       let url = directory.appending(path: segment.file)
       let facts = await facts(for: url, manifestDurationSec: segment.durationSec, nominalFps: nominalFps)
       let checks = VerificationRules.evaluate(facts, nominalFps: nominalFps)
-      segments.append(SegmentVerification(index: segment.index, uri: url.absoluteString, checks: checks, pass: checks.allSatisfy(\.pass)))
+      segments.append(SegmentVerification(
+        index: segment.index, uri: url.absoluteString, checks: checks, pass: checks.allSatisfy(\.pass),
+        frameReadError: facts.frameReadError
+      ))
     }
     return VerificationReport(
       sessionId: manifest.id,
@@ -44,8 +47,11 @@ enum RecordingVerifier {
       facts.displayHeight = Int(abs(displayed.height).rounded())
       facts.videoDurationSec = timeRange.duration.seconds
       videoStart = timeRange.start
-      if let times = try? await FrameTimeReader.presentationTimes(of: asset) {
-        facts.frames = FrameTimeStats(times: times, nominalFps: nominalFps)
+      do {
+        facts.frames = FrameTimeStats(times: try await FrameTimeReader.presentationTimes(of: asset), nominalFps: nominalFps)
+      } catch {
+        let code = (error as NSError).code
+        facts.frameReadError = "\(error.localizedDescription) (\(code))"
       }
     }
     if let track = try? await asset.loadTracks(withMediaType: .audio).first,

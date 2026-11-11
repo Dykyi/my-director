@@ -29,6 +29,8 @@ struct SegmentFacts: Equatable, Sendable {
   var displayWidth: Int
   var displayHeight: Int
   var frames: FrameTimeStats
+  /// Why the frames could not be read; the frame checks then fail with it instead of judging an empty list.
+  var frameReadError: String? = nil
   var audioCodec: String?
   var audioSampleRate: Double?
   var audioChannels: Int?
@@ -51,6 +53,7 @@ struct SegmentVerification: Codable, Equatable, Sendable {
   var uri: String
   var checks: [VerificationCheck]
   var pass: Bool
+  var frameReadError: String?
 }
 
 struct VerificationReport: Codable, Equatable, Sendable {
@@ -61,6 +64,8 @@ struct VerificationReport: Codable, Equatable, Sendable {
 }
 
 extension VerificationReport {
+  var frameReadError: String? { segments.lazy.compactMap(\.frameReadError).first }
+
   var failedCheckIds: [String] {
     segments.flatMap { segment in segment.checks.filter { !$0.pass }.map { "\(segment.index):\($0.id)" } }
   }
@@ -78,6 +83,8 @@ enum VerificationRules {
   static let maxDurationMismatchSec = 0.1
   static let maxAudioStartOffsetSec = 0.05
   static let maxManifestMismatchSec = 1.0
+  /// Checks that judge the frame list; they fail with the reason when the frames could not be read.
+  private static let frameCheckIds: Set<String> = ["fps", "gaps"]
 
   static func evaluate(_ facts: SegmentFacts, nominalFps: Double) -> [VerificationCheck] {
     let minFps = nominalFps - fpsTolerance
@@ -125,7 +132,11 @@ enum VerificationRules {
         actual: "\(format(mismatch)) s", pass: mismatch <= maxManifestMismatchSec
       ))
     }
-    return checks
+    guard let error = facts.frameReadError else { return checks }
+    return checks.map { check in
+      guard frameCheckIds.contains(check.id) else { return check }
+      return VerificationCheck(id: check.id, label: check.label, expected: check.expected, actual: "not read: \(error)", pass: false)
+    }
   }
 
   private static func format(_ value: Double) -> String {

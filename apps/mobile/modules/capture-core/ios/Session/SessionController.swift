@@ -70,7 +70,9 @@ final class SessionController {
     store = .documents
     files = SessionFiles(store: store, log: log, queue: ioQueue)
     library = RecordingLibrary(store: store, files: files, log: log)
-    backgroundTask = BackgroundTask(log: log)
+    backgroundTask = BackgroundTask(
+      name: "capture-core.finish-segment", expiredMessage: "Background time expired before the segment finished", log: log
+    )
     routeMonitor = AudioRouteMonitor(log: log)
   }
 
@@ -442,12 +444,24 @@ final class SessionController {
     lastSummary = RecordingSummary(finished, directory: directory)
     log.info("session", "Session finished", ["segments": String(finished.segments.count), "recordedSec": finished.recordedSec.oneDecimal])
     log.attachFile(at: nil)
+    // Stop is often followed by leaving the app; a suspended app would cut the read of the file short.
+    let verifying = BackgroundTask(
+      name: "capture-core.verify-recording", expiredMessage: "Background time expired before the recording was verified", log: log
+    )
+    verifying.begin()
     Task {
+      defer { verifying.end() }
       let report = await RecordingVerifier.verify(finished, directory: directory)
+      let events = store.eventsURL(sessionId: finished.id)
+      // An unread file is no verdict on it; Verify checks it again on demand.
+      if let reason = report.frameReadError {
+        log.log(.warning, "verify", "Recording not verified", ["sessionId": finished.id, "reason": reason], file: events)
+        return
+      }
       files.save(report)
       let data = ["sessionId": finished.id, "failed": report.failedCheckIds.joined(separator: ",")]
       let message = report.pass ? "Recording passed verification" : "Recording failed verification"
-      log.log(report.pass ? .info : .warning, "verify", message, data, file: store.eventsURL(sessionId: finished.id))
+      log.log(report.pass ? .info : .warning, "verify", message, data, file: events)
     }
   }
 
