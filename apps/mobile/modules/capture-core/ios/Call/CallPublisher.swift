@@ -273,6 +273,14 @@ final class CallPublisher: NSObject, RoomDelegate {
     }
   }
 
+  nonisolated func room(_ room: Room, didCompleteReconnectWithMode reconnectMode: ReconnectMode) {
+    let mode = "\(reconnectMode)"
+    onMain(of: room) { publisher in
+      publisher.log.info("call", "Reconnected", ["mode": mode])
+      publisher.refreshStatus()
+    }
+  }
+
   nonisolated func room(_ room: Room, participantDidConnect participant: RemoteParticipant) {
     let identity = participant.displayIdentity
     onMain(of: room) { publisher in
