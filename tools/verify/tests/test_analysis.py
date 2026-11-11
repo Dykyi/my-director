@@ -1,3 +1,5 @@
+import json
+
 import numpy as np
 
 from echo_analysis import SAMPLE_RATE, echo_peaks, speech_share
@@ -74,11 +76,11 @@ def test_match_lines_find_every_line_at_one_offset():
     recorded = np.concatenate([np.zeros(shift), sent * 0.5])
     user_at = shift + SAMPLE_RATE * 4 + SAMPLE_RATE // 2
     recorded[user_at : user_at + SAMPLE_RATE] = rng.normal(0, 0.1, SAMPLE_RATE)
-    matches = match_lines(sent, recorded)
+    matches = match_lines(sent, [recorded])
     assert [round(match["offsetSec"], 3) for match in matches] == [1.234, 1.234, 1.234]
     assert min(match["correlation"] for match in matches) > 0.9
-    report = mix_report(matches, user_level_db(recorded, matches))
-    assert report["pass"]
+    report = mix_report(matches, user_level_db([recorded], matches))
+    assert report["pass"] is True
     assert abs(report["levelGapDb"]) < 1
 
 
@@ -87,6 +89,43 @@ def test_mix_report_fails_a_line_missing_from_the_recording():
     sent = np.concatenate([_quiet(2), _line(rng), _quiet(2), _line(rng), _quiet(2)])
     recorded = sent.copy()
     recorded[SAMPLE_RATE * 6 : SAMPLE_RATE * 8] = 0
-    report = mix_report(match_lines(sent, recorded), None)
+    report = mix_report(match_lines(sent, [recorded]), None)
     assert report["linesFound"] == 1
-    assert not report["pass"]
+    assert report["pass"] is False
+
+
+def test_a_recording_shorter_than_a_line_finds_nothing():
+    rng = np.random.default_rng(11)
+    sent = np.concatenate([_quiet(2), _line(rng, 3.0), _quiet(2)])
+    (match,) = match_lines(sent, [sent[: SAMPLE_RATE]])
+    assert match["correlation"] == 0.0
+
+
+def _two_segments(rng, step_sec):
+    lines = [_line(rng) for _ in range(4)]
+    sent = np.concatenate([part for line in lines for part in (_quiet(2), line)] + [_quiet(2)])
+    first = np.concatenate([_quiet(1), lines[0], _quiet(2), lines[1], _quiet(1)])
+    second = np.concatenate([_quiet(1 + step_sec), lines[2], _quiet(2), lines[3], _quiet(1)])
+    return sent, first, second
+
+
+def test_lines_are_found_across_segments_and_measured_per_segment():
+    sent, first, second = _two_segments(np.random.default_rng(13), step_sec=0.3)
+    report = mix_report(match_lines(sent, [first, second]), None)
+    assert report["linesFound"] == 4
+    assert [match["segment"] for match in report["matches"]] == [1, 1, 2, 2]
+    assert report["offsetSpreadMs"] < 1
+    assert report["pass"] is True
+
+
+def test_a_route_change_starts_a_new_stretch_of_offsets():
+    rng = np.random.default_rng(17)
+    lines = [_line(rng) for _ in range(4)]
+    sent = np.concatenate([part for line in lines for part in (_quiet(2), line)] + [_quiet(2)])
+    recorded = np.concatenate([_quiet(1), lines[0], _quiet(2), lines[1], _quiet(2.06), lines[2], _quiet(2), lines[3]])
+    matches = match_lines(sent, [recorded])
+    assert mix_report(matches, None)["pass"] is False
+    report = mix_report(matches, None, route_changes=[(1, 9.0)])
+    assert report["pass"] is True
+    assert [round(stretch["offsetMs"]) for stretch in report["stretches"]] == [-1000, -940]
+    json.dumps(report)

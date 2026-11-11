@@ -34,7 +34,7 @@ struct CallAudioRingTests {
     write([7, 7, 7, 7], at: 9.996, into: &ring)
     write([1, 1], at: 10.000, into: &ring)
     write([2, 2], at: 10.004, into: &ring)
-    #expect(ring.read(from: 10.002, count: 4) == .init(samples: [0, 0, 2, 2], covered: 4))
+    #expect(ring.read(from: 10.002, count: 4) == .init(samples: [0, 0, 2, 2], covered: 2))
   }
 
   @Test func forgetsAudioOlderThanItsCapacity() {

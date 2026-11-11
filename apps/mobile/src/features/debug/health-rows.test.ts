@@ -91,6 +91,17 @@ describe('healthRows', () => {
     expect(row(rows, 'Call')).toEqual({ label: 'Call', value: 'not sending', tone: 'muted' });
   });
 
+  it('says the call is off when none of its audio arrives', () =>
+    expect(
+      row(
+        healthRows(
+          health({ audio: { ...health().audio, callLevelDb: undefined } }),
+          session('recording'),
+        ),
+        'Audio',
+      )?.value,
+    ).toBe('-18 dB  call off  drift +3 ms'));
+
   it('flags a failed writer, a limited call and heat', () => {
     const rows = healthRows(
       health({

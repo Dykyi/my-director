@@ -30,6 +30,6 @@ struct MediaStatsTests {
     stats.callAudioLevelDb = -32
     stats.lastCallAudioHostTime = 99.8
     #expect(HealthSnapshot.Audio(stats, now: 100).callLevelDb == -32)
-    #expect(HealthSnapshot.Audio(stats, now: 101).callLevelDb == AudioLevel.floorDb)
+    #expect(HealthSnapshot.Audio(stats, now: 101).callLevelDb == nil)
   }
 }

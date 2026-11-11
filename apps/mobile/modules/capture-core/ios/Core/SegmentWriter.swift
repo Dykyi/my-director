@@ -1,6 +1,7 @@
 import AVFoundation
 import VideoToolbox
 
+/// Confined to the media queue; `MediaPipeline` hands it off exactly once, to finish it.
 final class SegmentWriter: @unchecked Sendable {
   struct Settings: Sendable {
     var url: URL
@@ -127,7 +128,7 @@ final class SegmentWriter: @unchecked Sendable {
     do {
       if placement.silenceFrames > 0 {
         let silenceStart = placement.presentationTime - Double(placement.silenceFrames) / audioSampleRate
-        let silence = try audioFactory.makeSilence(frameCount: placement.silenceFrames, presentationTime: silenceStart)
+        let silence = try makeSilenceBuffer(frameCount: placement.silenceFrames, at: silenceStart)
         if case .failed(let failure) = append(audio: silence) { return .failed(failure) }
       }
       let kept = UnsafeBufferPointer(rebasing: samples[placement.droppedFrames...])
@@ -186,8 +187,14 @@ final class SegmentWriter: @unchecked Sendable {
 
   private func padAudioTail(to videoEnd: Double, segmentStart: Double) {
     let frames = AudioTail.silenceFrames(audioEnd: audioEnd, videoEnd: videoEnd, segmentStart: segmentStart, sampleRate: audioSampleRate)
-    guard frames > 0, let silence = try? audioFactory.makeSilence(frameCount: frames, presentationTime: audioEnd) else { return }
+    guard frames > 0, let silence = try? makeSilenceBuffer(frameCount: frames, at: audioEnd) else { return }
     if case .appended = append(audio: silence) { audioEnd = videoEnd }
+  }
+
+  /// Silence where the microphone has nothing, with the call over it when the file mixes one in.
+  private func makeSilenceBuffer(frameCount: Int, at time: Double) throws -> CMSampleBuffer {
+    guard callMix != nil else { return try audioFactory.makeSilence(frameCount: frameCount, presentationTime: time) }
+    return try [Int16](repeating: 0, count: frameCount).withUnsafeBufferPointer { try makeAudioBuffer($0, at: time) }
   }
 
   private func makeAudioBuffer(_ mic: UnsafeBufferPointer<Int16>, at time: Double) throws -> CMSampleBuffer {

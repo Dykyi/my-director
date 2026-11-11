@@ -38,6 +38,27 @@ struct CallAudioMixTests {
     #expect(mixIn(Array(repeating: 0, count: 20), at: 10.000, with: &mix) == expected)
   }
 
+  private func addChunks(_ value: Int16, count: Int, from start: Double, to mix: inout CallAudioMix) {
+    for index in 0..<count {
+      add(Array(repeating: value, count: 10), playsAt: start + Double(index) / 100, to: &mix)
+    }
+  }
+
+  @Test func startsTheCallClockAgainAfterAPauseInThePlayout() {
+    var mix = makeMix()
+    addChunks(1, count: 10, from: 10.00, to: &mix)
+    addChunks(2, count: 3, from: 11.10, to: &mix)
+    #expect(mixIn(Array(repeating: 0, count: 30), at: 11.10, with: &mix) == Array(repeating: 2, count: 30))
+    #expect(mix.summary.resyncCount == 1)
+  }
+
+  @Test func followsTheCallBackWhenItPlaysSooner() {
+    var mix = makeMix()
+    addChunks(1, count: 10, from: 10.00, to: &mix)
+    addChunks(2, count: 3, from: 9.95, to: &mix)
+    #expect(mixIn(Array(repeating: 0, count: 30), at: 9.95, with: &mix) == Array(repeating: 2, count: 30))
+  }
+
   @Test func countsCallAudioThatCameAfterTheMicrophoneWasWritten() {
     var mix = makeMix()
     _ = mixIn([0, 0, 0, 0], at: 10.000, with: &mix)
@@ -50,6 +71,14 @@ struct CallAudioMixTests {
     #expect(mixIn([5, -7, 9], at: 10.000, with: &mix) == [5, -7, 9])
     #expect(!mix.hasAudio)
     #expect(mix.summary == .init(mixedSec: 0, lateSec: 0, clippedSamples: 0, resyncCount: 0))
+  }
+
+  @Test func skipsAudioWithoutAValidTime() {
+    var mix = makeMix()
+    add([100, 100], playsAt: .nan, to: &mix)
+    #expect(!mix.hasAudio)
+    add([100, 100], playsAt: 10.000, to: &mix)
+    #expect(mixIn([1, 1], at: .infinity, with: &mix) == [1, 1])
   }
 
   @Test func countsSamplesHeldAtTheEdge() {

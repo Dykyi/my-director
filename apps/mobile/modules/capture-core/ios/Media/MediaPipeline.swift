@@ -5,6 +5,10 @@ import os
 /// stats and heartbeats are readable from any thread.
 final class MediaPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, @unchecked Sendable {
   private static let dropLog = LogThrottle(every: 30)
+  /// The call's clock runs on 10 ms chunks, so a struggling route could correct it many times a second.
+  private static let callResyncLog = LogThrottle(every: 10)
+  /// Smaller changes of the output latency are noise, not a new route.
+  private static let latencyStepSec = 0.001
   /// Audio comes in 100 ms tap chunks after it is captured, so the last one lands after the last frame.
   private static let audioDrainTimeoutSec = 0.3
   private static let audioDrainPoll = Duration.milliseconds(20)
@@ -22,6 +26,7 @@ final class MediaPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
   private var callFormat: AVAudioFormat?
   private var callResampler: PCMResampler?
   private var playoutLatency = 0.0
+  private var callResyncs = 0
   private var routeObserver: NSObjectProtocol?
 
   init(log: EventLog, onWriterFailure: @escaping @Sendable (Failure) -> Void) {
@@ -70,6 +75,7 @@ final class MediaPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
       queue.async {
         do {
           self.writer = try SegmentWriter(settings: settings)
+          self.callResyncs = 0
           self.stats.withLock { stats in
             stats.fileRate.reset()
             stats.fileDroppedFrames = 0
@@ -206,13 +212,8 @@ final class MediaPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
   }
 
   private func processCallAudio(_ buffer: AVAudioPCMBuffer, renderedAt: Double) {
-    if callFormat != buffer.format {
-      callFormat = buffer.format
-      callResampler = PCMResampler(from: buffer.format)
-      if callResampler == nil { log.error("audio", "Call audio format has no converter", ["format": buffer.format.description]) }
-    }
-    guard let converted = callResampler?.convert(buffer), let channel = converted.int16ChannelData?[0] else { return }
-    let samples = UnsafeBufferPointer(start: channel, count: Int(converted.frameLength))
+    guard let pcm = inFileFormat(buffer), let channel = pcm.int16ChannelData?[0] else { return }
+    let samples = UnsafeBufferPointer(start: channel, count: Int(pcm.frameLength))
     stats.withLock { stats in
       stats.callAudioLevelDb = AudioLevel.rmsDb(samples)
       stats.lastCallAudioHostTime = renderedAt
@@ -220,7 +221,10 @@ final class MediaPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
     guard let writer else { return }
     let wasSilent = !writer.hasCallAudio
     if let correction = writer.appendCallAudio(samples, playsAt: captureClockTime(renderedAt) + playoutLatency) {
-      log.warning("audio", "Call audio clock resynced", ["correctionMs": (correction * 1000).oneDecimal])
+      callResyncs += 1
+      if Self.callResyncLog.allows(callResyncs) {
+        log.warning("audio", "Call audio clock resynced", ["correctionMs": (correction * 1000).oneDecimal, "count": String(callResyncs)])
+      }
     }
     guard wasSilent, writer.hasCallAudio else { return }
     log.info("audio", "Call audio mixed in", [
@@ -230,10 +234,25 @@ final class MediaPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
     ])
   }
 
+  /// LiveKit plays 48 kHz mono Int16, the file's own format; anything else goes through a converter.
+  private func inFileFormat(_ buffer: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
+    if buffer.format == PCMResampler.fileFormat { return buffer }
+    if callFormat != buffer.format {
+      callFormat = buffer.format
+      callResampler = PCMResampler(from: buffer.format)
+      if callResampler == nil { log.error("audio", "Call audio format has no converter", ["format": buffer.format.description]) }
+    }
+    return callResampler?.convert(buffer)
+  }
+
   private func refreshPlayoutLatency() {
     let session = AVAudioSession.sharedInstance()
     let latency = session.outputLatency + session.ioBufferDuration
-    queue.async { self.playoutLatency = latency }
+    queue.async {
+      guard abs(latency - self.playoutLatency) >= Self.latencyStepSec else { return }
+      self.playoutLatency = latency
+      self.log.info("audio", "Call audio latency", ["playoutLatencyMs": (latency * 1000).oneDecimal])
+    }
   }
 
   /// Audio arrives stamped with the host clock; video timestamps use the capture session's clock.

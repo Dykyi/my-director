@@ -54,6 +54,10 @@ export function formatBytes(bytes: number): string {
   return unit === 0 ? `${value} B` : `${value.toFixed(1)} ${BYTE_UNITS[unit]}`;
 }
 
+export function formatLevel(levelDb: number | undefined): string {
+  return levelDb === undefined ? 'off' : `${levelDb.toFixed(0)} dB`;
+}
+
 export function formatLoss({ knownLossSec, maxUnseenLossSec }: RecoveryReport): string {
   if (maxUnseenLossSec === 0) return knownLossSec === 0 ? 'none' : `≈ ${knownLossSec.toFixed(1)} s`;
   if (knownLossSec === 0) return `up to ${maxUnseenLossSec.toFixed(1)} s`;

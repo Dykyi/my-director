@@ -33,6 +33,11 @@ const health: HealthSnapshot = {
 };
 
 describe('formatHealthLine', () => {
+  it('says the call is off without its audio', () =>
+    expect(
+      formatHealthLine({ ...health, audio: { ...health.audio, callLevelDb: undefined } }),
+    ).toContain('audio -24 dB call off age'));
+
   it('puts every pipeline on one line', () =>
     expect(formatHealthLine(health)).toBe(
       'camera 30.0 fps 1920x1080 | file 30.0 fps writing 460.0 MB dropped 0 | ' +

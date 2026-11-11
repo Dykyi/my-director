@@ -122,6 +122,29 @@ final class SegmentWriterTests {
     #expect(levelDb(audio, from: 0.7, to: 0.9) < -60)
   }
 
+  @Test func mixesTheCallIntoTheSilenceThatPadsTheTail() async throws {
+    let writer = try makeWriter(mixesCall: true)
+    try await appendFrames(30, to: writer)
+    appendCallTone(playing: 0.7..<0.9, into: writer)
+    appendSilence(seconds: 0.3, to: writer)
+    writer.stopVideo()
+    _ = await writer.finish()
+    #expect(levelDb(try await decodedAudio(), from: 0.75, to: 0.85) > -20)
+  }
+
+  @Test func mixesTheCallIntoTheSilenceThatFillsAMicrophoneGap() async throws {
+    let writer = try makeWriter(mixesCall: true)
+    try await appendFrames(36, to: writer)
+    appendCallTone(playing: 0.4..<0.6, into: writer)
+    let chunk = [Int16](repeating: 0, count: Int(Self.sampleRate / 10))
+    for time in [0.0, 0.1, 0.2, 0.9, 1.0, 1.1, 1.2] {
+      chunk.withUnsafeBufferPointer { _ = writer.appendAudio($0, firstFrameCaptureTime: time) }
+    }
+    writer.stopVideo()
+    _ = await writer.finish()
+    #expect(levelDb(try await decodedAudio(), from: 0.45, to: 0.55) > -20)
+  }
+
   @Test func leavesTheCallOutWithoutAMix() async throws {
     let audio = try await recordCallTone(mixesCall: false)
     #expect(levelDb(audio, from: 0.45, to: 0.55) < -60)

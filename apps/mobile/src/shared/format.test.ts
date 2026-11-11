@@ -6,6 +6,7 @@ import {
   formatBytes,
   formatClock,
   formatDuration,
+  formatLevel,
   formatLogLine,
   formatLoss,
   formatResolution,
@@ -24,6 +25,11 @@ describe('formatBytes', () => {
   it('shows bytes', () => expect(formatBytes(512)).toBe('512 B'));
   it('shows megabytes with one decimal', () => expect(formatBytes(482_344_960)).toBe('460.0 MB'));
   it('shows gigabytes', () => expect(formatBytes(44_237_824_000)).toBe('41.2 GB'));
+});
+
+describe('formatLevel', () => {
+  it('rounds to whole decibels', () => expect(formatLevel(-31.7)).toBe('-32 dB'));
+  it('says off without a level', () => expect(formatLevel(undefined)).toBe('off'));
 });
 
 describe('formatLoss', () => {

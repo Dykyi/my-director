@@ -35,6 +35,7 @@ extension HealthSnapshot.File {
 }
 
 extension HealthSnapshot.Audio {
+  /// The call's level holds through the gaps between its chunks, then the call reads as off.
   static let callLevelHoldSec = 0.5
 
   init(_ stats: MediaStats, now: Double) {
@@ -44,7 +45,7 @@ extension HealthSnapshot.Audio {
       driftMs: stats.audioDriftMs,
       resyncCount: stats.audioResyncCount,
       sampleRate: stats.audioSampleRate,
-      callLevelDb: now - stats.lastCallAudioHostTime < Self.callLevelHoldSec ? stats.callAudioLevelDb : AudioLevel.floorDb
+      callLevelDb: now - stats.lastCallAudioHostTime < Self.callLevelHoldSec ? stats.callAudioLevelDb : nil
     )
   }
 }

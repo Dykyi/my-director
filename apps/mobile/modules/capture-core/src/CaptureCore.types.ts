@@ -177,7 +177,7 @@ export type HealthSnapshot = {
     driftMs: number;
     resyncCount: number;
     sampleRate: number;
-    callLevelDb: number;
+    callLevelDb?: number;
   };
   call: {
     sentWidth: number;
