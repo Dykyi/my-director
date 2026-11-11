@@ -1,6 +1,11 @@
 import { describe, expect, it } from '@jest/globals';
 
-import type { RecordingSummary, RecoveryReport, SegmentSummary } from '@modules/capture-core';
+import type {
+  RecordingSummary,
+  RecoveryReport,
+  SegmentSummary,
+  VerificationCheck,
+} from '@modules/capture-core';
 
 import type { UploadStatus } from '@features/upload/upload-plan';
 import { sampleHealth } from '@test/session-fixtures';
@@ -16,6 +21,7 @@ import {
   recoveredNote,
   recoveryView,
   segmentLine,
+  verificationVerdict,
 } from './recording-labels';
 
 const MB = 1_024 ** 2;
@@ -159,4 +165,27 @@ describe('recoveryView', () => {
     );
     expect(view.unplayableNote).toBeUndefined();
   });
+});
+
+describe('verificationVerdict', () => {
+  const check = (overrides: Partial<VerificationCheck> = {}): VerificationCheck => ({
+    id: 'gaps',
+    label: 'Frame gaps',
+    expected: '≤ 0.50 %, longest ≤ 100 ms',
+    actual: '0.02 %, longest 133 ms',
+    pass: true,
+    ...overrides,
+  });
+
+  it('passes clean checks', () =>
+    expect(verificationVerdict(true, [check()])).toEqual({ label: 'PASS', tone: 'success' }));
+  it('passes a recovered segment cut by the crash in amber', () =>
+    expect(verificationVerdict(true, [check({ crashTail: true })])).toEqual({
+      label: 'PASS · recovered',
+      tone: 'paused',
+    }));
+  it('fails in red even with a crash tail', () =>
+    expect(
+      verificationVerdict(false, [check({ crashTail: true }), check({ id: 'fps', pass: false })]),
+    ).toEqual({ label: 'FAIL', tone: 'danger' }));
 });

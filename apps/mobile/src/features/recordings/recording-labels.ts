@@ -6,6 +6,7 @@ import type {
   RecoveryReport,
   SegmentState,
   SegmentSummary,
+  VerificationCheck,
 } from '@modules/capture-core';
 
 import type { UploadStatus } from '@features/upload/upload-plan';
@@ -69,6 +70,13 @@ export function lossNote({
   session: Pick<CaptureConfig['session'], 'heartbeatIntervalSec'>;
 }): string {
   return `Video reaches the disk every ${recording.fragmentIntervalSec} s and the progress note every ${session.heartbeatIntervalSec} s, so a crash loses only the tail after the last save.`;
+}
+
+export function verificationVerdict(pass: boolean, checks: VerificationCheck[]): ChipView {
+  if (!pass) return { label: 'FAIL', tone: 'danger' };
+  return checks.some((check) => check.crashTail)
+    ? { label: 'PASS · recovered', tone: 'paused' }
+    : { label: 'PASS', tone: 'success' };
 }
 
 export function recordingsFact(count: number, health: HealthSnapshot | null): string {

@@ -246,6 +246,9 @@ export type VerificationCheck = {
   expected: string;
   actual: string;
   pass: boolean;
+  /** Passed only because a crash cut the recovered segment's tail here; `note` says how. */
+  crashTail?: boolean;
+  note?: string;
 };
 export type SegmentVerification = {
   index: number;

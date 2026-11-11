@@ -8,18 +8,30 @@ struct FrameTimeStats: Codable, Equatable, Sendable {
   var fps: Double
   var gapCount: Int
   var longestIntervalSec: Double
+  /// The same without the last interval, the one a crash cuts in a recovered segment.
+  var gapCountBeforeLast: Int
+  var longestIntervalBeforeLastSec: Double
 
-  var gapRatio: Double { count > 1 ? Double(gapCount) / Double(count - 1) : 0 }
+  var gapRatio: Double { Self.ratio(gapCount, of: count - 1) }
+  var gapRatioBeforeLast: Double { Self.ratio(gapCountBeforeLast, of: count - 2) }
 
   /// `times` may come in decode order (HEVC with B-frames); the stats are about presentation order.
   init(times: [Double], nominalFps: Double) {
     let times = times.sorted()
     let intervals = zip(times, times.dropFirst()).map { $1 - $0 }
+    let beforeLast = intervals.dropLast()
+    let isGap = { (interval: Double) in interval > Self.gapFactor / nominalFps }
     count = times.count
     durationSec = (times.last ?? 0) - (times.first ?? 0)
     fps = durationSec > 0 ? Double(count - 1) / durationSec : 0
-    gapCount = intervals.filter { $0 > Self.gapFactor / nominalFps }.count
+    gapCount = intervals.filter(isGap).count
     longestIntervalSec = intervals.max() ?? 0
+    gapCountBeforeLast = beforeLast.filter(isGap).count
+    longestIntervalBeforeLastSec = beforeLast.max() ?? 0
+  }
+
+  private static func ratio(_ gaps: Int, of intervals: Int) -> Double {
+    intervals > 0 ? Double(gaps) / Double(intervals) : 0
   }
 }
 
@@ -38,6 +50,8 @@ struct SegmentFacts: Equatable, Sendable {
   var audioDurationSec: Double?
   var audioStartOffsetSec: Double?
   var manifestDurationSec: Double?
+  /// Set only for a recovered segment: how much its tail may have lost (`knownLossSec + maxUnseenLossSec`).
+  var recoveredTailSec: Double? = nil
 }
 
 struct VerificationCheck: Codable, Equatable, Sendable {
@@ -46,6 +60,23 @@ struct VerificationCheck: Codable, Equatable, Sendable {
   var expected: String
   var actual: String
   var pass: Bool
+  /// Passed only because a crash cut the recovered segment's tail here; `note` says how.
+  var crashTail = false
+  var note: String? = nil
+}
+
+extension VerificationCheck {
+  /// Reports saved before crash tails lack both keys.
+  init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    id = try container.decode(String.self, forKey: .id)
+    label = try container.decode(String.self, forKey: .label)
+    expected = try container.decode(String.self, forKey: .expected)
+    actual = try container.decode(String.self, forKey: .actual)
+    pass = try container.decode(Bool.self, forKey: .pass)
+    crashTail = try container.decodeIfPresent(Bool.self, forKey: .crashTail) ?? false
+    note = try container.decodeIfPresent(String.self, forKey: .note)
+  }
 }
 
 struct SegmentVerification: Codable, Equatable, Sendable {
@@ -88,11 +119,14 @@ enum VerificationRules {
   static let maxManifestMismatchSec = 1.0
   /// Checks that judge the frame list; they fail with the reason when the frames could not be read.
   private static let frameCheckIds: Set<String> = ["fps", "gaps"]
+  private static let crashTailNotes = [
+    "gaps": "at the crash point: the app was closed here",
+    "durations": "audio outlives the last frame after the crash",
+  ]
 
   static func evaluate(_ facts: SegmentFacts, nominalFps: Double) -> [VerificationCheck] {
     let minFps = nominalFps - fpsTolerance
     let durationMismatch = facts.audioDurationSec.map { abs(facts.videoDurationSec - $0) }
-    let longestGapMs = Int((facts.frames.longestIntervalSec * 1000).rounded())
     var checks = [
       VerificationCheck(id: "playable", label: "Plays", expected: "true", actual: String(facts.playable), pass: facts.playable),
       VerificationCheck(
@@ -110,8 +144,8 @@ enum VerificationRules {
       ),
       VerificationCheck(
         id: "gaps", label: "Frame gaps", expected: "≤ \(format(maxGapRatio * 100)) %, longest ≤ \(maxIntervalMs) ms",
-        actual: "\(format(facts.frames.gapRatio * 100)) %, longest \(longestGapMs) ms",
-        pass: facts.frames.gapRatio <= maxGapRatio && longestGapMs <= maxIntervalMs
+        actual: "\(format(facts.frames.gapRatio * 100)) %, longest \(wholeMs(facts.frames.longestIntervalSec)) ms",
+        pass: gapsWithinLimits(ratio: facts.frames.gapRatio, longestSec: facts.frames.longestIntervalSec)
       ),
       VerificationCheck(
         id: "audio", label: "Audio track", expected: "AAC, ≥ \(Int(minAudioSampleRate)) Hz",
@@ -136,11 +170,42 @@ enum VerificationRules {
         actual: "\(format(mismatch)) s", pass: mismatch <= maxManifestMismatchSec
       ))
     }
+    let cut = cutByCrash(facts)
+    checks = checks.map { check in
+      guard !check.pass, cut.contains(check.id) else { return check }
+      var tail = check
+      tail.pass = true
+      tail.crashTail = true
+      tail.note = crashTailNotes[check.id]
+      return tail
+    }
     guard let error = facts.frameReadError else { return checks }
     return checks.map { check in
       guard frameCheckIds.contains(check.id) else { return check }
       return VerificationCheck(id: check.id, label: check.label, expected: check.expected, actual: "not read: \(error)", pass: false)
     }
+  }
+
+  /// In a recovered segment: gaps only at the last frame interval, or audio past the last frame within the lost tail.
+  private static func cutByCrash(_ facts: SegmentFacts) -> Set<String> {
+    guard let tailSec = facts.recoveredTailSec else { return [] }
+    var cut: Set<String> = []
+    if gapsWithinLimits(ratio: facts.frames.gapRatioBeforeLast, longestSec: facts.frames.longestIntervalBeforeLastSec) {
+      cut.insert("gaps")
+    }
+    if let audioPastVideoSec = facts.audioDurationSec.map({ $0 - facts.videoDurationSec }),
+       audioPastVideoSec > 0, audioPastVideoSec <= tailSec {
+      cut.insert("durations")
+    }
+    return cut
+  }
+
+  private static func gapsWithinLimits(ratio: Double, longestSec: Double) -> Bool {
+    ratio <= maxGapRatio && wholeMs(longestSec) <= maxIntervalMs
+  }
+
+  private static func wholeMs(_ seconds: Double) -> Int {
+    Int((seconds * 1000).rounded())
   }
 
   private static func format(_ value: Double) -> String {

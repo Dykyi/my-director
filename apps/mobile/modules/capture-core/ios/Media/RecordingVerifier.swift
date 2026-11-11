@@ -6,7 +6,8 @@ enum RecordingVerifier {
     var segments: [SegmentVerification] = []
     for segment in manifest.segments {
       let url = directory.appending(path: segment.file)
-      let facts = await facts(for: url, manifestDurationSec: segment.durationSec, nominalFps: nominalFps)
+      let tailSec = segment.state == .recovered ? manifest.recoveryLoss.map { $0.knownLossSec + $0.maxUnseenLossSec } : nil
+      let facts = await facts(for: url, manifestDurationSec: segment.durationSec, recoveredTailSec: tailSec, nominalFps: nominalFps)
       let checks = VerificationRules.evaluate(facts, nominalFps: nominalFps)
       segments.append(SegmentVerification(
         index: segment.index, uri: url.absoluteString, checks: checks, pass: checks.allSatisfy(\.pass),
@@ -22,7 +23,7 @@ enum RecordingVerifier {
   }
 
   /// A fact that cannot be read stays empty, and the matching check fails visibly.
-  static func facts(for url: URL, manifestDurationSec: Double?, nominalFps: Double) async -> SegmentFacts {
+  static func facts(for url: URL, manifestDurationSec: Double?, recoveredTailSec: Double?, nominalFps: Double) async -> SegmentFacts {
     let asset = AVURLAsset(url: url)
     var facts = SegmentFacts(
       playable: (try? await asset.load(.isPlayable)) ?? false,
@@ -36,7 +37,8 @@ enum RecordingVerifier {
       videoDurationSec: 0,
       audioDurationSec: nil,
       audioStartOffsetSec: nil,
-      manifestDurationSec: manifestDurationSec
+      manifestDurationSec: manifestDurationSec,
+      recoveredTailSec: recoveredTailSec
     )
     var videoStart: CMTime?
     if let track = try? await asset.loadTracks(withMediaType: .video).first,
