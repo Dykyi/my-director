@@ -125,6 +125,7 @@ export const noopActions: CaptureSessionActions = {
   pause: done,
   resume: done,
   reconnectCall: done,
+  renameCall: done,
   stop: done,
   dismissError: () => {},
   simulateCrash: () => {},

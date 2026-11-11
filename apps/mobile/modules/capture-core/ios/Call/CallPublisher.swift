@@ -36,6 +36,7 @@ final class CallPublisher: NSObject, RoomDelegate {
   private let muteChanges = SerialTaskQueue()
   private var joined: Joined?
   private var credentials: CallCredentials?
+  private var callName = CallNameMemory()
   private var callConfig = CaptureConfig.defaults.call
   private var audio = CaptureConfig.defaults.audio
   private var profile = defaultProfile
@@ -59,6 +60,7 @@ final class CallPublisher: NSObject, RoomDelegate {
     self.rotationAngle = rotationAngle
     scaler.apply(profile)
     let room = try await connect(credentials)
+    await restoreName(in: room)
     if publish { try await publishTracks(in: room) }
     refreshStatus()
   }
@@ -125,6 +127,31 @@ final class CallPublisher: NSObject, RoomDelegate {
       try await room.localParticipant.set(attributes: [Self.pauseReasonAttribute: reason?.rawValue ?? ""])
     } catch {
       log.warning("call", "Pause reason not shared", ["error": error.localizedDescription])
+    }
+  }
+
+  /// Until the room is connected the name only waits: the connect or reconnect that follows restores it.
+  /// Needs `canUpdateOwnMetadata` in the token.
+  func setName(_ name: String) async throws {
+    callName.remember(name)
+    guard let room = joined?.room, room.connectionState == .connected else { return }
+    do {
+      try await room.localParticipant.set(name: name)
+    } catch {
+      log.warning("call", "Call name not changed", ["name": name, "error": error.localizedDescription])
+      throw Failure(code: .callPublishFailed, message: "The name was not changed: \(error.localizedDescription)")
+    }
+    log.info("call", "Call name changed", ["name": name])
+  }
+
+  /// A failure here leaves the token's name in the room, which is no reason to drop the call.
+  private func restoreName(in room: Room) async {
+    guard let name = callName.nameToRestore(tokenName: room.localParticipant.name) else { return }
+    do {
+      try await room.localParticipant.set(name: name)
+      log.info("call", "Call name changed", ["name": name])
+    } catch {
+      log.warning("call", "Call name not restored", ["name": name, "error": error.localizedDescription])
     }
   }
 
@@ -278,6 +305,7 @@ final class CallPublisher: NSObject, RoomDelegate {
     onMain(of: room) { publisher in
       publisher.log.info("call", "Reconnected", ["mode": mode])
       publisher.refreshStatus()
+      Task { await publisher.restoreName(in: room) }
     }
   }
 

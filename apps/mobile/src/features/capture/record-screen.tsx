@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 
-import { callTarget } from '@config/env';
 import { AccessCard } from '@features/access/components/access-card';
+import { lastCallTarget } from '@features/call/call-target';
 import { formatTimer } from '@shared/format';
 import { SafeAreaView } from '@ui/styled';
 
@@ -22,7 +22,7 @@ export function RecordScreen() {
   const health = useHealth();
   const issues = useSessionIssues('stretch');
   const line = access.ready ? healthLine(issues, snapshot) : WAITING_FOR_ACCESS;
-  const room = roomName(snapshot.call, callTarget.room);
+  const room = roomName(snapshot.call, lastCallTarget.use()?.room);
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-background">
       <RecordHeader

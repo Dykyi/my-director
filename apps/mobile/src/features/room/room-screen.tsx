@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 
-import { callTarget } from '@config/env';
+import { lastCallTarget } from '@features/call/call-target';
 import { roomName } from '@features/capture/call-labels';
 import { useCaptureSession, useHealth } from '@features/capture/capture-session-context';
 import { Button } from '@ui/button';
@@ -14,18 +14,22 @@ import { RoomSection } from './components/room-section';
 import {
   connectionView,
   ownHeading,
+  ownIdentity,
   ownTracks,
   participantView,
   peopleHeading,
   roomOccupancy,
 } from './room-labels';
+import { usePhoneName } from './use-phone-name';
 
 export function RoomScreen() {
   const { snapshot, config, actions } = useCaptureSession();
   const health = useHealth();
+  const phone = usePhoneName();
+  const lastTarget = lastCallTarget.use();
   const { call } = snapshot;
   const occupancy = roomOccupancy(call);
-  const room = roomName(call, callTarget.room);
+  const room = roomName(call, lastTarget?.room);
   return (
     <Sheet title="Room" subtitle={room} onClose={() => router.back()}>
       <ConnectionCard
@@ -35,8 +39,10 @@ export function RoomScreen() {
       />
       <RoomSection title={ownHeading(occupancy)}>
         <OwnCard
-          identity={call.identity ?? callTarget.identity ?? 'this phone'}
+          name={phone.name}
+          identity={ownIdentity(call, lastTarget?.identity)}
           tracks={ownTracks(call, config.call.profiles[call.profile], health?.call.bitrateKbps)}
+          onRename={phone.rename}
         />
       </RoomSection>
       {occupancy === 'notJoined' ? (

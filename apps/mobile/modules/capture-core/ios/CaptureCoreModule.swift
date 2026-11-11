@@ -57,6 +57,9 @@ public final class CaptureCoreModule: Module {
     AsyncFunction("reconnectCall") { () async throws in
       try await self.command { controller in try await controller.reconnectCall() }
     }
+    AsyncFunction("setCallName") { (name: String) async throws in
+      try await self.command { controller in try await controller.setCallName(name) }
+    }
     AsyncFunction("stop") { () async throws -> [String: Any] in
       try await self.command { controller in try JSONBridge.object(try await controller.stop()) }
     }

@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import { useParticipantColors } from '@theme/use-theme-colors';
 import { cn } from '@ui/cn';
 import { Icon } from '@ui/icon';
+import { IconButton } from '@ui/icon-button';
 import { QualityChip } from '@ui/quality-chip';
 import { Text } from '@ui/text';
 
@@ -57,19 +58,32 @@ export function ParticipantCard({
   );
 }
 
-export function OwnCard({ identity, tracks }: { identity: string; tracks: TrackChipView[] }) {
+export function OwnCard({
+  name,
+  identity,
+  tracks,
+  onRename,
+}: {
+  name: string;
+  identity: string;
+  tracks: TrackChipView[];
+  onRename: () => void;
+}) {
   return (
     <RoomCard>
       <View className="flex-row items-center gap-2.5">
         <View className="size-9 items-center justify-center rounded-pill bg-surface-raised">
           <Icon name="smartphone" className="size-4.5" tint="accent-subtle" />
         </View>
-        <Text selectable variant="row-title" className="text-foreground">
-          {identity}
-        </Text>
-        <Text variant="footnote" className="text-muted">
-          this phone
-        </Text>
+        <View className="flex-1 gap-0.5">
+          <Text variant="row-title" className="text-foreground">
+            {name}
+          </Text>
+          <Text selectable variant="footnote" className="text-muted">
+            {identity}
+          </Text>
+        </View>
+        <IconButton icon="pencil" label="Rename this phone" onPress={onRename} />
       </View>
       <Tracks tracks={tracks} />
     </RoomCard>

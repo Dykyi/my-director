@@ -7,8 +7,11 @@ import {
   type SessionSnapshot,
 } from '@modules/capture-core';
 
-import { callCredentials } from '@config/env';
+import { uploadApi } from '@config/env';
+import { callName, normalizeCallName } from '@features/call/call-identity';
+import { joinCall } from '@features/call/call-token';
 import { describeError } from '@shared/describe-error';
+import { singleFlight } from '@shared/single-flight';
 
 /** `overrides` must be a stable object (a constant or a memo). */
 export function useNativeSession(overrides: CaptureConfigInput, accessReady: boolean) {
@@ -44,14 +47,26 @@ export function useNativeSession(overrides: CaptureConfigInput, accessReady: boo
       .catch((error: unknown) => setCommandError(describeError(error)));
   }, [accessReady, cameraIdle, overrides]);
 
+  // Start waits for the token before the phase changes; a second tap meanwhile would ask again and fail.
+  const start = useMemo(
+    () => singleFlight(() => runCommand(() => joinCall(uploadApi, CaptureCore.start))),
+    [runCommand],
+  );
+
   const actions = useMemo(
     () => ({
       prepare: (next: CaptureConfigInput = overrides) =>
         runCommand(async () => setConfig(await CaptureCore.prepare(next))),
-      start: () => runCommand(() => CaptureCore.start(callCredentials)),
+      start,
       pause: () => runCommand(CaptureCore.pause),
       resume: () => runCommand(CaptureCore.resume),
       reconnectCall: () => runCommand(CaptureCore.reconnectCall),
+      /** Kept for the next token; the native side applies it now in a call and again after a rejoin. */
+      renameCall: (value: string) => {
+        const name = normalizeCallName(value);
+        callName.set(name);
+        return runCommand(() => CaptureCore.setCallName(name));
+      },
       stop: () => runCommand(CaptureCore.stop),
       dismissError: () => {
         setCommandError(null);
@@ -59,7 +74,7 @@ export function useNativeSession(overrides: CaptureConfigInput, accessReady: boo
       },
       simulateCrash: CaptureCore.simulateCrash,
     }),
-    [overrides, runCommand],
+    [overrides, runCommand, start],
   );
 
   return { snapshot, config, commandError, actions };

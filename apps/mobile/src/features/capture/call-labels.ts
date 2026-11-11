@@ -1,5 +1,6 @@
 import type { CallQuality, CallStatus, HealthSnapshot } from '@modules/capture-core';
 
+import { NOT_JOINED } from '@features/call/call-target';
 import { formatResolution } from '@shared/format';
 import { KBIT_PER_MBIT } from '@shared/units';
 import type { ChipView } from '@ui/tone';
@@ -30,5 +31,5 @@ export function participantNames({ participants }: CallStatus): string[] {
   return participants.map((participant) => participant.identity);
 }
 
-export const roomName = (call: CallStatus, fallback: string | undefined) =>
-  call.room ?? fallback ?? '';
+export const roomName = (call: CallStatus, lastRoom: string | undefined) =>
+  call.room ?? lastRoom ?? NOT_JOINED;

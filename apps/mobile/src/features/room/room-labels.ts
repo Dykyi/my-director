@@ -5,6 +5,7 @@ import type {
   TrackStatus,
 } from '@modules/capture-core';
 
+import { NOT_JOINED } from '@features/call/call-target';
 import { formatMbps, QUALITY_LOOK, type QualityLook } from '@features/capture/call-labels';
 import { formatClock, plural, profileLabel } from '@shared/format';
 import type { IconName } from '@ui/icons';
@@ -123,6 +124,10 @@ export function connectionView({
     }
   }
 }
+
+/** The Worker builds identities, so before the first join there is none to show. */
+export const ownIdentity = (call: CallStatus, lastIdentity: string | undefined): string =>
+  call.identity ?? lastIdentity ?? NOT_JOINED;
 
 export function ownTracks(
   call: CallStatus,

@@ -13,9 +13,9 @@ describe('participantNames', () => {
 
 describe('roomName', () => {
   it('prefers the room the phone joined', () =>
-    expect(roomName(inRoom([]), 'from-token')).toBe(inRoom([]).room));
-  it('falls back to the room of the token, then to nothing', () => {
-    expect(roomName({ ...inRoom([]), room: undefined }, 'from-token')).toBe('from-token');
-    expect(roomName({ ...inRoom([]), room: undefined }, undefined)).toBe('');
+    expect(roomName(inRoom([]), 'last-join')).toBe(inRoom([]).room));
+  it('falls back to the room of the last join, then says there was none', () => {
+    expect(roomName({ ...inRoom([]), room: undefined }, 'last-join')).toBe('last-join');
+    expect(roomName({ ...inRoom([]), room: undefined }, undefined)).toBe('not joined yet');
   });
 });

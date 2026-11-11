@@ -22,6 +22,8 @@ declare class CaptureCoreNativeModule extends NativeModule<CaptureCoreEvents> {
   pause(): Promise<void>;
   resume(): Promise<void>;
   reconnectCall(): Promise<void>;
+  /** Renames the phone in the current call, and again after a rejoin that reuses the token from Start. */
+  setCallName(name: string): Promise<void>;
   stop(): Promise<RecordingSummary>;
   dismissError(): Promise<void>;
   listRecordings(): Promise<RecordingSummary[]>;
@@ -45,6 +47,7 @@ export const CaptureCore = {
   pause: () => native.pause(),
   resume: () => native.resume(),
   reconnectCall: () => native.reconnectCall(),
+  setCallName: (name: string) => native.setCallName(name),
   stop: () => native.stop(),
   dismissError: () => native.dismissError(),
   listRecordings: () => native.listRecordings(),

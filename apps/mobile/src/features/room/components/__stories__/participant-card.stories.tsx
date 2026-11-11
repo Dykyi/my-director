@@ -67,7 +67,9 @@ export const ThisPhone: Story = {
   render: function Render() {
     return (
       <OwnCard
-        identity="iphone"
+        name="Studio phone"
+        identity="iphone-7F3A"
+        onRename={() => {}}
         tracks={[
           { label: '720p 30 fps', tone: 'success', icon: 'video', speaking: false },
           { label: 'Mic', tone: 'success', icon: 'mic', speaking: false },

@@ -12,7 +12,6 @@
     "lint": "yarn workspace @mydirector/mobile lint",
     "lint:fix": "yarn workspace @mydirector/mobile lint:fix",
     "test:native": "yarn workspace @mydirector/mobile test:native",
-    "token": "yarn workspace @mydirector/mobile token",
     "icons": "yarn workspace @mydirector/mobile icons",
     "tokens": "yarn workspace @mydirector/mobile tokens",
     "stand": "yarn workspace @mydirector/mobile stand",

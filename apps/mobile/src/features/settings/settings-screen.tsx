@@ -1,6 +1,6 @@
 import { ScrollView } from 'react-native';
 
-import { callTarget } from '@config/env';
+import { lastCallTarget } from '@features/call/call-target';
 import { useCaptureSession, useChangeCamera } from '@features/capture/capture-session-context';
 import { isCameraEditable } from '@features/capture/session-labels';
 import { TabScreen } from '@features/shell/tab-screen';
@@ -22,7 +22,7 @@ export function SettingsScreen() {
   const changeCamera = useChangeCamera();
   const theme = useAppearance();
   const { copied, copy } = useCopySettings(config);
-  const [camera, ...rest] = settingsGroups(config, ABOUT, callTarget);
+  const [camera, ...rest] = settingsGroups(config, ABOUT, lastCallTarget.use());
   return (
     <TabScreen title="Settings" caption={CAPTION}>
       <ScrollView className="flex-1" contentContainerClassName="gap-4.5 px-4 pb-5 pt-4">

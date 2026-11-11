@@ -1,18 +1,10 @@
 import { describe, expect, it, jest } from '@jest/globals';
 
-import { parsePreference, storedPreference } from './stored-preference';
+import { memoryKvStore as mockKvStore } from '@test/memory-kv-store';
 
-jest.mock('expo-sqlite/kv-store', () => {
-  const items = new Map<string, string>();
-  return {
-    __esModule: true,
-    default: {
-      getItemSync: (key: string) => items.get(key) ?? null,
-      setItemSync: (key: string, value: string) => void items.set(key, value),
-      removeItemSync: (key: string) => items.delete(key),
-    },
-  };
-});
+import { parsePreference, storedPreference, storedValue } from './stored-preference';
+
+jest.mock('expo-sqlite/kv-store', () => mockKvStore);
 
 const SIDES = ['left', 'right'] as const;
 
@@ -35,5 +27,28 @@ describe('storedPreference', () => {
     side.set('left');
     side.set(undefined);
     expect(storedPreference('test.cleared', SIDES).get()).toBeUndefined();
+  });
+});
+
+describe('storedValue', () => {
+  const count = (key: string) =>
+    storedValue(key, (stored) => (stored === null ? undefined : Number(stored)), String);
+
+  it('has nothing until a value is saved', () => expect(count('test.empty').get()).toBeUndefined());
+
+  it('saves a value for the next launch and tells its readers', () => {
+    const value = count('test.count');
+    const listener = jest.fn();
+    value.subscribe(listener);
+    value.set(3);
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(count('test.count').get()).toBe(3);
+  });
+
+  it('removes a value set to undefined', () => {
+    const value = count('test.removed');
+    value.set(7);
+    value.set(undefined);
+    expect(count('test.removed').get()).toBeUndefined();
   });
 });

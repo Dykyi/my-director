@@ -3,7 +3,14 @@ import { describe, expect, it } from '@jest/globals';
 import { formatClock } from '@shared/format';
 import { inRoom, noCall, participant } from '@test/call-fixtures';
 
-import { connectionView, initials, ownTracks, participantView, roomOccupancy } from './room-labels';
+import {
+  connectionView,
+  initials,
+  ownIdentity,
+  ownTracks,
+  participantView,
+  roomOccupancy,
+} from './room-labels';
 
 const STANDARD = { width: 1280, height: 720, fps: 30 };
 
@@ -70,4 +77,15 @@ describe('ownTracks', () => {
     expect(
       ownTracks({ ...inRoom(), isMuted: true }, STANDARD, 0).map((track) => track.label),
     ).toEqual(['Camera muted', 'Mic muted']));
+});
+
+describe('ownIdentity', () => {
+  it('takes the identity of the call the phone is in', () =>
+    expect(ownIdentity({ ...inRoom(), identity: 'iphone-7F3A' }, 'iphone-OLD1')).toBe(
+      'iphone-7F3A',
+    ));
+  it('keeps the identity of the last join between calls', () =>
+    expect(ownIdentity(noCall, 'iphone-7F3A')).toBe('iphone-7F3A'));
+  it('has none before the first join', () =>
+    expect(ownIdentity(noCall, undefined)).toBe('not joined yet'));
 });

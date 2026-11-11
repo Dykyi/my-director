@@ -168,6 +168,11 @@ final class SessionController {
     if machine.state.phase != .recording { await callPublisher.setMuted(true, reason: machine.state.pauseReason) }
   }
 
+  /// Outside a call the name waits for a rejoin in this session; a new Start asks for a token with it.
+  func setCallName(_ name: String) async throws {
+    try await callPublisher.setName(name)
+  }
+
   func dismissError() {
     send(.errorDismissed)
   }

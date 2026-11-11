@@ -6,9 +6,9 @@ import type {
   RecordingCodec,
 } from '@modules/capture-core';
 
-import type { CallTarget } from '@config/token-grant';
+import { NOT_JOINED, type CallTarget } from '@features/call/call-target';
 import { formatResolution } from '@shared/format';
-import { BITS_PER_KBIT, BITS_PER_MBIT, MB_PER_GB, MS_PER_SEC, UNKNOWN } from '@shared/units';
+import { BITS_PER_KBIT, BITS_PER_MBIT, MB_PER_GB, MS_PER_SEC } from '@shared/units';
 
 type SettingsRowView = { label: string; value: string; mono?: boolean };
 type SettingsGroupId = 'camera' | 'file' | 'microphone' | 'call' | 'upload' | 'about';
@@ -36,6 +36,7 @@ const LENS = 'Wide 1×';
 const VIDEO_HDR = 'Off';
 const AUDIO_FORMAT = 'AAC 48 kHz mono';
 const UPLOAD_STORAGE = 'Backblaze B2 via Worker';
+const JOINS_ON_START = 'joins on Start';
 
 const RECORDING_CODEC: Record<RecordingCodec, string> = { hevc: 'HEVC', h264: 'H.264' };
 const CALL_CODEC: Record<CallCodec, string> = { h264: 'H.264', vp8: 'VP8' };
@@ -82,7 +83,7 @@ function updateText({ enabled, embedded, updateId, channel }: UpdateInfo): strin
 export function settingsGroups(
   config: CaptureConfig,
   about: AboutInfo,
-  call: CallTarget,
+  call: CallTarget | undefined,
 ): SettingsGroupView[] {
   const { camera, recording, audio, health, storage } = config;
   const { codec, degradation, profiles, thermalProfiles, thermalRecoveryDelaySec } = config.call;
@@ -138,11 +139,11 @@ export function settingsGroups(
       id: 'call',
       title: 'CALL',
       rows: [
-        { label: 'LiveKit', value: call.serverUrl, mono: true },
+        { label: 'LiveKit', value: call?.serverUrl ?? JOINS_ON_START, mono: call !== undefined },
         {
           label: 'Room',
-          value: `${call.room ?? UNKNOWN} · as ${call.identity ?? UNKNOWN}`,
-          mono: true,
+          value: call ? `${call.room} · as ${call.identity}` : NOT_JOINED,
+          mono: call !== undefined,
         },
         {
           label: 'Video',

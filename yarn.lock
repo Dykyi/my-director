@@ -2758,7 +2758,6 @@ __metadata:
     expo-video: "npm:~57.0.5"
     jest: "npm:~29.7.0"
     jest-expo: "npm:~57.0.6"
-    livekit-server-sdk: "npm:^2.19.2"
     lucide-react-native: "npm:^1.70.0"
     react: "npm:19.2.3"
     react-native: "npm:0.86.3"

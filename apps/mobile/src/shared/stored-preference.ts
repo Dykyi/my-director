@@ -8,10 +8,14 @@ export function parsePreference<T extends string>(
   return allowed.find((value) => value === stored);
 }
 
-export function storedPreference<T extends string>(key: string, allowed: readonly T[]) {
+export function storedValue<T>(
+  key: string,
+  parse: (stored: string | null) => T | undefined,
+  serialize: (value: T) => string,
+) {
   const listeners = new Set<() => void>();
   let cache: { value: T | undefined } | undefined;
-  const get = () => (cache ??= { value: parsePreference(Storage.getItemSync(key), allowed) }).value;
+  const get = () => (cache ??= { value: parse(Storage.getItemSync(key)) }).value;
   const subscribe = (listener: () => void) => {
     listeners.add(listener);
     return () => listeners.delete(listener);
@@ -20,10 +24,14 @@ export function storedPreference<T extends string>(key: string, allowed: readonl
     get,
     set(value: T | undefined) {
       if (value === undefined) Storage.removeItemSync(key);
-      else Storage.setItemSync(key, value);
+      else Storage.setItemSync(key, serialize(value));
       cache = { value };
       listeners.forEach((listener) => listener());
     },
+    subscribe,
     use: () => useSyncExternalStore(subscribe, get),
   };
 }
+
+export const storedPreference = <T extends string>(key: string, allowed: readonly T[]) =>
+  storedValue(key, (stored) => parsePreference(stored, allowed), String);

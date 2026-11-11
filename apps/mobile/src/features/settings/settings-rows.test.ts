@@ -48,6 +48,17 @@ describe('settingsGroups', () => {
       ['Weak network', 'keeps 30 fps, drops size'],
     ]));
 
+  it('says the call joins on Start before the first join', () =>
+    expect(
+      settingsGroups(config, about, undefined)
+        .find((group) => group.id === 'call')
+        ?.rows.slice(0, 2)
+        .map(({ label, value }) => [label, value]),
+    ).toEqual([
+      ['LiveKit', 'joins on Start'],
+      ['Room', 'not joined yet'],
+    ]));
+
   it('ends with the app, its update and the phone', () =>
     expect(rows('about')).toEqual([
       ['App', 'MyDirector 0.1.0'],
