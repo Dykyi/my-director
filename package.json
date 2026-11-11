@@ -22,6 +22,8 @@
     "upload-api": "yarn workspace @mydirector/upload-api",
     "deploy:api": "yarn workspace @mydirector/upload-api deploy",
     "tail:api": "yarn workspace @mydirector/upload-api tail",
+    "release:ios": "yarn workspace @mydirector/mobile release",
+    "update:ios": "yarn workspace @mydirector/mobile update",
     "test": "yarn workspaces foreach --all --exclude mydirector --verbose run test",
     "typecheck": "yarn workspaces foreach --all --exclude mydirector --verbose run typecheck",
     "test:verify": "tools/verify/.venv/bin/pytest tools/verify/tests",
