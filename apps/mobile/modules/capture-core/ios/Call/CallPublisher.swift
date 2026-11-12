@@ -33,7 +33,7 @@ final class CallPublisher: NSObject, RoomDelegate {
   private(set) var status = CallStatus()
 
   private let log: EventLog
-  private let muteChanges = SerialTaskQueue()
+  private let callChanges = SerialTaskQueue()
   private var joined: Joined?
   private var credentials: CallCredentials?
   private var callName = CallNameMemory()
@@ -61,12 +61,13 @@ final class CallPublisher: NSObject, RoomDelegate {
     scaler.apply(profile)
     let room = try await connect(credentials)
     await restoreName(in: room)
+    relisten(in: room)
     if publish { try await publishTracks(in: room) }
     refreshStatus()
   }
 
   private func connect(_ credentials: CallCredentials) async throws -> Room {
-    let room = Room(delegate: self, connectOptions: nil, roomOptions: RoomOptions(
+    let room = Room(delegate: self, connectOptions: ConnectOptions(autoSubscribe: false), roomOptions: RoomOptions(
       defaultAudioCaptureOptions: AudioCaptureOptions(
         echoCancellation: true,
         autoGainControl: audio.autoGainControl,
@@ -101,7 +102,7 @@ final class CallPublisher: NSObject, RoomDelegate {
 
   /// Changes run one at a time, so a Resume cancelled mid-unmute still ends muted.
   func setMuted(_ muted: Bool, reason: PauseReason?) async {
-    await muteChanges.enqueue { await self.changeMute(muted, reason: reason) }.value
+    await callChanges.enqueue { await self.changeMute(muted, reason: reason) }.value
   }
 
   /// The reason goes first, so the interviewer page can say why before the picture goes dark.
@@ -122,6 +123,7 @@ final class CallPublisher: NSObject, RoomDelegate {
       }
       log.info("call", muted ? "Tracks muted" : "Tracks unmuted")
       if joined?.room === room { joined?.isMuted = muted }
+      await syncListening(in: room)
       refreshStatus()
     } catch {
       log.warning("call", "Mute change failed", ["muted": String(muted), "error": error.localizedDescription])
@@ -134,6 +136,34 @@ final class CallPublisher: NSObject, RoomDelegate {
     guard !room.localParticipant.trackPublications.values.contains(where: { $0.track === track }) else { return }
     _ = try await room.localParticipant.publish(videoTrack: track, options: videoPublishOptions)
     log.info("call", "Camera track published again")
+  }
+
+  /// Autosubscribe is off, so subscriptions are set here. A join or a full reconnect announces no tracks
+  /// already in the room, so this runs after those as well as on new tracks and on pause and resume.
+  private func relisten(in room: Room) {
+    callChanges.enqueue { await self.syncListening(in: room) }
+  }
+
+  /// Every track gets an explicit choice: a quick reconnect subscribes to any track still left undecided.
+  private func syncListening(in room: Room) async {
+    let paused = joined?.isMuted ?? false
+    for participant in room.remoteParticipants.values {
+      for case let publication as RemoteTrackPublication in participant.trackPublications.values {
+        let listens = CallListening.listens(
+          to: participant.displayIdentity,
+          isAudio: publication.kind == .audio,
+          paused: paused
+        )
+        let changes = publication.isSubscribed != listens
+        do {
+          try await publication.set(subscribed: listens)
+          if changes { log.info("call", listens ? "Listening" : "Not listening", ["identity": participant.displayIdentity]) }
+        } catch {
+          let reason = error.localizedDescription
+          log.warning("call", "Subscription not changed", ["identity": participant.displayIdentity, "error": reason])
+        }
+      }
+    }
   }
 
   /// The interviewer page reads this attribute. Needs `canUpdateOwnMetadata` in the token.
@@ -324,7 +354,10 @@ final class CallPublisher: NSObject, RoomDelegate {
     onMain(of: room) { publisher in
       publisher.log.info("call", "Reconnected", ["mode": mode])
       publisher.refreshStatus()
-      Task { await publisher.restoreName(in: room) }
+      Task {
+        await publisher.restoreName(in: room)
+        publisher.relisten(in: room)
+      }
     }
   }
 
@@ -361,7 +394,10 @@ final class CallPublisher: NSObject, RoomDelegate {
   }
 
   nonisolated func room(_ room: Room, participant: RemoteParticipant, didPublishTrack publication: RemoteTrackPublication) {
-    onMain(of: room) { $0.scheduleRefresh() }
+    onMain(of: room) { publisher in
+      publisher.scheduleRefresh()
+      publisher.relisten(in: room)
+    }
   }
 
   nonisolated func room(_ room: Room, participant: RemoteParticipant, didUnpublishTrack publication: RemoteTrackPublication) {
