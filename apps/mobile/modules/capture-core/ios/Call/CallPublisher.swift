@@ -110,8 +110,15 @@ final class CallPublisher: NSObject, RoomDelegate {
     await sharePauseReason(muted ? reason : nil, in: room)
     do {
       if let videoTrack = joined?.videoTrack {
-        if muted { try await videoTrack.mute() } else { try await videoTrack.unmute() }
-        _ = try await room.localParticipant.setMicrophone(enabled: !muted)
+        if muted {
+          try await videoTrack.mute()
+          _ = try await room.localParticipant.setMicrophone(enabled: false)
+        } else {
+          // The voice comes back first, so a failed camera re-publish still leaves the call audible.
+          _ = try await room.localParticipant.setMicrophone(enabled: true)
+          try await republishIfDropped(videoTrack, in: room)
+          try await videoTrack.unmute()
+        }
       }
       log.info("call", muted ? "Tracks muted" : "Tracks unmuted")
       if joined?.room === room { joined?.isMuted = muted }
@@ -119,6 +126,14 @@ final class CallPublisher: NSObject, RoomDelegate {
     } catch {
       log.warning("call", "Mute change failed", ["muted": String(muted), "error": error.localizedDescription])
     }
+  }
+
+  /// A full reconnect during a pause drops the camera: LiveKit re-publishes only unmuted tracks.
+  /// Published again while still muted, so LiveKit's own re-publish can't add it a second time.
+  private func republishIfDropped(_ track: LocalVideoTrack, in room: Room) async throws {
+    guard !room.localParticipant.trackPublications.values.contains(where: { $0.track === track }) else { return }
+    _ = try await room.localParticipant.publish(videoTrack: track, options: videoPublishOptions)
+    log.info("call", "Camera track published again")
   }
 
   /// The interviewer page reads this attribute. Needs `canUpdateOwnMetadata` in the token.
@@ -221,12 +236,7 @@ final class CallPublisher: NSObject, RoomDelegate {
     // publish(videoTrack:) waits for the capturer's first frame to learn its size, so frames flow before it.
     scaler.attach(track.capturer as? BufferCapturer, rotationAngle: rotationAngle)
     do {
-      _ = try await room.localParticipant.publish(videoTrack: track, options: VideoPublishOptions(
-        name: Track.cameraName,
-        simulcast: callConfig.simulcast,
-        preferredCodec: callConfig.codec == .h264 ? .h264 : .vp8,
-        degradationPreference: callConfig.degradation.liveKitPreference
-      ))
+      _ = try await room.localParticipant.publish(videoTrack: track, options: videoPublishOptions)
       _ = try await room.localParticipant.setMicrophone(enabled: true)
     } catch {
       scaler.attach(nil, rotationAngle: rotationAngle)
@@ -239,6 +249,15 @@ final class CallPublisher: NSObject, RoomDelegate {
       "codec": callConfig.codec.rawValue,
       "simulcast": String(callConfig.simulcast),
     ])
+  }
+
+  private var videoPublishOptions: VideoPublishOptions {
+    VideoPublishOptions(
+      name: Track.cameraName,
+      simulcast: callConfig.simulcast,
+      preferredCodec: callConfig.codec == .h264 ? .h264 : .vp8,
+      degradationPreference: callConfig.degradation.liveKitPreference
+    )
   }
 
   private func waitUntilConnected(timeout: Double) async throws -> Bool {
