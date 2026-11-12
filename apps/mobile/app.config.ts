@@ -33,7 +33,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     appleTeamId: process.env.APPLE_TEAM_ID,
     bundleIdentifier: 'com.dikiy.mydirector',
-    buildNumber: '3',
+    buildNumber: '4',
     icon: {
       light: './assets/icon.png',
       dark: './assets/ios-dark.png',
