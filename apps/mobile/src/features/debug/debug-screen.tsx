@@ -23,12 +23,8 @@ export function DebugScreen() {
     <TabScreen title="Debug" fact="updates every second" compact>
       <HealthGrid health={health} snapshot={snapshot} />
       <EventLog entries={logs} badge={badge} />
-      {__DEV__ && (
-        <>
-          <RemoteStatus lastCommand={lastCommand} />
-          <CrashRow onCrash={actions.simulateCrash} />
-        </>
-      )}
+      {__DEV__ && <RemoteStatus lastCommand={lastCommand} />}
+      <CrashRow onCrash={actions.simulateCrash} />
     </TabScreen>
   );
 }

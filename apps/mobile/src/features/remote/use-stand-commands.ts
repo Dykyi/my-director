@@ -37,7 +37,7 @@ function useStandCommands() {
     'close-sheet': () => router.canDismiss() && router.dismissAll(),
     'dismiss-recovery': () =>
       recoveryReport && recordings.actions.acknowledge(recoveryReport.sessionId),
-    sigkill: () => actions.simulateCrash?.(),
+    sigkill: () => actions.simulateCrash(),
     'camera-front': () => changeCamera('front'),
     'camera-back': () => changeCamera('back'),
     'camera-default': () => changeCamera(undefined),

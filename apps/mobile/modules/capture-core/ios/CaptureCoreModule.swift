@@ -83,12 +83,10 @@ public final class CaptureCoreModule: Module {
       try await self.command { controller in try controller.deleteRecording(sessionId: sessionId) }
     }
 
-    #if DEBUG
     Function("simulateCrash") {
       // No lifecycle callback gets a chance to close the segment.
       kill(getpid(), SIGKILL)
     }
-    #endif
 
     View(CapturePreviewView.self) {
       Prop("videoGravity") { (view: CapturePreviewView, gravity: PreviewGravity) in

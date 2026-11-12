@@ -31,8 +31,7 @@ declare class CaptureCoreNativeModule extends NativeModule<CaptureCoreEvents> {
   acknowledgeRecovery(sessionId: string): Promise<void>;
   verifyRecording(sessionId: string): Promise<VerificationReport>;
   deleteRecording(sessionId: string): Promise<void>;
-  /** Debug builds only. */
-  simulateCrash?: () => void;
+  simulateCrash(): void;
 }
 
 const native = requireNativeModule<CaptureCoreNativeModule>('CaptureCore');
@@ -55,7 +54,7 @@ export const CaptureCore = {
   acknowledgeRecovery: (sessionId: string) => native.acknowledgeRecovery(sessionId),
   verifyRecording: (sessionId: string) => native.verifyRecording(sessionId),
   deleteRecording: (sessionId: string) => native.deleteRecording(sessionId),
-  simulateCrash: native.simulateCrash ? () => native.simulateCrash?.() : undefined,
+  simulateCrash: () => native.simulateCrash(),
   addListener: <Event extends keyof CaptureCoreEvents>(
     event: Event,
     listener: CaptureCoreEvents[Event],
