@@ -14,6 +14,8 @@ import { displayName, isPhoneIdentity } from './phone-identity.ts';
 
 /** Set by the phone before it mutes (CallPublisher.swift). */
 const PAUSE_REASON = 'pauseReason';
+/** The voice track belongs to the page's audio bus; the next Join sends and records it again. */
+const STOP_TRACKS_ON_LEAVE = false;
 
 export interface RoomNames {
   room: string;
@@ -61,7 +63,7 @@ export class RoomSession {
         });
       }
     } catch (error) {
-      await room.disconnect();
+      await room.disconnect(STOP_TRACKS_ON_LEAVE);
       throw error;
     }
     return session;
@@ -91,7 +93,7 @@ export class RoomSession {
   }
 
   leave(): Promise<void> {
-    return this.#room.disconnect();
+    return this.#room.disconnect(STOP_TRACKS_ON_LEAVE);
   }
 
   // The first phone by join order, kept until its own leave event: LiveKit drops

@@ -9,11 +9,27 @@ const NAMES = { room: 'mydirector-poc', identity: 'interviewer', phone: 'iphone'
 const ACCESS = { url: 'wss://example.livekit.cloud', token: 'token' };
 const NOTHING_SENT = { getAudioTracks: () => [] } as unknown as MediaStream;
 
+class FakeTrack {
+  readonly kind = 'audio';
+  readyState: MediaStreamTrackState = 'live';
+  stop(): void {
+    this.readyState = 'ended';
+  }
+}
+
 class FakeRoom extends EventEmitter {
   readonly remoteParticipants = new Map<string, FakeParticipant>();
-  readonly localParticipant = { publishTrack: async () => {} };
+  readonly #published: FakeTrack[] = [];
+  readonly localParticipant = {
+    publishTrack: async (track: FakeTrack) => {
+      this.#published.push(track);
+    },
+  };
   async connect(): Promise<void> {}
-  async disconnect(): Promise<void> {}
+  // Like LiveKit, a disconnect stops the published local tracks unless told not to.
+  async disconnect(stopTracks = true): Promise<void> {
+    if (stopTracks) this.#published.forEach((track) => track.stop());
+  }
 }
 
 interface FakePublication {
@@ -46,26 +62,27 @@ class FakeParticipant {
   }
 }
 
+const recordingListener = (events: string[]): RoomListener => ({
+  phoneTrack: (track, muted) => events.push(`phoneTrack ${track.kind} muted=${muted}`),
+  phoneTrackEnded: (track) => events.push(`phoneTrackEnded ${track.kind}`),
+  phonePaused: () => events.push('phonePaused'),
+  phoneResumed: () => events.push('phoneResumed'),
+  phoneLeft: () => events.push('phoneLeft'),
+  changed: () => events.push('changed'),
+  left: () => events.push('left'),
+  log: (message) => events.push(message),
+});
+
 async function setUp(...participants: FakeParticipant[]) {
   const room = new FakeRoom();
   for (const participant of participants)
     room.remoteParticipants.set(participant.identity, participant);
   const events: string[] = [];
-  const listener: RoomListener = {
-    phoneTrack: (track, muted) => events.push(`phoneTrack ${track.kind} muted=${muted}`),
-    phoneTrackEnded: (track) => events.push(`phoneTrackEnded ${track.kind}`),
-    phonePaused: () => events.push('phonePaused'),
-    phoneResumed: () => events.push('phoneResumed'),
-    phoneLeft: () => events.push('phoneLeft'),
-    changed: () => events.push('changed'),
-    left: () => events.push('left'),
-    log: (message) => events.push(message),
-  };
   const session = await RoomSession.join(
     ACCESS,
     NAMES,
     NOTHING_SENT,
-    listener,
+    recordingListener(events),
     room as unknown as Room,
   );
   const leave = (participant: FakeParticipant) => {
@@ -123,5 +140,14 @@ describe('RoomSession', () => {
     assert.equal(session.phoneName, 'Studio phone');
     leave(first);
     assert.deepEqual(events.slice(-2), ['Now following Spare (iphone-BBBB)', 'phonePaused']);
+  });
+
+  it('keeps the voice track live after Leave, so the next Join can send and record it', async () => {
+    const voice = new FakeTrack();
+    const sent = { getAudioTracks: () => [voice] } as unknown as MediaStream;
+    const room = new FakeRoom() as unknown as Room;
+    const session = await RoomSession.join(ACCESS, NAMES, sent, recordingListener([]), room);
+    await session.leave();
+    assert.equal(voice.readyState, 'live');
   });
 });
