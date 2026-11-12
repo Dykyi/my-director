@@ -4,6 +4,8 @@ import ExpoModulesCore
 final class CapturePreviewView: ExpoView {
   private let previewLayer = AVCaptureVideoPreviewLayer()
   private var startObserver: NSObjectProtocol?
+  private var rotationCoordinator: AVCaptureDevice.RotationCoordinator?
+  private var rotationObservation: NSKeyValueObservation?
 
   var gravity = PreviewGravity.aspectFill {
     didSet { previewLayer.videoGravity = gravity.layerGravity }
@@ -23,9 +25,9 @@ final class CapturePreviewView: ExpoView {
       object: session,
       queue: .main
     ) { [weak self] _ in
-      self?.applyPortraitRotation()
+      self?.followCameraRotation()
     }
-    applyPortraitRotation()
+    followCameraRotation()
   }
 
   deinit {
@@ -37,11 +39,24 @@ final class CapturePreviewView: ExpoView {
     previewLayer.frame = bounds
   }
 
-  private func applyPortraitRotation() {
-    guard let connection = previewLayer.connection,
-          connection.isVideoRotationAngleSupported(CameraSource.portraitRotationAngle)
-    else { return }
-    connection.videoRotationAngle = CameraSource.portraitRotationAngle
+  /// The angle follows how the sensor is mounted: landscape on earlier iPhones, portrait on the iPhone 17 front camera.
+  private func followCameraRotation() {
+    let inputs = previewLayer.session?.inputs.compactMap { $0 as? AVCaptureDeviceInput } ?? []
+    guard let camera = inputs.first(where: { $0.device.hasMediaType(.video) })?.device else { return }
+    let coordinator = AVCaptureDevice.RotationCoordinator(device: camera, previewLayer: previewLayer)
+    rotationObservation = coordinator.observe(
+      \.videoRotationAngleForHorizonLevelPreview,
+      options: [.initial, .new]
+    ) { [weak self] coordinator, _ in
+      let angle = coordinator.videoRotationAngleForHorizonLevelPreview
+      DispatchQueue.main.async { self?.applyRotation(angle) }
+    }
+    rotationCoordinator = coordinator
+  }
+
+  private func applyRotation(_ angle: CGFloat) {
+    guard let connection = previewLayer.connection, connection.isVideoRotationAngleSupported(angle) else { return }
+    connection.videoRotationAngle = angle
   }
 }
 
