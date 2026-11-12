@@ -48,6 +48,7 @@ function RecordingCardStory({
         verified: upload === 'uploaded',
       }}
       isActive={isActive}
+      recordingInProgress={isActive}
       handlers={handlers}
       renderSegment={(item) => (
         <UploadProgress

@@ -44,6 +44,7 @@ export function RecordingsScreen() {
               recording={recording}
               status={uploads.uploadStatus(recording)}
               isActive={recording.sessionId === snapshot.sessionId}
+              recordingInProgress={snapshot.sessionId !== undefined}
               handlers={handlers}
               renderSegment={(segment) => (
                 <UploadProgress

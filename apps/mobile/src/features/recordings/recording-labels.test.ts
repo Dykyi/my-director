@@ -13,6 +13,7 @@ import { sampleHealth } from '@test/session-fixtures';
 import {
   cardActions,
   deleteMessage,
+  isActionDisabled,
   isCompleteSegment,
   lossNote,
   recordingChip,
@@ -81,6 +82,15 @@ describe('card text', () => {
     expect(
       recoveredNote(recording({ segments: [segment(1), segment(2, { state: 'unplayable' })] })),
     ).toBe('Recovered after the app was closed. Playable segments: 1 of 2.'));
+});
+
+describe('isActionDisabled', () => {
+  it('turns Play off while a recording runs', () =>
+    expect(isActionDisabled('play', true)).toBe(true));
+  it('keeps Play on when nothing is recording', () =>
+    expect(isActionDisabled('play', false)).toBe(false));
+  it('keeps the other actions on during a recording', () =>
+    expect(isActionDisabled('verify', true) || isActionDisabled('upload', true)).toBe(false));
 });
 
 describe('cardActions', () => {

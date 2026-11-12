@@ -12,6 +12,7 @@ import { Text } from '@ui/text';
 
 import {
   cardActions,
+  isActionDisabled,
   recordingChip,
   recordingMeta,
   recoveredNote,
@@ -42,12 +43,14 @@ export function RecordingCard({
   recording,
   status,
   isActive,
+  recordingInProgress,
   handlers,
   renderSegment,
 }: {
   recording: RecordingSummary;
   status: UploadStatus;
   isActive: boolean;
+  recordingInProgress: boolean;
   handlers: CardHandlers;
   renderSegment: (segment: SegmentSummary) => ReactNode;
 }) {
@@ -86,6 +89,7 @@ export function RecordingCard({
               iconOnly={iconOnly}
               size="compact"
               className={iconOnly ? undefined : 'flex-1'}
+              disabled={isActionDisabled(action, recordingInProgress)}
               onPress={() => handlers[action](recording)}
             />
           );

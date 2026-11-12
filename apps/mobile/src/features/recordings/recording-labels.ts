@@ -54,6 +54,10 @@ export function cardActions({ uploading, pending }: UploadStatus, isActive: bool
   return isActive ? ['play', 'verify', ...upload] : ['play', 'verify', ...upload, 'delete'];
 }
 
+/** Playback through the speaker during a recording could reach the call and the file. */
+export const isActionDisabled = (action: CardAction, recordingInProgress: boolean): boolean =>
+  action === 'play' && recordingInProgress;
+
 export function deleteMessage(
   { segments, totalBytes }: RecordingSummary,
   uploaded: number,
