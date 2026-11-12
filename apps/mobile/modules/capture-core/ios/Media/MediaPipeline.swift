@@ -53,9 +53,10 @@ final class MediaPipeline: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
     let audioSession = AVAudioSession.sharedInstance()
     let sampleRate = PCMResampler.fileFormat.sampleRate
     refreshPlayoutLatency()
+    let frame = statsSnapshot
     return SegmentWriter.Settings(
       url: url,
-      camera: config.camera,
+      camera: config.camera.turned(toMatchWidth: frame.cameraWidth, height: frame.cameraHeight),
       recording: config.recording,
       rotationAngle: rotationAngle,
       audio: AudioTimeline.Configuration(

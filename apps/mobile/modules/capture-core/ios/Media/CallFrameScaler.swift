@@ -25,12 +25,15 @@ final class CallFrameScaler: @unchecked Sendable {
   private var capturer: BufferCapturer?
   private var rotation = VideoRotation._90
   private var transfer: VTPixelTransferSession?
+  private var profile: CallVideoProfile
   private var pool: CVPixelBufferPool?
+  private var poolSize: CallVideoProfile?
   private var scaleFailures = 0
 
   init(profile: CallVideoProfile, log: EventLog) {
     gate = OSAllocatedUnfairLock(initialState: Gate(pacer: FrameRatePacer(targetFps: Double(profile.fps))))
     self.log = log
+    self.profile = profile
     queue.async { self.prepare(profile) }
   }
 
@@ -69,7 +72,7 @@ final class CallFrameScaler: @unchecked Sendable {
   }
 
   private func send(_ source: CVPixelBuffer, time: CMTime) {
-    guard let capturer, let transfer, let pool else { return }
+    guard let capturer, let transfer, let pool = poolMatching(source) else { return }
     var destination: CVPixelBuffer?
     guard CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault, pool, &destination) == kCVReturnSuccess,
           let destination,
@@ -86,15 +89,26 @@ final class CallFrameScaler: @unchecked Sendable {
   }
 
   private func prepare(_ profile: CallVideoProfile) {
+    self.profile = profile
     if transfer == nil {
       var session: VTPixelTransferSession?
       VTPixelTransferSessionCreate(allocator: kCFAllocatorDefault, pixelTransferSessionOut: &session)
       transfer = session
     }
-    pool = Self.makePool(width: profile.width, height: profile.height)
-    if transfer == nil || pool == nil {
+    if transfer == nil {
       log.error("call", "Cannot prepare call frame scaling", ["profile": "\(profile.width)x\(profile.height)"])
     }
+  }
+
+  private func poolMatching(_ source: CVPixelBuffer) -> CVPixelBufferPool? {
+    let size = profile.turned(toMatchWidth: CVPixelBufferGetWidth(source), height: CVPixelBufferGetHeight(source))
+    guard size != poolSize else { return pool }
+    pool = Self.makePool(width: size.width, height: size.height)
+    poolSize = size
+    if pool == nil {
+      log.error("call", "Cannot prepare call frame scaling", ["profile": "\(size.width)x\(size.height)"])
+    }
+    return pool
   }
 
   private static func makePool(width: Int, height: Int) -> CVPixelBufferPool? {
